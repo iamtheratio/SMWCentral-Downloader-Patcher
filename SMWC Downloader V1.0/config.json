@@ -1,0 +1,14 @@
+{
+  "difficulties": [
+    "newcomer",
+    "casual",
+    "skilled",
+    "advanced",
+    "expert",
+    "master",
+    "grandmaster"
+  ],
+  "flips_path": "",
+  "base_rom_path": "",
+  "output_dir": ""
+}
