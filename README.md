@@ -1,28 +1,55 @@
-# 🕹️ SMW Hack Patcher
+## 🛠️ SMWCentral Downloader & Patcher
 
-A Python-based GUI tool to scrape, patch, and organize Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net). It uses user-defined filters and patching logic via Flips to create a clean, difficulty-sorted archive of patched `.smc` files.
+**SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It integrates custom filters and Flips patching to help users maintain a clean, difficulty-sorted archive of `.smc` files.
 
----
+### ✅ Features
+- Choose hack difficulty: Kaizo, Standard, Pit
+- Filter out demo hacks
+- Automatically download `.bps` patches from SMWCentral
+- Apply patches using [Flips](https://github.com/Alcaro/Flips) (must be installed separately)
+- Use SMWCentral metadata to fix incorrect difficulty classification
+- Discard unnecessary files—only the patched `.smc` is kept
+- Organize output folders by difficulty
+- Simple Tkinter interface
+- Optional `.exe` build via PyInstaller
 
-## ⚙️ Features
-
-- ✅ Select difficulty tiers and hack type (Kaizo, Standard, Pit)
-- 🚫 Filter out demo hacks
-- 🔽 Download `.bps` patches directly from SMWCentral
-- 🧠 Detect and correct difficulty classification based on SMWC metadata
-- 🧼 Only retain patched `.smc`; all other files discarded
-- 🪜 Organize hacks into clean folders by difficulty
-- 🖥️ Simple Tkinter GUI
-- 📦 Packaged into an `.exe` with PyInstaller (optional)
-
----
-
-## 🧪 Setup Instructions
-
-### Requirements
-
+### 📦 Requirements
 - Python 3.9+
-- VS Code (recommended)
-- Required modules:
+- Recommended: VS Code or any IDE
+- Required packages:
   ```bash
   pip install requests beautifulsoup4
+  ```
+
+### 🖥️ Usage
+1. Launch `main.py`.
+2. Select the difficulty and hack type you want.
+3. Choose whether to exclude demo hacks.
+4. Start the download and patching process.
+5. Find your patched `.smc` files sorted in folders by difficulty.
+
+### 🗂️ Folder Structure
+Patched hacks are saved based on their difficulty tier:
+```
+/output
+  /Kaizo
+    HackName1.smc
+  /Standard
+    HackName2.smc
+```
+
+### 🧪 Optional Executable
+To run as a standalone executable:
+1. Install [PyInstaller](https://pyinstaller.org/):  
+   ```bash
+   pip install pyinstaller
+   ```
+2. Run:  
+   ```bash
+   pyinstaller main.spec
+   ```
+3. Use the generated `.exe` in the `dist` folder.
+
+### 🔧 Config and Customization
+- `config.json`: tweak folder paths or patching options
+- `processed.json`: keeps track of already patched hacks
