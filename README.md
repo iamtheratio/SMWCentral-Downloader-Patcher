@@ -3,8 +3,13 @@
 **SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It integrates custom filters and Flips patching to help users maintain a clean, difficulty-sorted archive of `.smc` files.
 
 ### ✅ Features
-- Choose hack difficulty: Kaizo, Standard, Pit
-- Filter out demo hacks
+- Choose Hack type: Standard, Kaizo, Puzzle, Tool-Assisted, Pit
+- Choose Hack difficulty: Newcomer, Casual, Skilled, Advanced, Expert, Master, Grandmaster
+- Includes all SMWCentral filter options
+ - Hall of Fame
+ - SA-1
+ - Collab
+ - Demo
 - Automatically download `.bps` patches from SMWCentral
 - Apply patches using [Flips](https://github.com/Alcaro/Flips) (must be installed separately)
 - Use SMWCentral metadata to fix incorrect difficulty classification

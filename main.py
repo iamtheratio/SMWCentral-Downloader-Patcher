@@ -12,7 +12,7 @@ with open(CONFIG_PATH, "r", encoding="utf-8") as f:
 FONT = ("Segoe UI", 12)
 
 root = tk.Tk()
-root.title("SMW Hack Patcher")
+root.title("SMWC Downloader & Patcher")
 root.geometry("800x800")
 root.resizable(True, True)
 
