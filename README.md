@@ -10,13 +10,12 @@
   - SA-1
   - Collab
   - Demo
-- Automatically download `.bps` patches from SMWCentral
+- Fully Automated downloading, unzipping, patching, renaming, & organizating. 
 - Apply patches using [Flips](https://github.com/Alcaro/Flips) (must be installed separately)
 - Use SMWCentral metadata to fix incorrect difficulty classification
 - Discard unnecessary files—only the patched `.smc` is kept
-- Organize output folders by difficulty
+- Organize output folders by type > difficulty
 - Simple Tkinter interface
-- Optional `.exe` build via PyInstaller
 
 ### 📦 Requirements
 - Python 3.9+
@@ -27,11 +26,11 @@
   ```
 
 ### 🖥️ Usage
-1. Launch `main.py`.
+1. Launch `main.py` or `.exe`
 2. Select the difficulty and hack type you want.
-3. Choose whether to exclude demo hacks.
-4. Start the download and patching process.
-5. Find your patched `.smc` files sorted in folders by difficulty.
+3. Enable any filters, if needed.
+4. Select 'Download & Patch'.
+5. Find your patched `.smc` files sorted in your selected Output folder organized by type > difficulty.
 
 ### 🗂️ Folder Structure
 Patched hacks are saved based on their type > difficulty attributes:
