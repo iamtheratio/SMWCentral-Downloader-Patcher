@@ -29,7 +29,7 @@
 5. Find your patched `.smc` files sorted in folders by difficulty.
 
 ### 🗂️ Folder Structure
-Patched hacks are saved based on their difficulty tier:
+Patched hacks are saved based on their type > difficulty attributes:
 ```
 /Output Folder
   /Kaizo
