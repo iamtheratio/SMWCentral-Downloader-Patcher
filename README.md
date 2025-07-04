@@ -31,11 +31,17 @@
 ### 🗂️ Folder Structure
 Patched hacks are saved based on their difficulty tier:
 ```
-/output
+/Output Folder
   /Kaizo
-    HackName1.smc
+    /01 - Newcomer
+      Hack Name.smc
+    /02 - Casual
+      Hack Name.smc
   /Standard
-    HackName2.smc
+    /01 - Newcomer
+      Hack Name.smc
+    /02 - Casual
+      Hack Name.smc
 ```
 
 ### 🧪 Optional Executable
