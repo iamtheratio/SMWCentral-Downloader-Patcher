@@ -6,10 +6,10 @@
 - Choose Hack type: Standard, Kaizo, Puzzle, Tool-Assisted, Pit
 - Choose Hack difficulty: Newcomer, Casual, Skilled, Advanced, Expert, Master, Grandmaster
 - Includes all SMWCentral filter options
- - Hall of Fame
- - SA-1
- - Collab
- - Demo
+  - Hall of Fame
+  - SA-1
+  - Collab
+  - Demo
 - Automatically download `.bps` patches from SMWCentral
 - Apply patches using [Flips](https://github.com/Alcaro/Flips) (must be installed separately)
 - Use SMWCentral metadata to fix incorrect difficulty classification
