@@ -60,6 +60,19 @@ def move_rom_to_folder(current_path, hack_type, new_diff, output_dir):
     shutil.move(current_path, new_path)
     return new_path
 
+def move_hack_to_new_difficulty(output_dir, hack_type, old_diff, new_diff, filename):
+    old_folder = get_sorted_folder_name(old_diff)
+    new_folder = get_sorted_folder_name(new_diff)
+    
+    old_path = os.path.join(make_output_path(output_dir, hack_type, old_folder), filename)
+    new_path = os.path.join(make_output_path(output_dir, hack_type, new_folder), filename)
+    
+    if os.path.exists(old_path):
+        os.makedirs(os.path.dirname(new_path), exist_ok=True)
+        shutil.move(old_path, new_path)
+        return True
+    return False
+
 # Processed tracking
 def load_processed(path="processed.json"):
     if os.path.exists(path):
@@ -70,3 +83,21 @@ def load_processed(path="processed.json"):
 def save_processed(data, path="processed.json"):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+import os
+
+# Get base directory (project root)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+# Config paths
+CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
+PROCESSED_FILE = os.path.join(BASE_DIR, "processed.json")
+
+# Ensure files exist
+if not os.path.exists(CONFIG_FILE):
+    with open(CONFIG_FILE, 'w') as f:
+        json.dump({
+            "flips_path": "",
+            "base_rom_path": "",
+            "output_dir": ""
+        }, f, indent=2)

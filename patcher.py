@@ -48,8 +48,10 @@ def process_and_patch_hack(hack, flips_path, base_rom_path, output_dir, override
     if not bps_path:
         raise Exception(".bps file not found in archive")
 
+    # Get extension from base ROM
+    base_rom_ext = os.path.splitext(base_rom_path)[1]  # Get .smc or .sfc
     title_clean = title_case(safe_filename(hack["title"]))
-    output_filename = f"{title_clean}.smc"
+    output_filename = f"{title_clean}{base_rom_ext}"
 
     output_folder = make_output_path(output_dir, rom_type, final_diff)
     output_path = os.path.join(output_folder, output_filename)
