@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, scrolledtext
 import threading
 import json
+from utils import TYPE_KEYMAP
 
 CONFIG_PATH = "config.json"
 FONT = ("Segoe UI", 9)  # Changed from 12 to 9
@@ -81,10 +82,14 @@ def setup_ui(root, run_pipeline_func):
 
     # Build API filter payload
     def generate_filter_payload():
+        selected_type_label = type_var.get()
+        selected_type = TYPE_KEYMAP.get(selected_type_label, "standard")
+
         payload = {
-            "type": [type_var.get().lower()],
+            "type": [selected_type],
             "difficulties": [d for d in DIFFICULTY_LIST if difficulty_vars[d].get()]
         }
+
         for key, var in (
             ("demo", demo_var), ("hof", hof_var),
             ("sa1", sa1_var), ("collab", collab_var)
@@ -92,6 +97,7 @@ def setup_ui(root, run_pipeline_func):
             flag = dropdown_to_flag(var.get())
             if flag:
                 payload[key] = [flag]
+
         return payload
 
     # Logging controls
