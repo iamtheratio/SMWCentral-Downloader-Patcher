@@ -1,4 +1,4 @@
-## 🛠️ SMWCentral Downloader & Patcher
+# SMWC Downloader & Patcher v2.1
 
 **SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API to fetch hack information and integrates with Flips for patching.
 
@@ -17,7 +17,7 @@
   - Puzzle
   - Tool-Assisted
   - Pit
-- Choose Hack difficulty:
+- Optional Hack difficulty:
   - Newcomer
   - Casual
   - Skilled
@@ -61,9 +61,9 @@
    - Clean SMW ROM
    - Output directory
 3. Select filters:
-   - Hack type
-   - Difficulties
-   - Optional filters (HoF, SA-1, etc.)
+   - Required: Hack type
+   - Optional: Difficulties
+   - Optional: Other filters (HoF, SA-1, etc.)
 4. Click 'Download & Patch'
 5. Monitor progress in the log window
 6. Find patched ROMs in your output folder
@@ -128,3 +128,39 @@ Patched hacks are saved based on their type > difficulty attributes:
 - Debug: Detailed progress
 - Verbose: All operations
 - Error: Issues and failures (always shown)
+
+# Release Notes
+
+## v2.1.0
+This update focuses on improving filtering flexibility and fixing type handling inconsistencies.
+
+### 🔄 Optional Difficulty Filtering
+- Made difficulty selection optional for all hack types
+- Added confirmation dialog when no difficulty selected
+- Downloads all difficulties when none selected
+- Maintains existing filtering when difficulties are selected
+
+### 🛠️ Type Handling Fixes
+- Fixed SMWC API type key handling for Tool-Assisted hacks
+  - Now correctly uses `tool_assisted` internal key
+  - Resolved inflated/incorrect API results
+- Improved folder naming consistency
+  - Proper casing for all type folders (e.g. "Tool-Assisted")
+  - Consistent naming across all hack types
+  - Better type key normalization
+
+### 🧪 Testing & Validation
+- Verified downloads work without difficulty filters
+- Confirmed difficulty filtering still works when selected
+- Tested confirmation dialog functionality
+- Validated API responses for Tool-Assisted hacks
+- Verified folder structure and naming
+- Tested against all hack types
+
+### 📁 File Changes
+- `ui.py`: Modified difficulty validation logic
+- `utils.py`: Updated type key handling and folder naming
+- No changes to core download/patch functionality
+
+## v2.0.0
+[Previous release notes remain unchanged...]
