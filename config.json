@@ -1,15 +1,5 @@
 {
-    "difficulties": [
-    "newcomer",
-    "casual",
-    "skilled",
-    "advanced",
-    "expert",
-    "master",
-    "grandmaster"
-    ],
-    "flips_download_url": "https://www.smwcentral.net/?a=details&id=11474&p=section",
-    "flips_path": "C:/Users/georg/Desktop/Flips/flips.exe",
-    "base_rom_path": "C:/Users/georg/Desktop/clean.smc",
-    "output_dir": "C:/Users/georg/Desktop/Romhacks"
+  "flips_path": "C:/Users/georg/Desktop/SMWCentralDownloader/Flips/flips.exe",
+  "base_rom_path": "C:/Users/georg/Desktop/SMWCentralDownloader/clean.smc",
+  "output_dir": "C:/Users/georg/Desktop/SMWCentralDownloader/Romhacks"
 }

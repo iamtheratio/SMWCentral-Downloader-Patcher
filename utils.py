@@ -1,16 +1,28 @@
+# utils.py
 import os
 import json
 import re
 import shutil
 
+# Difficulty mappings
 DIFFICULTY_LOOKUP = {
-    "newcomer": "diff_1",
-    "casual": "diff_2",
-    "skilled": "diff_3",
-    "advanced": "diff_4",
-    "expert": "diff_5",
-    "master": "diff_6",
-    "grand_master": "diff_7"
+    "diff_1": "Newcomer",
+    "diff_2": "Casual",
+    "diff_3": "Skilled",
+    "diff_4": "Advanced",
+    "diff_5": "Expert",
+    "diff_6": "Master",
+    "diff_7": "Grandmaster"
+}
+
+DIFFICULTY_KEYMAP = {
+    "newcomer": "1",
+    "casual": "2",
+    "skilled": "3",
+    "advanced": "4",
+    "expert": "5",
+    "master": "6",
+    "grandmaster": "7"
 }
 
 DIFFICULTY_SORTED = {
@@ -23,14 +35,16 @@ DIFFICULTY_SORTED = {
     "Grandmaster": "07 - Grandmaster"
 }
 
+# Filename sanitization
 def safe_filename(name):
     return re.sub(r'[<>:"/\\|?*]', '', name).strip()
 
-def get_sorted_folder_name(display_difficulty):
-    return DIFFICULTY_SORTED.get(display_difficulty, display_difficulty)
-
 def sanitize_name(name):
     return re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")
+
+# Path helpers
+def get_sorted_folder_name(display_difficulty):
+    return DIFFICULTY_SORTED.get(display_difficulty, display_difficulty)
 
 def make_output_path(output_dir, hack_type, display_difficulty):
     subfolder = get_sorted_folder_name(display_difficulty)
@@ -46,12 +60,13 @@ def move_rom_to_folder(current_path, hack_type, new_diff, output_dir):
     shutil.move(current_path, new_path)
     return new_path
 
+# Processed tracking
 def load_processed(path="processed.json"):
     if os.path.exists(path):
-        with open(path, "r") as f:
+        with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
 def save_processed(data, path="processed.json"):
-    with open(path, "w") as f:
+    with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
