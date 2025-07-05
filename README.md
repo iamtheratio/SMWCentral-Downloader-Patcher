@@ -18,6 +18,9 @@
   - [v2.1.0](#v210)
   - [v2.0.0](#v200)
 
+### 📸 Screenshots
+![SMWC Downloader Interface](\images\screenshot_app_v2.1.png)
+
 ### ✨ New Features
 - Official SMWC API Integration (replacing web scraping)
 - Visual indicators for ROM hack updates
