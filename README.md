@@ -8,6 +8,7 @@
 - Improved error handling and retries
 - Rate limit handling for API requests
 - Red italic styling for replaced ROM notifications
+- Automatic difficulty folder updates when SMWC changes hack difficulty
 
 ### ✅ Core Features
 - Choose Hack type:
@@ -33,6 +34,7 @@
   - Downloads from SMWC API
   - Unzips downloaded files
   - Patches using Flips
+  - Supports both .smc and .sfc ROM formats
   - Renames and organizes files
   - Updates existing hacks
 - Visual feedback:
