@@ -2,6 +2,22 @@
 
 **SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API to fetch hack information and integrates with Flips for patching.
 
+## 📚 Table of Contents
+
+- [✨ New Features](#-new-features)
+- [✅ Core Features](#-core-features)
+- [📦 Requirements](#-requirements)
+- [🖥️ Usage](#-usage)
+- [🗂️ Folder Structure](#-folder-structure)
+- [🧪 Building Executable](#-building-executable)
+- [🔧 Configuration](#-configuration)
+- [🎨 UI Features](#-ui-features)
+- [🔄 Update Detection](#-update-detection)
+- [📝 Log Levels](#-log-levels)
+- [📄 Release Notes](#release-notes)
+  - [v2.1.0](#v210)
+  - [v2.0.0](#v200)
+
 ### ✨ New Features
 - Official SMWC API Integration (replacing web scraping)
 - Visual indicators for ROM hack updates
