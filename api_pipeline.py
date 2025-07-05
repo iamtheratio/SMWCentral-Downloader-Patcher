@@ -89,13 +89,12 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
         download_url = file_meta.get("download_url")
 
         # Detect replacements
-        replaced = False
         existing_id = title_to_id.get(title_clean)
         if existing_id and existing_id != hack_id:
             processed.pop(existing_id)
-            replaced = True
             if log:
-                log(f"✅ Patched: {title_clean} — Replaced with new version!")
+                log(f"✅ Patched: {title_clean} - Replaced with a new version!")
+            continue
 
         if hack_id in processed:
             if log:
@@ -117,7 +116,12 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
             folder_name = get_sorted_folder_name(display_diff)
             output_path = os.path.join(make_output_path(output_dir, type_str, folder_name), output_filename)
 
+            # Patch the ROM
             patch_with_flips(flips_path, bps_path, base_rom_path, output_path)
+
+            # Log success
+            if log:
+                log(f"✅ Patched: {title_clean}")
 
             processed[hack_id] = {
                 "title": title_clean,
@@ -126,11 +130,5 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
             }
             save_processed(processed)
 
-            if log and not replaced:
-                # When patching the ROM, check if file exists
-                if os.path.exists(output_path):
-                    log(f"✅ Patched: {title_clean} - Replaced with a new version!")
-                else:
-                    log(f"✅ Patched: {title_clean}")
         except Exception as e:
             if log: log(f"❌ Failed: {title_clean} → {e}", level="Error")
