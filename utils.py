@@ -35,6 +35,22 @@ DIFFICULTY_SORTED = {
     "Grandmaster": "07 - Grandmaster"
 }
 
+TYPE_KEYMAP = {
+    "Standard": "standard",
+    "Kaizo": "kaizo",
+    "Puzzle": "puzzle",
+    "Tool-Assisted": "tool_assisted",
+    "Pit": "pit"
+}
+
+TYPE_DISPLAY_LOOKUP = {
+    "standard": "Standard",
+    "kaizo": "Kaizo",
+    "puzzle": "Puzzle",
+    "tool_assisted": "Tool-Assisted",
+    "pit": "Pit"
+}
+
 # Filename sanitization
 def safe_filename(name):
     return re.sub(r'[<>:"/\\|?*]', '', name).strip()
@@ -48,8 +64,9 @@ def get_sorted_folder_name(display_difficulty):
 
 def make_output_path(output_dir, hack_type, display_difficulty):
     subfolder = get_sorted_folder_name(display_difficulty)
-    capitalized_type = hack_type.capitalize()
-    full_path = os.path.join(output_dir, capitalized_type, subfolder)
+    normalized_type = hack_type.lower().replace("-", "_")
+    display_type = TYPE_DISPLAY_LOOKUP.get(normalized_type, hack_type)
+    full_path = os.path.join(output_dir, display_type, subfolder)
     os.makedirs(full_path, exist_ok=True)
     return full_path
 
@@ -63,10 +80,10 @@ def move_rom_to_folder(current_path, hack_type, new_diff, output_dir):
 def move_hack_to_new_difficulty(output_dir, hack_type, old_diff, new_diff, filename):
     old_folder = get_sorted_folder_name(old_diff)
     new_folder = get_sorted_folder_name(new_diff)
-    
+
     old_path = os.path.join(make_output_path(output_dir, hack_type, old_folder), filename)
     new_path = os.path.join(make_output_path(output_dir, hack_type, new_folder), filename)
-    
+
     if os.path.exists(old_path):
         os.makedirs(os.path.dirname(new_path), exist_ok=True)
         shutil.move(old_path, new_path)
@@ -83,8 +100,6 @@ def load_processed(path="processed.json"):
 def save_processed(data, path="processed.json"):
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
-
-import os
 
 # Get base directory (project root)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

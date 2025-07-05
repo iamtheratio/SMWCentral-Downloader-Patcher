@@ -6,7 +6,8 @@ import time
 from utils import (
     safe_filename, get_sorted_folder_name,
     DIFFICULTY_LOOKUP, DIFFICULTY_KEYMAP,
-    load_processed, save_processed, make_output_path
+    load_processed, save_processed, make_output_path,
+    TYPE_KEYMAP, TYPE_DISPLAY_LOOKUP
 )
 from patcher import title_case
 
@@ -77,22 +78,26 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
 
     base_rom_ext = os.path.splitext(base_rom_path)[1]
 
+    # Normalize to internal key, NOT display name
+    raw_type = filter_payload["type"][0]
+    normalized_type = raw_type.lower().replace("-", "_")
+
     for hack in all_hacks:
         hack_id = str(hack["id"])
         raw_title = hack["name"]
         title_clean = title_case(safe_filename(raw_title))
         raw_diff = hack.get("raw_fields", {}).get("difficulty", "")
         display_diff = DIFFICULTY_LOOKUP.get(raw_diff, "Unknown")
-        type_str = filter_payload["type"][0].capitalize()
+        folder_name = get_sorted_folder_name(display_diff)
 
         if hack_id in processed:
             actual_diff = processed[hack_id].get("current_difficulty", "")
             actual_path = os.path.join(
-                make_output_path(output_dir, type_str, get_sorted_folder_name(actual_diff)),
+                make_output_path(output_dir, normalized_type, get_sorted_folder_name(actual_diff)),
                 f"{title_clean}{base_rom_ext}"
             )
             expected_path = os.path.join(
-                make_output_path(output_dir, type_str, get_sorted_folder_name(display_diff)),
+                make_output_path(output_dir, normalized_type, folder_name),
                 f"{title_clean}{base_rom_ext}"
             )
 
@@ -104,7 +109,6 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
                     try:
                         os.makedirs(os.path.dirname(expected_path), exist_ok=True)
                         os.rename(actual_path, expected_path)
-
                         processed[hack_id]["current_difficulty"] = display_diff
                         save_processed(processed)
                     except Exception as e:
@@ -133,8 +137,7 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
                 raise Exception(".bps file not found")
 
             output_filename = f"{title_clean}{base_rom_ext}"
-            folder_name = get_sorted_folder_name(display_diff)
-            output_path = os.path.join(make_output_path(output_dir, type_str, folder_name), output_filename)
+            output_path = os.path.join(make_output_path(output_dir, normalized_type, folder_name), output_filename)
 
             patch_with_flips(flips_path, bps_path, base_rom_path, output_path)
 
@@ -144,7 +147,7 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
             processed[hack_id] = {
                 "title": title_clean,
                 "current_difficulty": display_diff,
-                "type": type_str
+                "type": TYPE_DISPLAY_LOOKUP.get(normalized_type, normalized_type)
             }
             save_processed(processed)
 
