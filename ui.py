@@ -130,8 +130,12 @@ def setup_ui(root, run_pipeline_func):
             messagebox.showerror("Missing Info", "Fill in all paths before continuing.")
             return
         if not any(v.get() for v in difficulty_vars.values()):
-            messagebox.showerror("No Difficulty", "Please select at least one difficulty.")
-            return
+            result = messagebox.askyesno(
+                "No Difficulty Selected",
+                "No difficulty filters are set. This will download hacks of all difficulties. Continue?"
+            )
+            if not result:
+                return
 
         payload = generate_filter_payload()
 
