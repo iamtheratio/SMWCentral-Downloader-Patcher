@@ -75,7 +75,7 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
         log(f"📦 Found {len(all_hacks)} total hacks.")
         log("🧪 Starting patching...")
 
-    title_to_id = {entry["title"]: pid for pid, entry in processed.items()}
+    base_rom_ext = os.path.splitext(base_rom_path)[1]
 
     for hack in all_hacks:
         hack_id = str(hack["id"])
@@ -85,21 +85,41 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
         display_diff = DIFFICULTY_LOOKUP.get(raw_diff, "Unknown")
         type_str = filter_payload["type"][0].capitalize()
 
+        if hack_id in processed:
+            actual_diff = processed[hack_id].get("current_difficulty", "")
+            actual_path = os.path.join(
+                make_output_path(output_dir, type_str, get_sorted_folder_name(actual_diff)),
+                f"{title_clean}{base_rom_ext}"
+            )
+            expected_path = os.path.join(
+                make_output_path(output_dir, type_str, get_sorted_folder_name(display_diff)),
+                f"{title_clean}{base_rom_ext}"
+            )
+
+            if actual_diff != display_diff and log:
+                log(f"✅ Moved: {title_clean} from {actual_diff} to {display_diff} difficulty!")
+
+            if actual_diff != display_diff or not os.path.exists(expected_path):
+                if os.path.exists(actual_path):
+                    try:
+                        os.makedirs(os.path.dirname(expected_path), exist_ok=True)
+                        os.rename(actual_path, expected_path)
+
+                        processed[hack_id]["current_difficulty"] = display_diff
+                        save_processed(processed)
+                    except Exception as e:
+                        if log:
+                            log(f"❌ Failed to move: {title_clean} → {str(e)}", "Error")
+                else:
+                    if log:
+                        log(f"⚠️ Expected to move {title_clean}, but source file not found: {actual_path}", "Error")
+            else:
+                if log:
+                    log(f"✅ Skipped: {title_clean}")
+            continue
+
         file_meta = fetch_file_metadata(hack_id)
         download_url = file_meta.get("download_url")
-
-        # Detect replacements
-        existing_id = title_to_id.get(title_clean)
-        if existing_id and existing_id != hack_id:
-            processed.pop(existing_id)
-            if log:
-                log(f"✅ Patched: {title_clean} - Replaced with a new version!")
-            continue
-
-        if hack_id in processed:
-            if log:
-                log(f"✅ Skipped: {title_clean}")
-            continue
 
         temp_dir = tempfile.mkdtemp()
         try:
@@ -112,14 +132,12 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
             if not bps_path:
                 raise Exception(".bps file not found")
 
-            output_filename = f"{title_clean}.smc"
+            output_filename = f"{title_clean}{base_rom_ext}"
             folder_name = get_sorted_folder_name(display_diff)
             output_path = os.path.join(make_output_path(output_dir, type_str, folder_name), output_filename)
 
-            # Patch the ROM
             patch_with_flips(flips_path, bps_path, base_rom_path, output_path)
 
-            # Log success
             if log:
                 log(f"✅ Patched: {title_clean}")
 
@@ -131,4 +149,5 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
             save_processed(processed)
 
         except Exception as e:
-            if log: log(f"❌ Failed: {title_clean} → {e}", level="Error")
+            if log:
+                log(f"❌ Failed: {title_clean} → {e}", level="Error")

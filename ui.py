@@ -57,10 +57,16 @@ def setup_ui(root, run_pipeline_func):
             flips_path_var.set(p)
             save_paths()
 
-    def select_base_rom():
-        p = filedialog.askopenfilename(filetypes=[("SMC files", "*.smc")])
-        if p:
-            base_rom_path_var.set(p)
+    def browse_rom():
+        filename = filedialog.askopenfilename(
+            title="Select Base ROM",
+            filetypes=[
+                ("Super Nintendo ROMs", "*.smc *.sfc"),
+                ("All files", "*.*")
+            ]
+        )
+        if filename:
+            base_rom_path_var.set(filename)
             save_paths()
 
     def select_output_dir():
@@ -219,7 +225,7 @@ def setup_ui(root, run_pipeline_func):
 
     ttk.Label(setup_frame, text="Base ROM:", font=FONT).grid(row=2, column=0, sticky="w", pady=(10,0))
     ttk.Button(
-        setup_frame, text="Browse", command=select_base_rom,
+        setup_frame, text="Browse", command=browse_rom,
         style="Custom.TButton"
     ).grid(row=2, column=1, sticky="w")
     ttk.Label(
@@ -276,19 +282,14 @@ def setup_ui(root, run_pipeline_func):
     log_text.pack(fill="both", expand=True, pady=(2,0))
     log_text.configure(font=FONT)
     log_text.tag_configure("red_italic", foreground="red", font=("Segoe UI", 9, "italic"))
+    log_text.tag_configure("dark_gray_italic", foreground="#555555", font=("Segoe UI", 9, "italic"))
 
     # Configure tag colors
     for tag, color in LOG_COLORS.items():
         log_text.tag_config(tag, foreground=color)
 
-def log_message(text_widget, message, replacement=False):
+def log_message(text_widget, message, tag=None):
     text_widget.configure(state='normal')
-    if replacement:
-        base_message = "✅ Patched: " + message.split(" - ")[0]
-        replacement_text = " - Replaced with a new version!"
-        text_widget.insert(tk.END, base_message)
-        text_widget.insert(tk.END, replacement_text + "\n", "red_italic")
-    else:
-        text_widget.insert(tk.END, message + "\n")
+    text_widget.insert(tk.END, message + "\n", tag)
     text_widget.configure(state='disabled')
     text_widget.see(tk.END)
