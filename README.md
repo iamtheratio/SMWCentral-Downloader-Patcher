@@ -1,36 +1,70 @@
 ## 🛠️ SMWCentral Downloader & Patcher
 
-**SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It integrates custom filters and Flips patching to help users maintain a clean, difficulty-sorted archive of `.smc` files.
+**SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API to fetch hack information and integrates with Flips for patching.
 
-### ✅ Features
-- Choose Hack type: Standard, Kaizo, Puzzle, Tool-Assisted, Pit
-- Choose Hack difficulty: Newcomer, Casual, Skilled, Advanced, Expert, Master, Grandmaster
-- Includes all SMWCentral filter options
+### ✨ New Features
+- Official SMWC API Integration (replacing web scraping)
+- Visual indicators for ROM hack updates
+- Improved error handling and retries
+- Rate limit handling for API requests
+- Red italic styling for replaced ROM notifications
+
+### ✅ Core Features
+- Choose Hack type:
+  - Standard
+  - Kaizo
+  - Puzzle
+  - Tool-Assisted
+  - Pit
+- Choose Hack difficulty:
+  - Newcomer
+  - Casual
+  - Skilled
+  - Advanced
+  - Expert
+  - Master
+  - Grandmaster
+- Filter options:
   - Hall of Fame
   - SA-1
   - Collab
   - Demo
-- Fully Automated downloading, unzipping, patching, renaming, & organizating. 
-- Apply patches using [Flips](https://github.com/Alcaro/Flips) (must be installed separately)
-- Use SMWCentral metadata to fix incorrect difficulty classification
-- Discard unnecessary files—only the patched `.smc` is kept
-- Organize output folders by type > difficulty
-- Simple Tkinter interface
+- Automated workflow:
+  - Downloads from SMWC API
+  - Unzips downloaded files
+  - Patches using Flips
+  - Renames and organizes files
+  - Updates existing hacks
+- Visual feedback:
+  - Progress logging
+  - Special indicators for updated ROMs
+  - Colored log levels
+- Smart file management:
+  - Keeps track of processed hacks
+  - Detects and handles hack updates
+  - Organizes by type and difficulty
 
 ### 📦 Requirements
 - Python 3.9+
 - Recommended: VS Code or any IDE
 - Required packages:
   ```bash
-  pip install requests beautifulsoup4
+  pip install requests
   ```
 
 ### 🖥️ Usage
-1. Launch `main.py` or `.exe`
-2. Select the difficulty and hack type you want.
-3. Enable any filters, if needed.
-4. Select 'Download & Patch'.
-5. Find your patched `.smc` files sorted in your selected Output folder organized by type > difficulty.
+1. Launch `main.py`
+2. Configure paths:
+   - FLIPS executable
+   - Clean SMW ROM
+   - Output directory
+3. Select filters:
+   - Hack type
+   - Difficulties
+   - Optional filters (HoF, SA-1, etc.)
+4. Click 'Download & Patch'
+5. Monitor progress in the log window
+6. Find patched ROMs in your output folder
 
 ### 🗂️ Folder Structure
 Patched hacks are saved based on their type > difficulty attributes:
@@ -48,18 +82,47 @@ Patched hacks are saved based on their type > difficulty attributes:
       Hack Name.smc
 ```
 
-### 🧪 Optional Executable
-To run as a standalone executable:
-1. Install [PyInstaller](https://pyinstaller.org/):  
+### 🧪 Building Executable
+1. Install PyInstaller:
    ```bash
    pip install pyinstaller
    ```
-2. Run:  
+2. Run:
    ```bash
    pyinstaller main.spec
    ```
-3. Use the generated `.exe` in the `dist` folder.
+3. Find the executable in `dist` folder
 
-### 🔧 Config and Customization
-- `config.json`: tweak folder paths or patching options
-- `processed.json`: keeps track of already patched hacks
+### 🔧 Configuration
+- `config.json`: Essential paths
+  ```json
+  {
+    "flips_path": "path/to/flips.exe",
+    "base_rom_path": "path/to/clean.smc",
+    "output_dir": "path/to/output"
+  }
+  ```
+- `processed.json`: Tracks downloaded hacks
+  - Stores hack IDs and metadata
+  - Used for update detection
+  - Maintains organization structure
+
+### 🎨 UI Features
+- Clean, modern interface
+- Difficulty toggles with Select/Deselect All
+- Radio button filters
+- Progress logging with color coding
+- Log level selection (Information/Debug/Verbose)
+- Visual update indicators
+- Path management with file browsers
+
+### 🔄 Update Detection
+- Detects when newer versions are available and automatically overwrites existing ROM hacks, keeping your library current
+- Shows red italic "Replaced with a new version!" message
+- Automatically updates ROM files while maintaining organization
+
+### 📝 Log Levels
+- Information: Standard operations
+- Debug: Detailed progress
+- Verbose: All operations
+- Error: Issues and failures (always shown)

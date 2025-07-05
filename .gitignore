@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Distribution / packaging
+*.spec
+*.zip
+*.exe
+
+# Project specific
+processed.json
+!config.json
+legacy/
+
+# IDE - VSCode
+.vscode/
+*.code-workspace
+.history/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Backups
+*.bak
+
+# Logs
+*.log
+logs/
