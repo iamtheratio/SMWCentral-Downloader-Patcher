@@ -19,7 +19,7 @@
   - [v2.0.0](#v200)
 
 ### 📸 Screenshots
-![Application Interface](/images/screenshot_app_v2.1.p ng)
+![Application Interface](/images/screenshot_app_v2.1.png)
 
 ### ✨ New Features
 - Official SMWC API Integration (replacing web scraping)
