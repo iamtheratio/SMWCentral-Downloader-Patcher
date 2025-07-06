@@ -171,6 +171,27 @@ class MainLayout:
     
     def _run_pipeline_threaded(self):
         """Run the pipeline in a separate thread"""
+        # Validate required paths first
+        paths = self.setup_section.get_paths()
+        
+        # Check if any paths are empty
+        missing_paths = []
+        if not paths["flips_path"]:
+            missing_paths.append("Flips Path")
+        if not paths["base_rom_path"]:
+            missing_paths.append("Base ROM Path")
+        if not paths["output_dir"]:
+            missing_paths.append("Output Directory")
+        
+        # If any paths are missing, show error and return
+        if missing_paths:
+            bullet_list = "• " + "\n• ".join(missing_paths)
+            messagebox.showerror(
+                "Missing Required Paths",
+                f"The following required paths are not set:\n\n{bullet_list}\n\nPlease set all required paths in the Setup section before continuing."
+            )
+            return
+        
         # Get filter payload
         payload = self._generate_filter_payload()
         
@@ -188,7 +209,6 @@ class MainLayout:
         
         def pipeline_worker():
             try:
-                paths = self.setup_section.get_paths()
                 self.run_pipeline_func(
                     filter_payload=payload,
                     flips_path=paths["flips_path"],

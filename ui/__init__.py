@@ -1,5 +1,5 @@
-from ui.components import SetupSection, FilterSection, DifficultySection
-from ui.layout import MainLayout
+from .components import SetupSection, FilterSection, DifficultySection
+from .layout import MainLayout
 
 DIFFICULTY_LIST = [
     "newcomer", "casual", "skilled",

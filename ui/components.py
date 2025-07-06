@@ -16,38 +16,48 @@ class SetupSection:
     
     def create(self, font):
         """Create the setup section"""
-        self.frame = ttk.LabelFrame(self.parent, text="Setup", padding=15)
+        self.frame = ttk.LabelFrame(self.parent, text="Setup (Required)", padding=15)
         
         # Setup input fields
-        ttk.Label(self.frame, text="Flips Path:", font=font).grid(row=0, column=0, sticky="w")
+        ttk.Label(self.frame, text="Flips Path: *", font=font).grid(row=0, column=0, sticky="w")
         ttk.Button(
             self.frame, text="Browse", command=self._select_flips,
             style="Custom.TButton"
         ).grid(row=0, column=1, sticky="e", padx=(10, 0))
-        ttk.Label(
+        self.flips_label = ttk.Label(
             self.frame, textvariable=self.flips_path_var,
             foreground="gray", font=font
-        ).grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 15))
+        )
+        self.flips_label.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 15))
 
-        ttk.Label(self.frame, text="Base ROM:", font=font).grid(row=2, column=0, sticky="w", pady=(10,0))
+        ttk.Label(self.frame, text="Base ROM: *", font=font).grid(row=2, column=0, sticky="w", pady=(10,0))
         ttk.Button(
             self.frame, text="Browse", command=self._browse_rom,
             style="Custom.TButton"
         ).grid(row=2, column=1, sticky="e", padx=(10, 0))
-        ttk.Label(
+        self.rom_label = ttk.Label(
             self.frame, textvariable=self.base_rom_path_var,
             foreground="gray", font=font
-        ).grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 15))
+        )
+        self.rom_label.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 15))
 
-        ttk.Label(self.frame, text="Output Folder:", font=font).grid(row=4, column=0, sticky="w", pady=(10,0))
+        ttk.Label(self.frame, text="Output Folder: *", font=font).grid(row=4, column=0, sticky="w", pady=(10,0))
         ttk.Button(
             self.frame, text="Browse", command=self._select_output_dir,
             style="Custom.TButton"
         ).grid(row=4, column=1, sticky="e", padx=(10, 0))
-        ttk.Label(
+        self.output_label = ttk.Label(
             self.frame, textvariable=self.output_dir_var,
             foreground="gray", font=font
-        ).grid(row=5, column=0, columnspan=2, sticky="ew", padx=5)
+        )
+        self.output_label.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5)
+        
+        ttk.Label(
+            self.frame, 
+            text="* All fields are required", 
+            font=(font[0], font[1]-1, "italic"),
+            foreground="#888888"
+        ).grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=(15,0))
 
         # Configure column weights
         self.frame.columnconfigure(0, weight=1)
