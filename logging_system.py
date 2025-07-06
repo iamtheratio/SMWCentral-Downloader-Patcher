@@ -41,6 +41,7 @@ class LoggingSystem:
                 self.log_text.tag_configure("error", foreground="#ff6b6b", font=(self.font[0], self.font[1], "italic"))
                 self.log_text.tag_configure("warning", foreground="#888888", font=(self.font[0], self.font[1], "italic"))
                 self.log_text.tag_configure("debug", foreground="#16C172")
+                self.log_text.tag_configure("filter_info", foreground="#888888", font=(self.font[0], self.font[1], "italic"))
             else:
                 self.log_text.configure(
                     bg="#ffffff", 
@@ -49,16 +50,19 @@ class LoggingSystem:
                 self.log_text.tag_configure("error", foreground="red", font=(self.font[0], self.font[1], "italic"))
                 self.log_text.tag_configure("warning", foreground="#555555", font=(self.font[0], self.font[1], "italic"))
                 self.log_text.tag_configure("debug", foreground="#16C172")
+                self.log_text.tag_configure("filter_info", foreground="#888888", font=(self.font[0], self.font[1], "italic"))
         except tk.TclError:
             # Widget was destroyed or doesn't exist
             pass
     
     def should_log(self, level):
         """Determine if a message should be displayed based on current log level"""
+        if self.log_level == "Error":
+            return level.lower() == "error"  # Only show error messages
         if level.lower() == "error":
-            return True
+            return True  # Always show errors in any log level
         if self.log_level == "Verbose":
-            return True
+            return True  # Show all messages in Verbose mode
         if self.log_level == "Debug":
             return level.lower() != "verbose"  # Show everything except verbose in Debug mode
         return level.lower() in ["information", "warning", "error"]  # Information mode
@@ -122,6 +126,11 @@ class LoggingSystem:
             
             self.log_text.configure(state="normal")
             self.log_text.delete(1.0, tk.END)
+            
+            # Add informational message for Error level
+            if level == "Error":
+                self.log_text.insert(tk.END, "Showing only error messages. Switch back to Information for all messages.\n\n", "filter_info")
+            
             self.log_text.configure(state="disabled")
             
             # Display messages directly without calling log() to avoid recursion

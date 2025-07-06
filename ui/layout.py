@@ -138,7 +138,7 @@ class MainLayout:
         
         log_level_combo = ttk.Combobox(
             right, textvariable=log_level_var, 
-            values=["Information", "Debug", "Verbose"],
+            values=["Information", "Debug", "Verbose", "Error"],
             width=12, state="readonly"
         )
         log_level_combo.pack(side="right")
