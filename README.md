@@ -1,20 +1,15 @@
 # SMWC Downloader & Patcher v2.2
 
-**SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API to fetch hack information and integrates with Flips for patching.
+**SMWCentral Downloader & Patcher** is a Python GUI tool that automates downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API and integrates with Flips for patching.
 
 ## 📚 Table of Contents
 
-- [✨ New Features](#-new-features)
+- [✨ Key Features](#-key-features)
 - [✅ Core Features](#-core-features)
-- [📦 Requirements](#-requirements)
-- [🖥️ Usage](#-usage)
-- [🗂️ Folder Structure](#-folder-structure)
-- [🧪 Building Executable](#-building-executable)
-- [🔧 Configuration](#-configuration)
-- [🎨 UI Features](#-ui-features)
-- [🔄 Update Detection](#-update-detection)
+- [📸 Screenshots](#-screenshots)
+- [🚀 Getting Started](#-getting-started)
 - [📝 Log Levels](#-log-levels)
-- [👨‍💻 Project Architecture](#-project-architecture)
+- [👨‍💻 Project Structure](#-project-structure)
 - [📄 Release Notes](#release-notes)
   - [v2.2.0](#v220)
   - [v2.1.0](#v210)
@@ -23,168 +18,110 @@
 ### 📸 Screenshots
 ![SMWC Downloader Interface](/images/screenshot_app_v2.2.png)
 
-### ✨ New Features
-- Official SMWC API Integration (replacing web scraping)
+### ✨ Key Features
+- Official SMWC API Integration
 - Visual indicators for ROM hack updates
-- Improved error handling and retries
+- Support for both .bps and .ips patch formats
+- Error log filtering and dedicated error view
 - Rate limit handling for API requests
-- Red italic styling for replaced ROM notifications
-- Automatic difficulty folder updates when SMWC changes hack difficulty
-- Modular code architecture for better maintainability
+- Automatic difficulty folder updates
+- Modern UI with dark/light theme toggle
 
 ### ✅ Core Features
-- Choose Hack type:
-  - Standard
-  - Kaizo
-  - Puzzle
-  - Tool-Assisted
-  - Pit
-- Optional Hack difficulty:
-  - Newcomer
-  - Casual
-  - Skilled
-  - Advanced
-  - Expert
-  - Master
-  - Grandmaster
-- Filter options:
-  - Hall of Fame
-  - SA-1
-  - Collab
-  - Demo
-- Automated workflow:
-  - Downloads from SMWC API
-  - Unzips downloaded files
-  - Patches using Flips
-  - Supports both .smc and .sfc ROM formats
-  - Renames and organizes files
-  - Updates existing hacks
-- Visual feedback:
-  - Progress logging
-  - Special indicators for updated ROMs
-  - Colored log levels
-- Smart file management:
-  - Keeps track of processed hacks
-  - Detects and handles hack updates
-  - Organizes by type and difficulty
 
-### 📦 Requirements
+**Filter & Organize**
+- Hack types: Standard, Kaizo, Puzzle, Tool-Assisted, Pit
+- Optional difficulty filtering (from Newcomer to Grandmaster)
+- Additional filters: Hall of Fame, SA-1, Collab, Demo
+
+**Automated Workflow**
+- One-click downloading and patching
+- Supports both .bps and .ips patch formats
+- Handles .smc and .sfc ROM formats
+- Smart update detection and management
+- Organized by type and difficulty
+
+**User Experience**
+- Modern UI with light/dark theme
+- Detailed logging with filterable levels
+- Visual indicators for updates and errors
+- Progress tracking and status updates
+
+### 🚀 Getting Started
+
+**Requirements**
 - Python 3.9+
-- Recommended: VS Code or any IDE
-- Required packages:
-  ```bash
-  pip install requests sv-ttk pywinstyles
-  ```
+- Required packages: `requests`, `sv-ttk`, `pywinstyles`
 
-### 🖥️ Usage
-1. Launch `main.py`
-2. Configure paths:
-   - FLIPS executable
-   - Clean SMW ROM
+**Quick Setup**
+1. Clone this repository
+2. Install dependencies: `pip install requests sv-ttk pywinstyles`
+3. Launch with: `python main.py`
+4. Configure:
+   - Flips patcher location
+   - Clean SMW ROM path
    - Output directory
-3. Select filters:
-   - Required: Hack type
-   - Optional: Difficulties
-   - Optional: Other filters (HoF, SA-1, etc.)
-4. Click 'Download & Patch'
-5. Monitor progress in the log window
-6. Find patched ROMs in your output folder
 
-### 🗂️ Folder Structure
-Patched hacks are saved based on their type > difficulty attributes:
+**Building an Executable**
+```bash
+pip install pyinstaller
+pyinstaller main.spec
 ```
-/Output Folder
+
+**Organization**
+ROM hacks are automatically organized by type and difficulty:
+```
+/Output
   /Kaizo
     /01 - Newcomer
-      Hack Name.smc
     /02 - Casual
-      Hack Name.smc
   /Standard
     /01 - Newcomer
-      Hack Name.smc
-    /02 - Casual
-      Hack Name.smc
+    ...
 ```
 
-### 🧪 Building Executable
-1. Install PyInstaller:
-   ```bash
-   pip install pyinstaller
-   ```
-2. Run:
-   ```bash
-   pyinstaller main.spec
-   ```
-3. Find the executable in `dist` folder
-
-### 🔧 Configuration
-- `config.json`: Essential paths
-  ```json
-  {
-    "flips_path": "path/to/flips.exe",
-    "base_rom_path": "path/to/clean.smc",
-    "output_dir": "path/to/output"
-  }
-  ```
-- `processed.json`: Tracks downloaded hacks
-  - Stores hack IDs and metadata
-  - Used for update detection
-  - Maintains organization structure
-
-### 🎨 UI Features
-- Modern Sun Valley theme with dark/light mode toggle
-- Windows title bar theming (Windows 10/11)
-- Clean, responsive interface design
-- Difficulty toggles with Select/Deselect All
-- Radio button filters with consistent styling
-- Progress logging with color coding
-- Log level selection (Information/Debug/Verbose)
-- Visual update indicators
-- Path management with right-aligned browse buttons
-- Enlarged, accent-styled Download & Patch button
-
-### 🔄 Update Detection
-- Detects when newer versions are available and automatically overwrites existing ROM hacks, keeping your library current
-- Shows red italic "Replaced with a new version!" message
-- Automatically updates ROM files while maintaining organization
+**Configuration Files**
+- `config.json`: Stores path settings
+- `processed.json`: Tracks downloaded hacks for update detection
 
 ### 📝 Log Levels
-- Information: Standard operations
-- Debug: Detailed progress including API requests
-- Verbose: All operations and detailed processing steps
-- Error: Issues and failures (always shown regardless of level)
+- **Information**: Standard operations
+- **Debug**: Detailed progress including API requests
+- **Verbose**: All operations and detailed processing steps
+- **Error**: Issues and failures only (filtered view with error indicators)
 
-### 👨‍💻 Project Architecture
-The project has been restructured with a modular architecture:
-
+### 👨‍💻 Project Structure
 ```
 /SMWCentral Downloader & Patcher
   ├── main.py             # Application entry point
-  ├── api_pipeline.py     # API interaction and processing
+  ├── api_pipeline.py     # API interaction and patching
   ├── config_manager.py   # Configuration handling
   ├── logging_system.py   # Centralized logging
-  ├── utils.py           # Utility functions
-  ├── /ui                # UI components
-  │   ├── __init__.py    # UI initialization
-  │   ├── layout.py      # Main layout management
-  │   └── components.py  # Reusable UI components
-  └── config.json        # Saved configurations
+  ├── utils.py            # Utility functions
+  ├── /ui                 # UI components
+  │   ├── __init__.py     # UI initialization
+  │   ├── layout.py       # Main layout management
+  │   └── components.py   # Reusable UI components
+  └── config.json         # Saved configurations
 ```
-
-#### Component Responsibilities:
-- **main.py**: Entry point, theme management, and application setup
-- **api_pipeline.py**: API interaction, download, patching logic
-- **config_manager.py**: Configuration file read/write
-- **logging_system.py**: Centralized logging with level filtering
-- **ui/layout.py**: Main UI structure and arrangement
-- **ui/components.py**: Reusable UI elements (setup, filters, etc.)
 
 This architecture improves maintainability, separates concerns, and makes future updates easier to implement.
 
 # Release Notes
 
 ## v2.2.0
-This update focuses on modernizing the UI with theming support, improving architecture, and enhancing user experience.
+This update focuses on modernizing the UI, improving architecture, enhancing patch format support, and adding log filtering capabilities.
+
+### 🛠️ Patch Format Improvements
+- Added support for both .bps and .ips patch formats
+- Smart detection of patch file type within downloaded zips
+- Improved extraction logic to handle multiple patch formats
+
+### 📊 Log Filtering Enhancements
+- Added dedicated "Error" log level filter option
+- Implemented visual indicator for error-only view
+- Added informational message when in error-only view
+- Improved error message visibility with consistent styling
 
 ### 🎨 UI & Theme Updates
 - Added Sun Valley theme integration for modern Windows 11 styling
@@ -215,19 +152,13 @@ This update focuses on modernizing the UI with theming support, improving archit
 - `pywinstyles>=1.0.0` - Windows title bar theming
 
 ### 🧪 Testing & Validation
+- Verified patch format detection and extraction
+- Confirmed error log filtering functionality
+- Tested error message styling and indicators
+- Validated log level switching behavior
 - Verified theme switching works correctly
 - Tested font consistency across light/dark modes
 - Validated Windows 10/11 title bar theming
-- Confirmed UI layout improvements
-- Tested button styling and spacing
-- Validated debug/verbose logging functionality
-
-### 📁 File Changes
-- `main.py`: Added theme system and font management
-- Created modular UI architecture with components
-- Added centralized configuration and logging
-- Updated README with architecture documentation
-- `.gitignore`: Added build artifacts and cache exclusions
 
 ## v2.1.0
 This update focuses on improving filtering flexibility and fixing type handling inconsistencies.
