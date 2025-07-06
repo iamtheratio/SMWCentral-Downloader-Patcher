@@ -1,4 +1,4 @@
-# SMWC Downloader & Patcher v2.1
+# SMWC Downloader & Patcher v2.2
 
 **SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API to fetch hack information and integrates with Flips for patching.
 
@@ -15,11 +15,12 @@
 - [🔄 Update Detection](#-update-detection)
 - [📝 Log Levels](#-log-levels)
 - [📄 Release Notes](#release-notes)
+  - [v2.2.0](#v220)
   - [v2.1.0](#v210)
   - [v2.0.0](#v200)
 
 ### 📸 Screenshots
-![Application Interface](/images/screenshot_app_v2.1.png)
+![SMWC Downloader Interface](/images/screenshot_app_v2.2.png)
 
 ### ✨ New Features
 - Official SMWC API Integration (replacing web scraping)
@@ -70,7 +71,7 @@
 - Recommended: VS Code or any IDE
 - Required packages:
   ```bash
-  pip install requests
+  pip install requests sv-ttk pywinstyles
   ```
 
 ### 🖥️ Usage
@@ -129,13 +130,16 @@ Patched hacks are saved based on their type > difficulty attributes:
   - Maintains organization structure
 
 ### 🎨 UI Features
-- Clean, modern interface
+- Modern Sun Valley theme with dark/light mode toggle
+- Windows title bar theming (Windows 10/11)
+- Clean, responsive interface design
 - Difficulty toggles with Select/Deselect All
-- Radio button filters
+- Radio button filters with consistent styling
 - Progress logging with color coding
 - Log level selection (Information/Debug/Verbose)
 - Visual update indicators
-- Path management with file browsers
+- Path management with right-aligned browse buttons
+- Enlarged, accent-styled Download & Patch button
 
 ### 🔄 Update Detection
 - Detects when newer versions are available and automatically overwrites existing ROM hacks, keeping your library current
@@ -149,6 +153,42 @@ Patched hacks are saved based on their type > difficulty attributes:
 - Error: Issues and failures (always shown)
 
 # Release Notes
+
+## v2.2.0
+This update focuses on modernizing the UI with theming support and improving user experience.
+
+### 🎨 UI & Theme Updates
+- Added Sun Valley theme integration for modern Windows 11 styling
+- Implemented dark/light theme toggle with crescent moon switch
+- Added Windows title bar theming support (Windows 10/11)
+- Improved font consistency across theme changes
+- Enhanced UI spacing and padding for better visual hierarchy
+- Right-aligned Browse buttons in Setup section
+- Enlarged Download & Patch button with accent styling
+
+### 🔧 Technical Improvements
+- Integrated `sv-ttk` for modern theme system
+- Added `pywinstyles` for Windows title bar customization
+- Improved font handling to prevent size inconsistencies
+- Better theme persistence during application state changes
+- Enhanced UI layout with proper padding and alignment
+
+### 📦 Dependencies Added
+- `sv-ttk>=2.5.5` - Sun Valley theme
+- `pywinstyles>=1.0.0` - Windows title bar theming
+
+### 🧪 Testing & Validation
+- Verified theme switching works correctly
+- Tested font consistency across light/dark modes
+- Validated Windows 10/11 title bar theming
+- Confirmed UI layout improvements
+- Tested button styling and spacing
+
+### 📁 File Changes
+- `main.py`: Added theme system and font management
+- `ui.py`: Updated layout, spacing, and theme toggle
+- `README.md`: Updated documentation and requirements
+- `.gitignore`: Added build artifacts and cache exclusions
 
 ## v2.1.0
 This update focuses on improving filtering flexibility and fixing type handling inconsistencies.

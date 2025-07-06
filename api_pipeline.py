@@ -22,7 +22,7 @@ def fetch_hack_list(config, page=1, log=None):
                 params.setdefault(f"f[{key}][]", []).append(val)
     if log:
         req = requests.Request("GET", "https://www.smwcentral.net/ajax.php", params=params).prepare()
-        log(f"[DEBUG] API Request URL:\n{req.url}", level="Debug")
+        log(f"[DEBUG] API Request URL:\n{req.url}", level="debug")  # lowercase "debug"
 
     for attempt in range(3):
         try:
@@ -154,3 +154,5 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
         except Exception as e:
             if log:
                 log(f"❌ Failed: {title_clean} → {e}", level="Error")
+
+# Function removed as it was incomplete and not used elsewhere
