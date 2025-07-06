@@ -44,18 +44,87 @@ def fetch_file_metadata(file_id):
     r.raise_for_status()
     return r.json()
 
-def patch_with_flips(flips_path, bps_path, base_rom, output_path):
-    subprocess.run([flips_path, "--apply", bps_path, base_rom, output_path], check=True)
+def patch_with_flips(flips_path, patch_path, base_rom, output_path):
+    # The --apply flag works for both BPS and IPS patches
+    subprocess.run([flips_path, "--apply", patch_path, base_rom, output_path], check=True)
 
-def extract_bps_from_zip(zip_path, extract_to):
+def extract_patch_from_zip(zip_path, extract_to, hack_name=""):
+    """Extract zip and find BPS or IPS patch files"""
     import zipfile
-    with zipfile.ZipFile(zip_path, "r") as zip_ref:
-        zip_ref.extractall(extract_to)
+    import re
+    
+    # Extract zip contents
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            # Test integrity first
+            bad_file = zip_ref.testzip()
+            if bad_file:
+                raise zipfile.BadZipFile(f"Bad zip file, first bad file: {bad_file}")
+            zip_ref.extractall(extract_to)
+    except Exception as e:
+        # Could add alternative extraction methods here if needed
+        raise e
+    
+    # Find all patch files (BPS and IPS)
+    patch_files = {"bps": [], "ips": []}
     for root, _, files in os.walk(extract_to):
         for fname in files:
-            if fname.lower().endswith(".bps"):
-                return os.path.join(root, fname)
-    return None
+            lower_fname = fname.lower()
+            if lower_fname.endswith(".bps"):
+                patch_files["bps"].append(os.path.join(root, fname))
+            elif lower_fname.endswith(".ips"):
+                patch_files["ips"].append(os.path.join(root, fname))
+    
+    # Prioritize BPS over IPS if both exist
+    all_patches = patch_files["bps"] + patch_files["ips"]
+    
+    if not all_patches:
+        return None
+    
+    # If only one patch file exists, use it
+    if len(all_patches) == 1:
+        return all_patches[0]
+    
+    # Multiple patch files found, use selection strategy
+    
+    # Process BPS files first, then IPS files if no BPS match is found
+    for patch_type in ["bps", "ips"]:
+        type_patches = patch_files[patch_type]
+        if not type_patches:
+            continue
+            
+        # Try to match with hack name if provided
+        if hack_name:
+            hack_name_simple = re.sub(r'[^a-zA-Z0-9]', '', hack_name.lower())
+            for patch_file in type_patches:
+                file_name = os.path.basename(patch_file).lower()
+                file_name_simple = re.sub(r'[^a-zA-Z0-9]', '', file_name)
+                if hack_name_simple in file_name_simple:
+                    return patch_file
+        
+        # Look for common main patch indicators
+        main_indicators = ["main", "patch", "rom", "smc", "sfc"]
+        for indicator in main_indicators:
+            for patch_file in type_patches:
+                if indicator in os.path.basename(patch_file).lower():
+                    return patch_file
+        
+        # Exclude common auxiliary patches
+        exclude_indicators = ["music", "graphics", "optional", "extra", "addon"]
+        filtered_files = [f for f in type_patches if not any(
+            indicator in os.path.basename(f).lower() for indicator in exclude_indicators
+        )]
+        
+        if filtered_files:
+            # Use the largest remaining file (often the main patch)
+            return max(filtered_files, key=os.path.getsize)
+        
+        if type_patches:
+            # If all else fails, use the largest file of this type
+            return max(type_patches, key=os.path.getsize)
+    
+    # If we get here, just return the largest patch file of any type
+    return max(all_patches, key=os.path.getsize)
 
 def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None):
     processed = load_processed()
@@ -132,17 +201,19 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
             with open(zip_path, "wb") as f:
                 f.write(r.content)
 
-            bps_path = extract_bps_from_zip(zip_path, temp_dir)
-            if not bps_path:
-                raise Exception(".bps file not found")
+            patch_path = extract_patch_from_zip(zip_path, temp_dir, title_clean)
+            if not patch_path:
+                raise Exception("Patch file (BPS or IPS) not found")
 
             output_filename = f"{title_clean}{base_rom_ext}"
             output_path = os.path.join(make_output_path(output_dir, normalized_type, folder_name), output_filename)
 
-            patch_with_flips(flips_path, bps_path, base_rom_path, output_path)
+            patch_with_flips(flips_path, patch_path, base_rom_path, output_path)
 
+            # Determine which patch type was used for logging
+            patch_type = "BPS" if patch_path.lower().endswith(".bps") else "IPS"
             if log:
-                log(f"✅ Patched: {title_clean}")
+                log(f"✅ Patched: {title_clean} ({patch_type})")
 
             processed[hack_id] = {
                 "title": title_clean,
