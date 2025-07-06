@@ -1,6 +1,6 @@
-# SMWC Downloader & Patcher v2.2
+# SMWC Downloader & Patcher v2.3
 
-**SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API to fetch hack information and integrates with Flips for patching.
+**SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API to fetch hack information and integrates with Flips for patching. Now with cross-platform support for Windows and macOS!
 
 ## 📚 Table of Contents
 
@@ -16,6 +16,7 @@
 - [📝 Log Levels](#-log-levels)
 - [👨‍💻 Project Architecture](#-project-architecture)
 - [📄 Release Notes](#release-notes)
+  - [v2.3.0](#v230)
   - [v2.2.0](#v220)
   - [v2.1.0](#v210)
   - [v2.0.0](#v200)
@@ -24,6 +25,7 @@
 ![SMWC Downloader Interface](/images/screenshot_app_v2.2.png)
 
 ### ✨ New Features
+- Cross-platform support for Windows and macOS
 - Official SMWC API Integration (replacing web scraping)
 - Visual indicators for ROM hack updates
 - Improved error handling and retries
@@ -72,9 +74,19 @@
 ### 📦 Requirements
 - Python 3.9+
 - Recommended: VS Code or any IDE
+- FLIPS patching utility:
+  - Windows: Download from [Floating IPS (FLIPS)](https://github.com/Alcaro/Flips/releases)
+  - macOS: You can compile from source or use [MultiPatch](https://projects.sappharad.com/tools/multipatch.html) as an alternative
 - Required packages:
   ```bash
-  pip install requests sv-ttk pywinstyles
+  # Core requirements for all platforms
+  pip install requests patch
+  
+  # Optional UI enhancements
+  pip install sv-ttk
+  
+  # Windows-only packages (will be skipped on macOS/Linux)
+  pip install pywinstyles
   ```
 
 ### 🖥️ Usage
@@ -108,6 +120,8 @@ Patched hacks are saved based on their type > difficulty attributes:
 ```
 
 ### 🧪 Building Executable
+
+#### Windows
 1. Install PyInstaller:
    ```bash
    pip install pyinstaller
@@ -117,6 +131,20 @@ Patched hacks are saved based on their type > difficulty attributes:
    pyinstaller main.spec
    ```
 3. Find the executable in `dist` folder
+
+#### macOS
+1. Install PyInstaller:
+   ```bash
+   pip install pyinstaller
+   ```
+2. Run:
+   ```bash
+   pyinstaller main.spec
+   ```
+3. Find the app bundle in `dist` folder (SMWC Downloader & Patcher.app)
+4. You can move this app to your Applications folder
+
+Note: On macOS, you may need to give the app permission to run or right-click and select "Open" the first time you run it.
 
 ### 🔧 Configuration
 - `config.json`: Essential paths (**All fields are required**)
@@ -184,6 +212,27 @@ The project has been restructured with a modular architecture:
 This architecture improves maintainability, separates concerns, and makes future updates easier to implement.
 
 # Release Notes
+
+## v2.3.0
+This update focuses on adding cross-platform support, improving stability, and enhancing the user experience across different operating systems.
+
+### 🖥️ Cross-Platform Support
+- Added full macOS compatibility
+- Platform-specific UI enhancements using native appearance modes
+- Fixed font rendering on macOS using system fonts
+- Updated FLIPS file selection to work with non-exe files on macOS
+- Added macOS build process with PyInstaller
+
+### 🐛 Bug Fixes
+- Fixed Tkinter variable initialization order
+- Improved resource path handling for bundled applications
+- Made theme imports optional and platform-conditional
+- Fixed window appearance on macOS
+
+### 📚 Documentation
+- Added macOS-specific setup instructions
+- Updated build documentation for both platforms
+- Added guidelines for FLIPS on macOS
 
 ## v2.2.0
 This update focuses on modernizing the UI with theming support, improving architecture, enhancing user experience, and adding important functionality improvements.
@@ -270,3 +319,39 @@ This update focuses on improving filtering flexibility and fixing type handling 
 
 ## v2.0.0
 [Previous release notes remain unchanged...]
+
+### 🍎 macOS-Specific Instructions
+
+#### Getting FLIPS on macOS
+
+There are several options to get FLIPS working on macOS:
+
+1. **Use MultiPatch**: 
+   - [MultiPatch](https://projects.sappharad.com/tools/multipatch.html) is a macOS alternative to FLIPS
+   - Download and install it
+   - Select the MultiPatch app when configuring the "Flips Path" in the app settings
+
+2. **Compile FLIPS from source**:
+   ```bash
+   # Clone the repository
+   git clone https://github.com/Alcaro/Flips.git
+   
+   # Navigate to the directory
+   cd Flips
+   
+   # Build using make
+   make
+   
+   # The executable will be created in the current directory
+   ```
+
+3. **Use Homebrew**:
+   ```bash
+   # Install Homebrew if you haven't already
+   /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+   
+   # Try to install flips
+   brew install flips
+   ```
+
+When setting up the app, select the appropriate FLIPS executable or MultiPatch app for the "Flips Path" field.

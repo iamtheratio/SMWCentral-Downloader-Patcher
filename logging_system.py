@@ -1,6 +1,31 @@
 import tkinter as tk
 from tkinter import scrolledtext
-import sv_ttk
+
+# Optional UI enhancements
+try:
+    import sv_ttk
+    SV_TTK_AVAILABLE = True
+except ImportError:
+    SV_TTK_AVAILABLE = False
+
+# Define a safe theme getter
+def get_safe_theme():
+    """Safely get the current theme mode without crashing if sv_ttk is not available"""
+    if SV_TTK_AVAILABLE:
+        try:
+            return sv_ttk.get_theme()
+        except Exception:
+            return "light"
+    return "light"
+
+def get_safe_theme():
+    """Safely get the current theme mode without crashing if sv_ttk is not available"""
+    if SV_TTK_AVAILABLE:
+        try:
+            return sv_ttk.get_theme()
+        except Exception:
+            return "light"
+    return "light"
 
 class LoggingSystem:
     """Centralized logging system with theme support"""
@@ -18,8 +43,8 @@ class LoggingSystem:
         self.log_text = scrolledtext.ScrolledText(
             parent, height=18, wrap="word",
             state="disabled",
-            bg="#2b2b2b" if sv_ttk.get_theme() == "dark" else "#ffffff",
-            fg="#e0e0e0" if sv_ttk.get_theme() == "dark" else "#000000"
+            bg="#2b2b2b" if get_safe_theme() == "dark" else "#ffffff",
+            fg="#e0e0e0" if get_safe_theme() == "dark" else "#000000"
         )
         
         # Configure tags
@@ -33,7 +58,10 @@ class LoggingSystem:
             return
             
         try:
-            if sv_ttk.get_theme() == "dark":
+            # Use our safe theme getter
+            is_dark = get_safe_theme() == "dark"
+            
+            if is_dark:
                 self.log_text.configure(
                     bg="#2b2b2b", 
                     fg="#e0e0e0"

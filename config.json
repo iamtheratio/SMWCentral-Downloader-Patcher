@@ -1,5 +1,5 @@
 {
-  "flips_path": "C:/Users/georg/Desktop/SMWCentralDownloader/Flips/flips.exe",
-  "base_rom_path": "C:/Users/georg/Desktop/SMWCentralDownloader/clean.smc",
-  "output_dir": "C:/Users/georg/Desktop/SMWCentralDownloader/Romhacks"
+  "flips_path": "/Users/meghanmcmullan/Downloads/floating/flips.exe",
+  "base_rom_path": "/Users/meghanmcmullan/Downloads/Super Mario World (USA).sfc",
+  "output_dir": "/Users/meghanmcmullan/Downloads/Romhacks"
 }

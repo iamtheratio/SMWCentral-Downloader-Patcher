@@ -66,7 +66,17 @@ class SetupSection:
         return self.frame
     
     def _select_flips(self):
-        path = filedialog.askopenfilename(filetypes=[("Executable", "*.exe")])
+        import platform
+        
+        # Define different filetypes based on platform
+        if platform.system() == "Windows":
+            filetypes = [("Executable", "*.exe")]
+        elif platform.system() == "Darwin":  # macOS
+            filetypes = [("All Executables", "*")]
+        else:  # Linux and others
+            filetypes = [("All Executables", "*")]
+            
+        path = filedialog.askopenfilename(filetypes=filetypes)
         if path:
             self.flips_path_var.set(path)
             self.config.set("flips_path", path)

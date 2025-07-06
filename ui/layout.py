@@ -1,8 +1,15 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
+import platform
 from utils import TYPE_KEYMAP
-import sv_ttk
+
+# Optional UI enhancements
+try:
+    import sv_ttk
+    SV_TTK_AVAILABLE = True
+except ImportError:
+    SV_TTK_AVAILABLE = False
 
 class MainLayout:
     """Main UI layout manager"""
@@ -17,7 +24,18 @@ class MainLayout:
         self.difficulty_section = difficulty_section
         self.logger = logger
         self.download_button = None
-        self.font = ("Segoe UI", 9)
+        
+        # Use platform-appropriate fonts
+        if platform.system() == "Darwin":  # macOS
+            self.font = ("SF Pro Text", 10)  # Reduced from 12
+            self.title_font = ("SF Pro Display", 18, "bold")  # Reduced from 20
+            self.button_font = ("SF Pro Text", 11, "bold")  # Reduced from 13
+            self.emoji_font = ("Apple Color Emoji", 12)  # Reduced from 14
+        else:  # Windows/Linux
+            self.font = ("Segoe UI", 9)
+            self.title_font = ("Segoe UI", 20, "bold")  
+            self.button_font = ("Segoe UI", 10, "bold")
+            self.emoji_font = ("Segoe UI Emoji", 12)
     
     def create(self):
         """Create the main UI layout"""
@@ -28,12 +46,32 @@ class MainLayout:
         main_frame = ttk.Frame(self.root, padding=25)
         main_frame.pack(fill="both", expand=True)
 
-        # Title
-        ttk.Label(
-            main_frame,
+        # Title - Create a label with better theme compatibility
+        # Use a frame to better control the title area
+        title_frame = ttk.Frame(main_frame)
+        title_frame.pack(fill="x", pady=(0, 20))
+        
+        # Create the title label with platform-specific font
+        title_label = tk.Label(
+            title_frame,
             text="SMWCentral Downloader & Patcher",
-            font=("Segoe UI", 20, "bold")
-        ).pack(pady=(0, 20))
+            font=self.title_font  # Set font directly
+        )
+        
+        # Update the background to match the current theme
+        # Get the root background color - this is more reliable than ttk.Frame background
+        bg_color = self.root.cget("background")
+        title_label.configure(background=bg_color)
+        
+        title_label.pack(pady=5)
+        
+        # Store for future reference
+        self.title_label = title_label
+        self.title_frame = title_frame
+        
+        # Set custom attributes to mark this as the title
+        title_label.is_title = True
+        title_label.font_spec = self.title_font  # Store original font spec
 
         # Configure styles
         style = ttk.Style()
@@ -41,8 +79,9 @@ class MainLayout:
             style.configure(f"Custom.{widget}", font=self.font)
 
         style.configure("Large.Accent.TButton", 
-                      font=("Segoe UI", 10, "bold"),
-                      padding=(20, 10))
+                      font=self.button_font,
+                      padding=(20, 10),
+                      width=20)  # Ensure consistent width
 
         # Difficulty selection
         self.difficulty_section.parent = main_frame
@@ -69,12 +108,13 @@ class MainLayout:
         filter_frame = self.filter_section.create(self.font, ["Standard", "Kaizo", "Puzzle", "Tool-Assisted", "Pit"])
         filter_frame.grid(row=0, column=1, sticky="nsew", padx=(10,0))
 
-        # Download & Patch button
+        # Download & Patch button with explicit width
         self.download_button = ttk.Button(
             main_frame, 
             text="Download & Patch", 
             command=self._run_pipeline_threaded,
-            style="Large.Accent.TButton"
+            style="Large.Accent.TButton",
+            width=20  # Set consistent button width
         )
         self.download_button.pack(pady=(10, 15))
         
@@ -115,7 +155,7 @@ class MainLayout:
         ttk.Label(
             theme_frame, 
             text="🌙",
-            font=("Segoe UI Emoji", 12),
+            font=self.emoji_font,
         ).pack(side="left", padx=(2, 5))
     
     def _create_log_controls(self, parent):
