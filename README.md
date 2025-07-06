@@ -14,6 +14,7 @@
 - [🎨 UI Features](#-ui-features)
 - [🔄 Update Detection](#-update-detection)
 - [📝 Log Levels](#-log-levels)
+- [👨‍💻 Project Architecture](#-project-architecture)
 - [📄 Release Notes](#release-notes)
   - [v2.2.0](#v220)
   - [v2.1.0](#v210)
@@ -29,6 +30,7 @@
 - Rate limit handling for API requests
 - Red italic styling for replaced ROM notifications
 - Automatic difficulty folder updates when SMWC changes hack difficulty
+- Modular code architecture for better maintainability
 
 ### ✅ Core Features
 - Choose Hack type:
@@ -148,14 +150,41 @@ Patched hacks are saved based on their type > difficulty attributes:
 
 ### 📝 Log Levels
 - Information: Standard operations
-- Debug: Detailed progress
-- Verbose: All operations
-- Error: Issues and failures (always shown)
+- Debug: Detailed progress including API requests
+- Verbose: All operations and detailed processing steps
+- Error: Issues and failures (always shown regardless of level)
+
+### 👨‍💻 Project Architecture
+The project has been restructured with a modular architecture:
+
+```
+/SMWCentral Downloader & Patcher
+  ├── main.py             # Application entry point
+  ├── api_pipeline.py     # API interaction and processing
+  ├── config_manager.py   # Configuration handling
+  ├── logging_system.py   # Centralized logging
+  ├── utils.py           # Utility functions
+  ├── /ui                # UI components
+  │   ├── __init__.py    # UI initialization
+  │   ├── layout.py      # Main layout management
+  │   └── components.py  # Reusable UI components
+  └── config.json        # Saved configurations
+```
+
+#### Component Responsibilities:
+- **main.py**: Entry point, theme management, and application setup
+- **api_pipeline.py**: API interaction, download, patching logic
+- **config_manager.py**: Configuration file read/write
+- **logging_system.py**: Centralized logging with level filtering
+- **ui/layout.py**: Main UI structure and arrangement
+- **ui/components.py**: Reusable UI elements (setup, filters, etc.)
+
+This architecture improves maintainability, separates concerns, and makes future updates easier to implement.
 
 # Release Notes
 
 ## v2.2.0
-This update focuses on modernizing the UI with theming support and improving user experience.
+This update focuses on modernizing the UI with theming support, improving architecture, and enhancing user experience.
 
 ### 🎨 UI & Theme Updates
 - Added Sun Valley theme integration for modern Windows 11 styling
@@ -166,12 +195,20 @@ This update focuses on modernizing the UI with theming support and improving use
 - Right-aligned Browse buttons in Setup section
 - Enlarged Download & Patch button with accent styling
 
+### 🏗️ Architecture Improvements
+- Restructured codebase into modular components
+- Separated UI, configuration, and logging concerns
+- Implemented improved error handling and protection against crashes
+- Created centralized logging system with better level filtering
+- Added debug message coloring for better visibility
+
 ### 🔧 Technical Improvements
 - Integrated `sv-ttk` for modern theme system
 - Added `pywinstyles` for Windows title bar customization
 - Improved font handling to prevent size inconsistencies
 - Better theme persistence during application state changes
 - Enhanced UI layout with proper padding and alignment
+- Optimized log message handling to prevent recursion
 
 ### 📦 Dependencies Added
 - `sv-ttk>=2.5.5` - Sun Valley theme
@@ -183,11 +220,13 @@ This update focuses on modernizing the UI with theming support and improving use
 - Validated Windows 10/11 title bar theming
 - Confirmed UI layout improvements
 - Tested button styling and spacing
+- Validated debug/verbose logging functionality
 
 ### 📁 File Changes
 - `main.py`: Added theme system and font management
-- `ui.py`: Updated layout, spacing, and theme toggle
-- `README.md`: Updated documentation and requirements
+- Created modular UI architecture with components
+- Added centralized configuration and logging
+- Updated README with architecture documentation
 - `.gitignore`: Added build artifacts and cache exclusions
 
 ## v2.1.0
