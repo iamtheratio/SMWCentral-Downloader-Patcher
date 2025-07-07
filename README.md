@@ -29,7 +29,7 @@
 ## 👤 Users: Quick Start
 
 1. **Download the Latest Release**
-   - Get the latest `.zip` or installer from the [Releases](#) page (https://github.com/iamtheratio/SMWCentral-Downloader-Patcher/releases/download/v2.3.0/SMWC.Downloader.V2.3.zip).
+   - Get the latest `.zip` or installer from the [Releases](https://github.com/iamtheratio/SMWCentral-Downloader-Patcher/releases/download/v2.3.0/SMWC.Downloader.V2.3.zip) page.
 
 2. **Extract the Files**
    - Unzip to a folder of your choice.
