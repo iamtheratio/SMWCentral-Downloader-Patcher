@@ -35,7 +35,7 @@
    - Unzip to a folder of your choice.
 
 3. **First Launch Setup**
-   - Double-click `SMWC Downloader & Patcher.exe` to start.
+   - Double-click `SMWC Downloader.exe` to start.
    - On first launch, set:
      - Flips executable path (download from [here](https://www.smwcentral.net/?p=section&a=details&id=11474))
      - Clean SMW ROM path
