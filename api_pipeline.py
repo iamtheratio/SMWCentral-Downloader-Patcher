@@ -2,7 +2,7 @@ import requests
 import os
 import tempfile
 import subprocess
-import time
+
 from utils import (
     safe_filename, get_sorted_folder_name,
     DIFFICULTY_LOOKUP, DIFFICULTY_KEYMAP,
@@ -10,6 +10,7 @@ from utils import (
     TYPE_KEYMAP, TYPE_DISPLAY_LOOKUP
 )
 from patcher import title_case
+from smwc_api_proxy import smwc_api_get
 
 def fetch_hack_list(config, page=1, log=None):
     params = {"a": "getsectionlist", "s": "smwhacks", "n": page}
@@ -22,27 +23,14 @@ def fetch_hack_list(config, page=1, log=None):
                 params.setdefault(f"f[{key}][]", []).append(val)
     if log:
         req = requests.Request("GET", "https://www.smwcentral.net/ajax.php", params=params).prepare()
-        log(f"[DEBUG] API Request URL:\n{req.url}", level="debug")  # lowercase "debug"
+        log(f"[DEBUG] API Request URL:\n{req.url}", level="debug")
+    response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
+    return response.json().get("data", [])
 
-    for attempt in range(3):
-        try:
-            response = requests.get("https://www.smwcentral.net/ajax.php", params=params)
-            response.raise_for_status()
-            return response.json().get("data", [])
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 429:
-                wait_time = int(response.headers.get("Retry-After", 5))
-                if log:
-                    log(f"[WARN] Rate limited. Retrying in {wait_time}s...", level="Error")
-                time.sleep(wait_time)
-            else:
-                raise e
-    raise Exception("Failed to fetch data from SMWC API after retries.")
-
-def fetch_file_metadata(file_id):
-    r = requests.get("https://www.smwcentral.net/ajax.php", params={"a": "getfile", "v": "2", "id": file_id})
-    r.raise_for_status()
-    return r.json()
+def fetch_file_metadata(file_id, log=None):
+    params = {"a": "getfile", "v": "2", "id": file_id}
+    response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
+    return response.json()
 
 def patch_with_flips(flips_path, patch_path, base_rom, output_path):
     # The --apply flag works for both BPS and IPS patches
@@ -225,5 +213,3 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
         except Exception as e:
             if log:
                 log(f"❌ Failed: {title_clean} → {e}", level="Error")
-
-# Function removed as it was incomplete and not used elsewhere

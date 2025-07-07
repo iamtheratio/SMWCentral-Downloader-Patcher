@@ -1,27 +1,50 @@
-# SMWC Downloader & Patcher v2.2
+# SMWC Downloader & Patcher v2.3
 
 **SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API to fetch hack information and integrates with Flips for patching.
 
 ## 📚 Table of Contents
 
+- [👤 Users: Quick Start](#-users-quick-start)
 - [✨ New Features](#-new-features)
 - [✅ Core Features](#-core-features)
-- [📦 Requirements](#-requirements)
-- [🖥️ Usage](#-usage)
 - [🗂️ Folder Structure](#-folder-structure)
-- [🧪 Building Executable](#-building-executable)
 - [🔧 Configuration](#-configuration)
-- [🎨 UI Features](#-ui-features)
 - [🔄 Update Detection](#-update-detection)
 - [📝 Log Levels](#-log-levels)
 - [👨‍💻 Project Architecture](#-project-architecture)
+- [📸 Screenshots](#-screenshots)
+- [📦 Requirements](#-requirements)
+- [🖥️ Usage](#-usage)
+- [🧪 Building Executable](#-building-executable)
+- [🎨 UI Features](#-ui-features)
 - [📄 Release Notes](#release-notes)
+  - [v2.3.0](#v230)
   - [v2.2.0](#v220)
   - [v2.1.0](#v210)
   - [v2.0.0](#v200)
 
 ### 📸 Screenshots
 ![SMWC Downloader Interface](/images/screenshot_app_v2.2.png)
+
+## 👤 Users: Quick Start
+
+1. **Download the Latest Release**
+   - Get the latest `.zip` or installer from the [Releases](#) page (link to your release or attach instructions).
+
+2. **Extract the Files**
+   - Unzip to a folder of your choice.
+
+3. **First Launch Setup**
+   - Double-click `SMWC Downloader & Patcher.exe` to start.
+   - On first launch, set:
+     - Flips executable path (download from [here](https://www.smwcentral.net/?p=section&a=details&id=11474))
+     - Clean SMW ROM path
+     - Output directory
+
+4. **Download & Patch ROM Hacks**
+   - Select hack type and filters.
+   - Click **Download & Patch**.
+   - Patched ROMs will appear in your output folder.
 
 ### ✨ New Features
 - Official SMWC API Integration (replacing web scraping)
@@ -69,27 +92,6 @@
   - Detects and handles hack updates
   - Organizes by type and difficulty
 
-### 📦 Requirements
-- Python 3.9+
-- Recommended: VS Code or any IDE
-- Required packages:
-  ```bash
-  pip install requests sv-ttk pywinstyles
-  ```
-
-### 🖥️ Usage
-1. Launch `main.py`
-2. Configure paths (all are required):
-   - FLIPS executable
-   - Clean SMW ROM
-   - Output directory
-3. Select filters:
-   - Required: Hack type
-   - Optional: Difficulties
-   - Optional: Other filters (HoF, SA-1, etc.)
-4. Click 'Download & Patch'
-5. Monitor progress in the log window
-6. Find patched ROMs in your output folder
 
 ### 🗂️ Folder Structure
 Patched hacks are saved based on their type > difficulty attributes:
@@ -107,17 +109,6 @@ Patched hacks are saved based on their type > difficulty attributes:
       Hack Name.smc
 ```
 
-### 🧪 Building Executable
-1. Install PyInstaller:
-   ```bash
-   pip install pyinstaller
-   ```
-2. Run:
-   ```bash
-   pyinstaller main.spec
-   ```
-3. Find the executable in `dist` folder
-
 ### 🔧 Configuration
 - `config.json`: Essential paths (**All fields are required**)
   ```json
@@ -132,18 +123,6 @@ Patched hacks are saved based on their type > difficulty attributes:
   - Stores hack IDs and metadata
   - Used for update detection
   - Maintains organization structure
-
-### 🎨 UI Features
-- Modern Sun Valley theme with dark/light mode toggle
-- Windows title bar theming (Windows 10/11)
-- Clean, responsive interface design
-- Difficulty toggles with Select/Deselect All
-- Radio button filters with consistent styling
-- Progress logging with color coding
-- Log level selection (Information/Debug/Verbose)
-- Visual update indicators
-- Path management with right-aligned browse buttons
-- Enlarged, accent-styled Download & Patch button
 
 ### 🔄 Update Detection
 - Detects when newer versions are available and automatically overwrites existing ROM hacks, keeping your library current
@@ -173,17 +152,23 @@ The project has been restructured with a modular architecture:
   └── config.json        # Saved configurations
 ```
 
-#### Component Responsibilities:
-- **main.py**: Entry point, theme management, and application setup
-- **api_pipeline.py**: API interaction, download, patching logic
-- **config_manager.py**: Configuration file read/write
-- **logging_system.py**: Centralized logging with level filtering
-- **ui/layout.py**: Main UI structure and arrangement
-- **ui/components.py**: Reusable UI elements (setup, filters, etc.)
-
-This architecture improves maintainability, separates concerns, and makes future updates easier to implement.
-
 # Release Notes
+
+## v2.3.0
+This update focuses on robust, centralized SMWC API rate limit handling, improved reliability for large batch operations, and better error logging.
+
+### 🔧 Functionality Improvements
+- Improved handling of API rate limits: automatic retries, smart waiting, and detailed logging
+- Modularized API logic for easier maintenance
+
+### 🏗️ Technical Improvements
+- All API requests now use a single proxy for consistent rate limit handling
+- Dynamic delay calculation based on API headers (when available)
+- Improved debug and warning logging for API responses and rate limit events
+
+### 📁 File Changes
+- `smwc_api_proxy.py`: Added centralized proxy with dynamic delay
+- `api_pipeline.py`: Updated to use proxy for all SMWC API calls
 
 ## v2.2.0
 This update focuses on modernizing the UI with theming support, improving architecture, enhancing user experience, and adding important functionality improvements.
