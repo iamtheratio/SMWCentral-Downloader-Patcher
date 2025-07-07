@@ -2,8 +2,7 @@ import requests
 import os
 import tempfile
 import subprocess
-import time
-import datetime
+
 from utils import (
     safe_filename, get_sorted_folder_name,
     DIFFICULTY_LOOKUP, DIFFICULTY_KEYMAP,
