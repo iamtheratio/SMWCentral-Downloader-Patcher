@@ -206,6 +206,3 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 shutil.rmtree(temp_dir)
             except Exception:
                 pass
-
-    if log:
-        log("✅ All hacks processed!")
