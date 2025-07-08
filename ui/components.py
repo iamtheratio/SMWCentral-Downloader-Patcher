@@ -9,8 +9,7 @@ class SetupSection:
         self.config = config_manager
         self.frame = None
         
-        # Path variables
-        self.flips_path_var = tk.StringVar(value=self.config.get("flips_path", ""))
+        # Path variables - REMOVED flips_path_var since we don't use Flips anymore
         self.base_rom_path_var = tk.StringVar(value=self.config.get("base_rom_path", ""))
         self.output_dir_var = tk.StringVar(value=self.config.get("output_dir", ""))
     
@@ -18,58 +17,41 @@ class SetupSection:
         """Create the setup section"""
         self.frame = ttk.LabelFrame(self.parent, text="Setup (Required)", padding=15)
         
-        # Setup input fields
-        ttk.Label(self.frame, text="Flips Path: *", font=font).grid(row=0, column=0, sticky="w")
-        ttk.Button(
-            self.frame, text="Browse", command=self._select_flips,
-            style="Custom.TButton"
-        ).grid(row=0, column=1, sticky="e", padx=(10, 0))
-        self.flips_label = ttk.Label(
-            self.frame, textvariable=self.flips_path_var,
-            foreground="gray", font=font
-        )
-        self.flips_label.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 15))
-
-        ttk.Label(self.frame, text="Base ROM: *", font=font).grid(row=2, column=0, sticky="w", pady=(10,0))
+        # Setup input fields - REMOVED Flips path section
+        ttk.Label(self.frame, text="Base ROM: *", font=font).grid(row=0, column=0, sticky="w")
         ttk.Button(
             self.frame, text="Browse", command=self._browse_rom,
             style="Custom.TButton"
-        ).grid(row=2, column=1, sticky="e", padx=(10, 0))
+        ).grid(row=0, column=1, sticky="e", padx=(10, 0))
         self.rom_label = ttk.Label(
             self.frame, textvariable=self.base_rom_path_var,
             foreground="gray", font=font
         )
-        self.rom_label.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 15))
+        self.rom_label.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 15))
 
-        ttk.Label(self.frame, text="Output Folder: *", font=font).grid(row=4, column=0, sticky="w", pady=(10,0))
+        ttk.Label(self.frame, text="Output Folder: *", font=font).grid(row=2, column=0, sticky="w", pady=(10,0))
         ttk.Button(
             self.frame, text="Browse", command=self._select_output_dir,
             style="Custom.TButton"
-        ).grid(row=4, column=1, sticky="e", padx=(10, 0))
+        ).grid(row=2, column=1, sticky="e", padx=(10, 0))
         self.output_label = ttk.Label(
             self.frame, textvariable=self.output_dir_var,
             foreground="gray", font=font
         )
-        self.output_label.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5)
+        self.output_label.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5)
         
         ttk.Label(
             self.frame, 
             text="* All fields are required", 
             font=(font[0], font[1]-1, "italic"),
             foreground="#888888"
-        ).grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=(15,0))
+        ).grid(row=4, column=0, columnspan=2, sticky="w", padx=5, pady=(15,0))
 
         # Configure column weights
         self.frame.columnconfigure(0, weight=1)
         self.frame.columnconfigure(1, weight=0)
         
         return self.frame
-    
-    def _select_flips(self):
-        path = filedialog.askopenfilename(filetypes=[("Executable", "*.exe")])
-        if path:
-            self.flips_path_var.set(path)
-            self.config.set("flips_path", path)
     
     def _browse_rom(self):
         filename = filedialog.askopenfilename(
@@ -90,9 +72,8 @@ class SetupSection:
             self.config.set("output_dir", path)
     
     def get_paths(self):
-        """Return current path values"""
+        """Return current path values - REMOVED flips_path"""
         return {
-            "flips_path": self.flips_path_var.get(),
             "base_rom_path": self.base_rom_path_var.get(),
             "output_dir": self.output_dir_var.get()
         }

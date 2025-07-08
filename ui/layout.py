@@ -174,10 +174,11 @@ class MainLayout:
         # Validate required paths first
         paths = self.setup_section.get_paths()
         
-        # Check if any paths are empty
+        # Check if any paths are empty - REMOVED flips_path check
         missing_paths = []
-        if not paths["flips_path"]:
-            missing_paths.append("Flips Path")
+        # We no longer need Flips path since we use BPS library
+        # if not paths["flips_path"]:
+        #     missing_paths.append("Flips Path")
         if not paths["base_rom_path"]:
             missing_paths.append("Base ROM Path")
         if not paths["output_dir"]:
@@ -209,9 +210,9 @@ class MainLayout:
         
         def pipeline_worker():
             try:
+                # FIXED: Removed flips_path parameter
                 self.run_pipeline_func(
                     filter_payload=payload,
-                    flips_path=paths["flips_path"],
                     base_rom_path=paths["base_rom_path"],
                     output_dir=paths["output_dir"],
                     log=self.logger.log

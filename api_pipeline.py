@@ -1,7 +1,6 @@
 import requests
 import os
 import tempfile
-import subprocess
 
 from utils import (
     safe_filename, get_sorted_folder_name,
@@ -11,6 +10,7 @@ from utils import (
 )
 from patcher import title_case
 from smwc_api_proxy import smwc_api_get
+from bps_patcher import patch_bps_safe
 
 def fetch_hack_list(config, page=1, log=None):
     params = {"a": "getsectionlist", "s": "smwhacks", "n": page}
@@ -32,12 +32,8 @@ def fetch_file_metadata(file_id, log=None):
     response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
     return response.json()
 
-def patch_with_flips(flips_path, patch_path, base_rom, output_path):
-    # The --apply flag works for both BPS and IPS patches
-    subprocess.run([flips_path, "--apply", patch_path, base_rom, output_path], check=True)
-
-def extract_patch_from_zip(zip_path, extract_to, hack_name=""):
-    """Extract zip and find BPS or IPS patch files"""
+def extract_bps_from_zip(zip_path, extract_to, hack_name=""):
+    """Extract zip and find BPS patch files (only BPS now, no IPS support)"""
     import zipfile
     import re
     
@@ -50,71 +46,57 @@ def extract_patch_from_zip(zip_path, extract_to, hack_name=""):
                 raise zipfile.BadZipFile(f"Bad zip file, first bad file: {bad_file}")
             zip_ref.extractall(extract_to)
     except Exception as e:
-        # Could add alternative extraction methods here if needed
         raise e
     
-    # Find all patch files (BPS and IPS)
-    patch_files = {"bps": [], "ips": []}
+    # Find all BPS patch files
+    bps_files = []
     for root, _, files in os.walk(extract_to):
         for fname in files:
-            lower_fname = fname.lower()
-            if lower_fname.endswith(".bps"):
-                patch_files["bps"].append(os.path.join(root, fname))
-            elif lower_fname.endswith(".ips"):
-                patch_files["ips"].append(os.path.join(root, fname))
+            if fname.lower().endswith(".bps"):
+                bps_files.append(os.path.join(root, fname))
     
-    # Prioritize BPS over IPS if both exist
-    all_patches = patch_files["bps"] + patch_files["ips"]
-    
-    if not all_patches:
+    if not bps_files:
         return None
     
-    # If only one patch file exists, use it
-    if len(all_patches) == 1:
-        return all_patches[0]
+    # If only one BPS file exists, use it
+    if len(bps_files) == 1:
+        return bps_files[0]
     
-    # Multiple patch files found, use selection strategy
+    # Multiple BPS files found, use selection strategy
     
-    # Process BPS files first, then IPS files if no BPS match is found
-    for patch_type in ["bps", "ips"]:
-        type_patches = patch_files[patch_type]
-        if not type_patches:
-            continue
-            
-        # Try to match with hack name if provided
-        if hack_name:
-            hack_name_simple = re.sub(r'[^a-zA-Z0-9]', '', hack_name.lower())
-            for patch_file in type_patches:
-                file_name = os.path.basename(patch_file).lower()
-                file_name_simple = re.sub(r'[^a-zA-Z0-9]', '', file_name)
-                if hack_name_simple in file_name_simple:
-                    return patch_file
-        
-        # Look for common main patch indicators
-        main_indicators = ["main", "patch", "rom", "smc", "sfc"]
-        for indicator in main_indicators:
-            for patch_file in type_patches:
-                if indicator in os.path.basename(patch_file).lower():
-                    return patch_file
-        
-        # Exclude common auxiliary patches
-        exclude_indicators = ["music", "graphics", "optional", "extra", "addon"]
-        filtered_files = [f for f in type_patches if not any(
-            indicator in os.path.basename(f).lower() for indicator in exclude_indicators
-        )]
-        
-        if filtered_files:
-            # Use the largest remaining file (often the main patch)
-            return max(filtered_files, key=os.path.getsize)
-        
-        if type_patches:
-            # If all else fails, use the largest file of this type
-            return max(type_patches, key=os.path.getsize)
+    # Try to match with hack name if provided
+    if hack_name:
+        hack_name_simple = re.sub(r'[^a-zA-Z0-9]', '', hack_name.lower())
+        for bps_file in bps_files:
+            file_name = os.path.basename(bps_file).lower()
+            file_name_simple = re.sub(r'[^a-zA-Z0-9]', '', file_name)
+            if hack_name_simple in file_name_simple:
+                return bps_file
     
-    # If we get here, just return the largest patch file of any type
-    return max(all_patches, key=os.path.getsize)
+    # Look for common main patch indicators
+    main_indicators = ["main", "patch", "rom", "smc", "sfc"]
+    for indicator in main_indicators:
+        for bps_file in bps_files:
+            if indicator in os.path.basename(bps_file).lower():
+                return bps_file
+    
+    # Exclude common auxiliary patches
+    exclude_indicators = ["music", "graphics", "optional", "extra", "addon"]
+    filtered_files = [f for f in bps_files if not any(
+        indicator in os.path.basename(f).lower() for indicator in exclude_indicators
+    )]
+    
+    if filtered_files:
+        # Use the largest remaining file (often the main patch)
+        return max(filtered_files, key=os.path.getsize)
+    
+    # If all else fails, use the largest BPS file
+    return max(bps_files, key=os.path.getsize)
 
-def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None):
+def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
+    """
+    Main pipeline function - removed flips_path parameter since we no longer use Flips
+    """
     processed = load_processed()
     all_hacks = []
     page = 1
@@ -189,27 +171,41 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
             with open(zip_path, "wb") as f:
                 f.write(r.content)
 
-            patch_path = extract_patch_from_zip(zip_path, temp_dir, title_clean)
-            if not patch_path:
-                raise Exception("Patch file (BPS or IPS) not found")
+            bps_path = extract_bps_from_zip(zip_path, temp_dir, title_clean)
+            if not bps_path:
+                raise Exception("BPS patch file not found in archive")
 
             output_filename = f"{title_clean}{base_rom_ext}"
             output_path = os.path.join(make_output_path(output_dir, normalized_type, folder_name), output_filename)
 
-            patch_with_flips(flips_path, patch_path, base_rom_path, output_path)
+            # Use our BPS patcher instead of Flips
+            success, message = patch_bps_safe(base_rom_path, bps_path, output_path, log=log, verbose=True)
+            if not success:
+                raise Exception(f"BPS patching failed: {message}")
 
-            # Determine which patch type was used for logging
-            patch_type = "BPS" if patch_path.lower().endswith(".bps") else "IPS"
             if log:
-                log(f"✅ Patched: {title_clean} ({patch_type})")
+                # Simple log message like before - don't use the detailed message from patch_bps_safe
+                log(f"✅ Patched: {title_clean}")
 
+            # Update processed data
             processed[hack_id] = {
-                "title": title_clean,
+                "title": raw_title,
                 "current_difficulty": display_diff,
-                "type": TYPE_DISPLAY_LOOKUP.get(normalized_type, normalized_type)
+                "folder_name": folder_name,
+                "file_path": output_path
             }
             save_processed(processed)
 
         except Exception as e:
             if log:
-                log(f"❌ Failed: {title_clean} → {e}", level="Error")
+                log(f"❌ Error processing {title_clean}: {str(e)}", "Error")
+        finally:
+            # Clean up temp files
+            import shutil
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+
+    if log:
+        log("✅ All hacks processed!")
