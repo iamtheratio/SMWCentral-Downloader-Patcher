@@ -63,14 +63,14 @@ class SetupSection:
         self.delay_slider = ttk.Scale(
             slider_frame,
             from_=0.0,
-            to=5.0,
+            to=3.0,  # Changed from 5.0 to 3.0
             orient="horizontal",
             variable=self.api_delay_var,
             command=self._on_delay_changed
         )
         self.delay_slider.pack(side="left", fill="x", expand=True, padx=(5, 5))
         
-        ttk.Label(slider_frame, text="5s", font=(font[0], font[1]-1)).pack(side="right")
+        ttk.Label(slider_frame, text="3s", font=(font[0], font[1]-1)).pack(side="right")  # Changed from "5s" to "3s"
         
         # Slider description
         ttk.Label(
