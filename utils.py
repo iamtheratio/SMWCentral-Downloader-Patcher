@@ -12,7 +12,8 @@ DIFFICULTY_LOOKUP = {
     "diff_4": "Advanced",
     "diff_5": "Expert",
     "diff_6": "Master",
-    "diff_7": "Grandmaster"
+    "diff_7": "Grandmaster",
+    "": "No Difficulty"  # ADDED: for hacks without difficulty
 }
 
 DIFFICULTY_KEYMAP = {
@@ -22,7 +23,8 @@ DIFFICULTY_KEYMAP = {
     "advanced": "4",
     "expert": "5",
     "master": "6",
-    "grandmaster": "7"
+    "grandmaster": "7",
+    "no difficulty": ""  # ADDED: for searching hacks without difficulty
 }
 
 DIFFICULTY_SORTED = {
@@ -32,7 +34,8 @@ DIFFICULTY_SORTED = {
     "Advanced": "04 - Advanced",
     "Expert": "05 - Expert",
     "Master": "06 - Master",
-    "Grandmaster": "07 - Grandmaster"
+    "Grandmaster": "07 - Grandmaster",
+    "No Difficulty": "08 - No Difficulty"  # ADDED: for folder sorting
 }
 
 TYPE_KEYMAP = {

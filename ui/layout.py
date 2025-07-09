@@ -209,6 +209,14 @@ class MainLayout:
         # Get filter payload
         payload = self._generate_filter_payload()
         
+        # ADDED: Check if no difficulties selected
+        if not payload.get("difficulties"):
+            messagebox.showerror(
+                "Selection Required", 
+                "Please select at least one difficulty level to continue."
+            )
+            return
+        
         # Check if no difficulties selected
         if not payload.get("difficulties") and payload.get("type")[0] != "all":
             if not messagebox.askyesno(

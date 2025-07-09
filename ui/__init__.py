@@ -3,7 +3,7 @@ from .layout import MainLayout
 
 DIFFICULTY_LIST = [
     "newcomer", "casual", "skilled",
-    "advanced", "expert", "master", "grandmaster"
+    "advanced", "expert", "master", "grandmaster", "no difficulty"  # ADDED: no difficulty
 ]
 
 def setup_ui(root, run_pipeline_func, toggle_theme_callback, version=None):

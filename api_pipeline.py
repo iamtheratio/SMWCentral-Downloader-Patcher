@@ -14,19 +14,59 @@ from smwc_api_proxy import smwc_api_get, get_api_delay  # ADDED: get_api_delay i
 from patch_handler import PatchHandler
 
 def fetch_hack_list(config, page=1, log=None):
+    if log:
+        log(f"[DEBUG] fetch_hack_list received config: {config}", level="debug")
+    
     params = {"a": "getsectionlist", "s": "smwhacks", "n": page}
+    
+    # Handle difficulty filtering with "No Difficulty" support
+    difficulties = config.get("difficulties", [])
+    has_no_difficulty = "no difficulty" in difficulties
+    regular_difficulties = [d for d in difficulties if d != "no difficulty"]
+    
+    if log:
+        log(f"[DEBUG] difficulties: {difficulties}", level="debug")
+        log(f"[DEBUG] has_no_difficulty: {has_no_difficulty}", level="debug")
+        log(f"[DEBUG] regular_difficulties: {regular_difficulties}", level="debug")
+    
     for key, values in config.items():
         if key == "difficulties" and values:
-            converted = [f"diff_{DIFFICULTY_KEYMAP[d]}" for d in values if d in DIFFICULTY_KEYMAP]
-            params["f[difficulty][]"] = converted
+            if regular_difficulties and not has_no_difficulty:
+                # ONLY regular difficulties - normal API filtering
+                converted = []
+                for d in regular_difficulties:
+                    if d in DIFFICULTY_KEYMAP:
+                        diff_key = DIFFICULTY_KEYMAP[d]
+                        if diff_key:  # Only add if not empty string
+                            converted.append(f"diff_{diff_key}")
+                if converted:
+                    params["f[difficulty][]"] = converted
+            # For cases with "No Difficulty", don't add any difficulty filter to API
         elif values:
             for val in values:
                 params.setdefault(f"f[{key}][]", []).append(val)
+    
     if log:
         req = requests.Request("GET", "https://www.smwcentral.net/ajax.php", params=params).prepare()
         log(f"[DEBUG] API Request URL:\n{req.url}", level="debug")
+    
     response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
-    return response.json().get("data", [])
+    raw_data = response.json().get("data", [])
+    
+    # CHANGED: Simplified logic - only filter in the pipeline, not here
+    if has_no_difficulty and not regular_difficulties:
+        # For "No Difficulty" only - return ALL data without filtering here
+        if log:
+            log(f"[DEBUG] 'No Difficulty' mode - returning all {len(raw_data)} hacks for page {page}", level="debug")
+        return raw_data
+    elif has_no_difficulty and regular_difficulties:
+        # CHANGED: Mixed selection - return ALL data, let pipeline handle filtering
+        if log:
+            log(f"[DEBUG] Mixed mode - returning all {len(raw_data)} hacks for page {page} (will filter in pipeline)", level="debug")
+        return raw_data
+    
+    # Normal case - return raw data (API already filtered)
+    return raw_data
 
 def fetch_file_metadata(file_id, log=None):
     params = {"a": "getfile", "v": "2", "id": file_id}
@@ -103,6 +143,12 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
     page = 1
     if log: log("🔎 Starting download...")
 
+    # ADDED: Check if we need to do post-collection filtering
+    difficulties = filter_payload.get("difficulties", [])
+    has_no_difficulty = "no difficulty" in difficulties
+    regular_difficulties = [d for d in difficulties if d != "no difficulty"]
+    needs_post_filtering = has_no_difficulty and not regular_difficulties
+
     while True:
         hacks = fetch_hack_list(filter_payload, page=page, log=log)
         if log: log(f"📄 Page {page} returned {len(hacks)} entries")
@@ -111,6 +157,43 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
             break
         all_hacks.extend(hacks)
         page += 1
+
+    # ADDED: Post-collection filtering for "No Difficulty" scenarios
+    if needs_post_filtering or (has_no_difficulty and regular_difficulties):
+        if log:
+            log(f"[DEBUG] Post-filtering {len(all_hacks)} hacks for difficulty combinations", level="debug")
+            
+            # Debug: Show first 5 hacks and their difficulty values
+            for i, hack in enumerate(all_hacks[:5]):
+                hack_difficulty = hack.get("raw_fields", {}).get("difficulty", "NOT_FOUND")
+                hack_id = hack.get("id", "NO_ID")
+                log(f"[DEBUG] Sample hack {i}: ID={hack_id}, '{hack.get('name', 'NO_NAME')}' - difficulty: '{hack_difficulty}'", level="debug")
+        
+        filtered_hacks = []
+        for hack in all_hacks:
+            hack_difficulty = hack.get("raw_fields", {}).get("difficulty", "")
+            
+            if has_no_difficulty and not regular_difficulties:
+                # ONLY "No Difficulty" selected
+                if hack_difficulty == "" or hack_difficulty is None or hack_difficulty == "N/A":
+                    filtered_hacks.append(hack)
+            elif has_no_difficulty and regular_difficulties:
+                # MIXED: Both "No Difficulty" AND regular difficulties
+                selected_diff_keys = []
+                for d in regular_difficulties:
+                    if d in DIFFICULTY_KEYMAP:
+                        diff_key = DIFFICULTY_KEYMAP[d]
+                        if diff_key:
+                            selected_diff_keys.append(f"diff_{diff_key}")
+                
+                # Include if: no difficulty OR matches selected difficulties
+                if (hack_difficulty == "" or hack_difficulty is None or hack_difficulty == "N/A") or hack_difficulty in selected_diff_keys:
+                    filtered_hacks.append(hack)
+        
+        if log:
+            log(f"[DEBUG] Filtered down to {len(filtered_hacks)} hacks", level="debug")
+        
+        all_hacks = filtered_hacks
 
     if log:
         log(f"📦 Found {len(all_hacks)} total hacks.")
