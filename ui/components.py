@@ -63,7 +63,7 @@ class SetupSection:
         self.delay_slider = ttk.Scale(
             slider_frame,
             from_=0.0,
-            to=3.0,  # Changed from 5.0 to 3.0
+            to=3.0,
             orient="horizontal",
             variable=self.api_delay_var,
             command=self._on_delay_changed
@@ -114,7 +114,10 @@ class SetupSection:
     
     def _on_delay_changed(self, value):
         """Handle delay slider changes"""
-        delay_value = float(value)
+        # Round to nearest 0.1
+        delay_value = round(float(value), 1)
+        
+        # Update the slider to show the rounded value
         self.api_delay_var.set(delay_value)
         self.delay_label_var.set(f"{delay_value:.1f}s")
         
@@ -144,6 +147,7 @@ class FilterSection:
         self.sa1_var = tk.StringVar(value="Any")
         self.collab_var = tk.StringVar(value="Any")
         self.demo_var = tk.StringVar(value="Any")
+        self.waiting_var = tk.BooleanVar(value=False)  # Add waiting checkbox variable
     
     def create(self, font, hack_types):
         """Create the filter section"""
@@ -161,6 +165,14 @@ class FilterSection:
         self._add_radio_row("SA-1", self.sa1_var, 2, font)
         self._add_radio_row("Collab", self.collab_var, 3, font)
         self._add_radio_row("Demo", self.demo_var, 4, font)
+        
+        # Add waiting checkbox at the bottom
+        ttk.Checkbutton(
+            self.frame, 
+            text="Include Waiting", 
+            variable=self.waiting_var,
+            style="Custom.TCheckbutton"
+        ).grid(row=5, column=0, columnspan=4, sticky="w", pady=(15,0))
         
         return self.frame
     
@@ -181,7 +193,8 @@ class FilterSection:
             "hof": self.hof_var.get(),
             "sa1": self.sa1_var.get(),
             "collab": self.collab_var.get(),
-            "demo": self.demo_var.get()
+            "demo": self.demo_var.get(),
+            "waiting": self.waiting_var.get()  # Add waiting value
         }
 
 

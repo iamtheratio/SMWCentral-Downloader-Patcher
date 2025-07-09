@@ -13,8 +13,9 @@ from utils import (
 from smwc_api_proxy import smwc_api_get, get_api_delay  # ADDED: get_api_delay import
 from patch_handler import PatchHandler
 
-def fetch_hack_list(config, page=1, log=None):
-    params = {"a": "getsectionlist", "s": "smwhacks", "n": page}
+def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
+    """Fetch hack list - separated for moderated vs waiting hacks"""
+    params = {"a": "getsectionlist", "s": "smwhacks", "n": page, "u": "1" if waiting_mode else "0"}
     
     # Handle difficulty filtering with "No Difficulty" support
     difficulties = config.get("difficulties", [])
@@ -24,33 +25,35 @@ def fetch_hack_list(config, page=1, log=None):
     for key, values in config.items():
         if key == "difficulties" and values:
             if regular_difficulties and not has_no_difficulty:
-                # ONLY regular difficulties - normal API filtering
                 converted = []
                 for d in regular_difficulties:
                     if d in DIFFICULTY_KEYMAP:
                         diff_key = DIFFICULTY_KEYMAP[d]
-                        if diff_key:  # Only add if not empty string
+                        if diff_key:
                             converted.append(f"diff_{diff_key}")
                 if converted:
                     params["f[difficulty][]"] = converted
-            # For cases with "No Difficulty", don't add any difficulty filter to API
-        elif values:
+        elif key != "waiting" and values:
             for val in values:
                 params.setdefault(f"f[{key}][]", []).append(val)
     
     response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
-    raw_data = response.json().get("data", [])
+    response_data = response.json()
+    raw_data = response_data.get("data", [])
     
-    # Simplified logic - only filter in the pipeline, not here
-    if has_no_difficulty and not regular_difficulties:
-        # For "No Difficulty" only - return ALL data without filtering
-        return raw_data
-    elif has_no_difficulty and regular_difficulties:
-        # Mixed selection - return ALL data, let pipeline handle filtering
-        return raw_data
+    # Log pagination info on first page
+    if page == 1 and log:
+        total = response_data.get("total", 0)
+        last_page = response_data.get("last_page", 1)
+        hack_type = "waiting" if waiting_mode else "moderated"
+        log(f"📊 Found {total} {hack_type} hacks across {last_page} pages", level="information")
     
-    # Normal case - return raw data (API already filtered)
-    return raw_data
+    # Return both data and pagination info
+    return {
+        "data": raw_data,
+        "last_page": response_data.get("last_page", page),
+        "current_page": response_data.get("current_page", page)
+    }
 
 def fetch_file_metadata(file_id, log=None):
     params = {"a": "getfile", "v": "2", "id": file_id}
@@ -124,7 +127,6 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
     """
     processed = load_processed()
     all_hacks = []
-    page = 1
     if log: log("🔎 Starting download...")
 
     # Check if we need to do post-collection filtering
@@ -138,14 +140,68 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
         if log:
             log("[WRN] 'No Difficulty' selected - downloading ALL hacks then filtering locally due to SMWC API limitations", level="warning")
 
+    # PHASE 1: Fetch all moderated hacks (u=0)
+    page = 1
     while True:
-        hacks = fetch_hack_list(filter_payload, page=page, log=log)
-        if log: log(f"📄 Page {page} returned {len(hacks)} entries")
-        if not hacks or len(hacks) < 50:
-            all_hacks.extend(hacks)
+        page_result = fetch_hack_list(filter_payload, page=page, waiting_mode=False, log=log)
+        
+        hacks = page_result["data"]
+        last_page = page_result.get("last_page", page)
+        
+        if not hacks:
+            if log: log("📄 No more moderated pages available", level="information")
             break
+        
         all_hacks.extend(hacks)
+        
+        if log: 
+            log(f"📄 Moderated page {page} returned {len(hacks)} entries", level="information")
+        
+        # Stop if we've reached the last page
+        if page >= last_page:
+            if log: log(f"📄 Reached last moderated page ({last_page})", level="information")
+            break
+        
         page += 1
+
+    # PHASE 2: Fetch waiting hacks if enabled (u=1)
+    if filter_payload.get("waiting", False):
+        page = 1
+        while True:
+            page_result = fetch_hack_list(filter_payload, page=page, waiting_mode=True, log=log)
+            
+            waiting_hacks = page_result["data"]
+            last_page = page_result.get("last_page", page)
+            
+            if not waiting_hacks:
+                if log: log("📄 No more waiting pages available", level="information")
+                break
+            
+            all_hacks.extend(waiting_hacks)
+            
+            if log: 
+                log(f"📄 Waiting page {page} returned {len(waiting_hacks)} entries", level="information")
+            
+            # Stop if we've reached the last page
+            if page >= last_page:
+                if log: log(f"📄 Reached last waiting page ({last_page})", level="information")
+                break
+            
+            page += 1
+
+    # Remove duplicates (just in case)
+    unique_hacks = []
+    seen_ids = set()
+    for hack in all_hacks:
+        hack_id = hack.get('id')
+        if hack_id not in seen_ids:
+            unique_hacks.append(hack)
+            seen_ids.add(hack_id)
+
+    if len(all_hacks) != len(unique_hacks) and log:
+        log(f"📦 Removed {len(all_hacks) - len(unique_hacks)} duplicates", level="information")
+    
+    all_hacks = unique_hacks
 
     # Post-collection filtering for "No Difficulty" scenarios
     if needs_post_filtering or (has_no_difficulty and regular_difficulties):
@@ -282,5 +338,21 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 shutil.rmtree(temp_dir)
             except Exception:
                 pass
+
+    # After collecting all hacks, remove duplicates and get actual count
+    unique_hacks = []
+    seen_ids = set()
+
+    for hack in all_hacks:
+        hack_id = hack.get('id')
+        if hack_id not in seen_ids:
+            unique_hacks.append(hack)
+            seen_ids.add(hack_id)
+
+    if log: 
+        log(f"📦 Found {len(unique_hacks)} unique hacks (removed {len(all_hacks) - len(unique_hacks)} duplicates).", level="information")
+
+    # Use unique_hacks instead of all_hacks for processing
+    all_hacks = unique_hacks
 
 

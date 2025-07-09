@@ -170,7 +170,8 @@ class MainLayout:
 
         payload = {
             "type": [selected_type],
-            "difficulties": selected_difficulties
+            "difficulties": selected_difficulties,
+            "waiting": filter_values["waiting"]  # Add waiting parameter
         }
 
         # Convert Yes/No to API flag
