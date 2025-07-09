@@ -154,7 +154,7 @@ class FilterSection:
         ttk.Combobox(
             self.frame, textvariable=self.type_var, values=hack_types,
             state="readonly", style="Custom.TCombobox"
-        ).grid(row=0, column=1, columnspan=3, sticky="ew", pady=(0,15))
+        ).grid(row=0, column=1, columnspan=3, sticky="ew", pady=(7,15))  # Just add 3px top padding
 
         # Radio button rows
         self._add_radio_row("Hall of Fame", self.hof_var, 1, font)
