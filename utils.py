@@ -58,6 +58,52 @@ def safe_filename(name):
 def sanitize_name(name):
     return re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")
 
+def title_case(text):
+    """Convert text to proper title case for filenames"""
+    # Handle common abbreviations and special cases
+    special_cases = {
+        'smw': 'SMW',
+        'nsmb': 'NSMB', 
+        'nsmbw': 'NSMBW',
+        'smb': 'SMB',
+        'smb2': 'SMB2',
+        'smb3': 'SMB3',
+        'kaizo': 'Kaizo',
+        'rom': 'ROM',
+        'hack': 'Hack',
+        'demo': 'Demo',
+        'beta': 'Beta',
+        'alpha': 'Alpha',
+        'v1': 'v1',
+        'v2': 'v2',
+        'v3': 'v3',
+        'ii': 'II',
+        'iii': 'III',
+        'iv': 'IV',
+        'dx': 'DX',
+        'ex': 'EX',
+        'plus': 'Plus',
+        'pro': 'Pro',
+        'max': 'Max',
+        'ultra': 'Ultra',
+        'super': 'Super',
+        'mega': 'Mega',
+        'hyper': 'Hyper'
+    }
+    
+    # Split into words and apply title case
+    words = text.split()
+    result = []
+    
+    for word in words:
+        word_lower = word.lower()
+        if word_lower in special_cases:
+            result.append(special_cases[word_lower])
+        else:
+            result.append(word.capitalize())
+    
+    return ' '.join(result)
+
 # Path helpers
 def get_sorted_folder_name(display_difficulty):
     return DIFFICULTY_SORTED.get(display_difficulty, display_difficulty)

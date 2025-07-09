@@ -6,11 +6,11 @@ from utils import (
     safe_filename, get_sorted_folder_name,
     DIFFICULTY_LOOKUP, DIFFICULTY_KEYMAP,
     load_processed, save_processed, make_output_path,
-    TYPE_KEYMAP, TYPE_DISPLAY_LOOKUP
+    TYPE_KEYMAP, TYPE_DISPLAY_LOOKUP,
+    title_case  # CHANGED: Import from utils instead of patcher
 )
-from patcher import title_case
 from smwc_api_proxy import smwc_api_get
-from bps_patcher import patch_bps_safe
+from patch_handler import PatchHandler
 
 def fetch_hack_list(config, page=1, log=None):
     params = {"a": "getsectionlist", "s": "smwhacks", "n": page}
@@ -32,8 +32,8 @@ def fetch_file_metadata(file_id, log=None):
     response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
     return response.json()
 
-def extract_bps_from_zip(zip_path, extract_to, hack_name=""):
-    """Extract zip and find BPS patch files (only BPS now, no IPS support)"""
+def extract_patches_from_zip(zip_path, extract_to, hack_name=""):
+    """Extract zip and find patch files (IPS or BPS)"""
     import zipfile
     import re
     
@@ -48,41 +48,41 @@ def extract_bps_from_zip(zip_path, extract_to, hack_name=""):
     except Exception as e:
         raise e
     
-    # Find all BPS patch files
-    bps_files = []
+    # Find all patch files (IPS and BPS)
+    patch_files = []
     for root, _, files in os.walk(extract_to):
         for fname in files:
-            if fname.lower().endswith(".bps"):
-                bps_files.append(os.path.join(root, fname))
+            if fname.lower().endswith((".ips", ".bps")):
+                patch_files.append(os.path.join(root, fname))
     
-    if not bps_files:
+    if not patch_files:
         return None
     
-    # If only one BPS file exists, use it
-    if len(bps_files) == 1:
-        return bps_files[0]
+    # If only one patch file exists, use it
+    if len(patch_files) == 1:
+        return patch_files[0]
     
-    # Multiple BPS files found, use selection strategy
+    # Multiple patch files found, use selection strategy
     
     # Try to match with hack name if provided
     if hack_name:
         hack_name_simple = re.sub(r'[^a-zA-Z0-9]', '', hack_name.lower())
-        for bps_file in bps_files:
-            file_name = os.path.basename(bps_file).lower()
+        for patch_file in patch_files:
+            file_name = os.path.basename(patch_file).lower()
             file_name_simple = re.sub(r'[^a-zA-Z0-9]', '', file_name)
             if hack_name_simple in file_name_simple:
-                return bps_file
+                return patch_file
     
     # Look for common main patch indicators
     main_indicators = ["main", "patch", "rom", "smc", "sfc"]
     for indicator in main_indicators:
-        for bps_file in bps_files:
-            if indicator in os.path.basename(bps_file).lower():
-                return bps_file
+        for patch_file in patch_files:
+            if indicator in os.path.basename(patch_file).lower():
+                return patch_file
     
     # Exclude common auxiliary patches
     exclude_indicators = ["music", "graphics", "optional", "extra", "addon"]
-    filtered_files = [f for f in bps_files if not any(
+    filtered_files = [f for f in patch_files if not any(
         indicator in os.path.basename(f).lower() for indicator in exclude_indicators
     )]
     
@@ -90,12 +90,12 @@ def extract_bps_from_zip(zip_path, extract_to, hack_name=""):
         # Use the largest remaining file (often the main patch)
         return max(filtered_files, key=os.path.getsize)
     
-    # If all else fails, use the largest BPS file
-    return max(bps_files, key=os.path.getsize)
+    # If all else fails, use the largest patch file
+    return max(patch_files, key=os.path.getsize)
 
 def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
     """
-    Main pipeline function - removed flips_path parameter since we no longer use Flips
+    Main pipeline function using unified patch handler
     """
     processed = load_processed()
     all_hacks = []
@@ -171,20 +171,19 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
             with open(zip_path, "wb") as f:
                 f.write(r.content)
 
-            bps_path = extract_bps_from_zip(zip_path, temp_dir, title_clean)
-            if not bps_path:
-                raise Exception("BPS patch file not found in archive")
+            patch_path = extract_patches_from_zip(zip_path, temp_dir, title_clean)
+            if not patch_path:
+                raise Exception("Patch file (.ips or .bps) not found in archive")
 
             output_filename = f"{title_clean}{base_rom_ext}"
             output_path = os.path.join(make_output_path(output_dir, normalized_type, folder_name), output_filename)
 
-            # Use our BPS patcher instead of Flips
-            success, message = patch_bps_safe(base_rom_path, bps_path, output_path, log=log, verbose=True)
+            # CHANGED: Pass log function to patch handler
+            success = PatchHandler.apply_patch(patch_path, base_rom_path, output_path, log)
             if not success:
-                raise Exception(f"BPS patching failed: {message}")
+                raise Exception("Patch application failed")
 
             if log:
-                # Simple log message like before - don't use the detailed message from patch_bps_safe
                 log(f"✅ Patched: {title_clean}")
 
             # Update processed data
