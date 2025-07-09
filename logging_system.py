@@ -39,7 +39,7 @@ class LoggingSystem:
                     fg="#e0e0e0"
                 )
                 self.log_text.tag_configure("error", foreground="#ff6b6b", font=(self.font[0], self.font[1], "italic"))
-                self.log_text.tag_configure("warning", foreground="#888888", font=(self.font[0], self.font[1], "italic"))
+                self.log_text.tag_configure("warning", foreground="#FFB700", font=(self.font[0], self.font[1], "italic")) 
                 self.log_text.tag_configure("debug", foreground="#16C172")
                 self.log_text.tag_configure("filter_info", foreground="#888888", font=(self.font[0], self.font[1], "italic"))
                 self.log_text.tag_configure("applying", foreground="#e0e0e0", font=(self.font[0], self.font[1], "italic"))
@@ -49,7 +49,7 @@ class LoggingSystem:
                     fg="#000000"
                 )
                 self.log_text.tag_configure("error", foreground="red", font=(self.font[0], self.font[1], "italic"))
-                self.log_text.tag_configure("warning", foreground="#555555", font=(self.font[0], self.font[1], "italic"))
+                self.log_text.tag_configure("warning", foreground="#C76E00", font=(self.font[0], self.font[1], "italic")) 
                 self.log_text.tag_configure("debug", foreground="#16C172")
                 self.log_text.tag_configure("filter_info", foreground="#888888", font=(self.font[0], self.font[1], "italic"))
                 self.log_text.tag_configure("applying", foreground="#000000", font=(self.font[0], self.font[1], "italic"))

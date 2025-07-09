@@ -7,9 +7,6 @@ import sys
 import platform
 import pywinstyles
 
-# Add version constant
-VERSION = "v2.4"
-
 def apply_theme_to_titlebar(root):
     if platform.system() != "Windows":
         return
@@ -44,14 +41,6 @@ def apply_font_settings(root, style):
     root.option_add("*font", default_font)
     root.update()
 
-def update_version_label_color(root):
-    """Update version label color based on theme"""
-    if hasattr(root, 'version_label'):
-        if sv_ttk.get_theme() == "dark":
-            root.version_label.configure(foreground="#888888")
-        else:
-            root.version_label.configure(foreground="#666666")
-
 def toggle_theme_callback(root):
     style = ttk.Style()
     
@@ -68,9 +57,6 @@ def toggle_theme_callback(root):
     if hasattr(root, 'log_text'):
         root.update_idletasks()  # Force update
         update_log_colors(root.log_text)
-    
-    # Update version label color
-    update_version_label_color(root)
 
 def main():
     root = tk.Tk()
@@ -88,8 +74,8 @@ def main():
     # Apply title bar theme immediately after dark theme is set
     apply_theme_to_titlebar(root)
     
-    # Setup UI and run - pass version to setup_ui
-    download_button = setup_ui(root, run_pipeline, toggle_theme_callback, VERSION)
+    # Setup UI and run - this will return the button reference
+    download_button = setup_ui(root, run_pipeline, toggle_theme_callback)
     
     # Store button reference for pipeline access
     root.download_button = download_button

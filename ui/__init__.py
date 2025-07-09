@@ -1,5 +1,6 @@
 from .components import SetupSection, FilterSection, DifficultySection
 from .layout import MainLayout
+import sv_ttk
 
 DIFFICULTY_LIST = [
     "newcomer", "casual", "skilled",
@@ -46,3 +47,11 @@ def update_log_colors(log_text):
     logger = LoggingSystem()
     logger.log_text = log_text
     logger.update_colors()
+    
+    # Add warning and debug tag colors
+    if sv_ttk.get_theme() == "dark":
+        log_text.tag_config("warning", foreground="#C76E00")  # Orange
+        log_text.tag_config("debug", foreground="#888888")    # Gray
+    else:
+        log_text.tag_config("warning", foreground="#FFB700")  # Orange 
+        log_text.tag_config("debug", foreground="#666666")    # Dark Gray
