@@ -278,8 +278,4 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
             except Exception:
                 pass
 
-        # Add delay logging for file downloads
-        delay = get_api_delay()
-        if log:
-            log(f"[DEBUG] Waiting {delay:.1f} seconds before next request.", level="debug")
-        time.sleep(delay)
+

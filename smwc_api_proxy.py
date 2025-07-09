@@ -18,7 +18,7 @@ def smwc_api_get(url, params=None, log=None):
             log(f"[WRN] Rate limit low: {remaining} requests remaining", level="warning")
 
     if log:
-        log(f"[DEBUG] Waiting {delay:.1f}s before next request", level="debug")
+        log(f"[DEBUG] Waiting {delay:.1f} seconds...", level="debug")
 
     time.sleep(delay)
     return response
