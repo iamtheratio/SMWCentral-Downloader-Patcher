@@ -14,7 +14,7 @@ A Python GUI tool that automates downloading, patching, and organizing Super Mar
 5. **Select** hack type, difficulty, and filters
 6. **Click** Download & Patch
 
-![SMWC Downloader Interface](/images/screenshot_app_v2.2.png)
+![SMWC Downloader Interface](/images/screenshot_app_v2.4.png)
 
 ## ✨ Key Features
 

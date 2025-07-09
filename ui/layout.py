@@ -89,11 +89,12 @@ class MainLayout:
         # Store reference for theme toggling
         self.root.log_text = log_text
         
-        # Add version label in bottom right
+        # Add version label in bottom right with 20px padding
         if self.version:
             version_label = ttk.Label(self.root, text=self.version, 
                                     font=("Segoe UI", 8, "italic"))
-            version_label.place(relx=1.0, rely=1.0, anchor="se", x=-25, y=-10)
+            # Use place geometry manager for absolute positioning - right aligned with padding
+            version_label.place(relx=1.0, rely=1.0, anchor="se", x=-26, y=-10)
             
             # Set initial color based on theme
             if sv_ttk.get_theme() == "dark":
