@@ -13,49 +13,49 @@ class SetupSection:
         self.base_rom_path_var = tk.StringVar(value=self.config.get("base_rom_path", ""))
         self.output_dir_var = tk.StringVar(value=self.config.get("output_dir", ""))
         
-        # NEW: API delay slider variable
+        # API delay slider variable
         self.api_delay_var = tk.DoubleVar(value=self.config.get("api_delay", 0.8))
         self.delay_label_var = tk.StringVar(value=f"{self.api_delay_var.get():.1f}s")
-
+    
     def create(self, font):
         """Create the setup section"""
-        # CHANGED: Removed "(Required)" from title
         self.frame = ttk.LabelFrame(self.parent, text="Setup", padding=15)
         
-        # Setup input fields - REMOVED Flips path section
-        ttk.Label(self.frame, text="Base ROM: *", font=font).grid(row=0, column=0, sticky="w")
+        # Base ROM section
+        ttk.Label(self.frame, text="Base ROM: *", font=font).grid(row=0, column=0, sticky="w", pady=(0, 5))
         ttk.Button(
             self.frame, text="Browse", command=self._browse_rom,
             style="Custom.TButton"
-        ).grid(row=0, column=1, sticky="e", padx=(10, 0))
+        ).grid(row=0, column=1, sticky="e", padx=(10, 0), pady=(0, 5))
         self.rom_label = ttk.Label(
             self.frame, textvariable=self.base_rom_path_var,
             foreground="gray", font=font
         )
-        self.rom_label.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 15))
+        self.rom_label.grid(row=1, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 20))
 
-        ttk.Label(self.frame, text="Output Folder: *", font=font).grid(row=2, column=0, sticky="w", pady=(10,0))
+        # Output Folder section
+        ttk.Label(self.frame, text="Output Folder: *", font=font).grid(row=2, column=0, sticky="w", pady=(0, 5))
         ttk.Button(
             self.frame, text="Browse", command=self._select_output_dir,
             style="Custom.TButton"
-        ).grid(row=2, column=1, sticky="e", padx=(10, 0))
+        ).grid(row=2, column=1, sticky="e", padx=(10, 0), pady=(0, 5))
         self.output_label = ttk.Label(
             self.frame, textvariable=self.output_dir_var,
             foreground="gray", font=font
         )
-        self.output_label.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5)
+        self.output_label.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 20))
         
-        # NEW: API Delay Slider
-        ttk.Label(self.frame, text="API Request Delay:", font=font).grid(row=4, column=0, sticky="w", pady=(10,0))
+        # API Delay Slider section
+        ttk.Label(self.frame, text="API Request Delay:", font=font).grid(row=4, column=0, sticky="w", pady=(0, 10))
         self.delay_display = ttk.Label(
             self.frame, textvariable=self.delay_label_var,
             font=font, foreground="#0078d4"
         )
-        self.delay_display.grid(row=4, column=1, sticky="e", padx=(10, 0))
+        self.delay_display.grid(row=4, column=1, sticky="e", padx=(10, 0), pady=(0, 5))
         
         # Slider frame
         slider_frame = ttk.Frame(self.frame)
-        slider_frame.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=(5, 15))
+        slider_frame.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 10))  # Changed from 5 to 10
         
         # Slider with labels
         ttk.Label(slider_frame, text="0s", font=(font[0], font[1]-1)).pack(side="left")
@@ -71,13 +71,22 @@ class SetupSection:
         self.delay_slider.pack(side="left", fill="x", expand=True, padx=(5, 5))
         
         ttk.Label(slider_frame, text="5s", font=(font[0], font[1]-1)).pack(side="right")
-
+        
+        # Slider description
+        ttk.Label(
+            self.frame, 
+            text="Controls delay between API requests. Increase if experiencing rate limiting errors.",
+            font=(font[0], font[1]-1, "italic"),
+            foreground="#888888"
+        ).grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=(0, 20))
+        
+        # Required fields note
         ttk.Label(
             self.frame, 
             text="* All fields are required", 
             font=(font[0], font[1]-1, "italic"),
             foreground="#888888"
-        ).grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=(15,0))
+        ).grid(row=7, column=0, columnspan=2, sticky="w", padx=5, pady=(0, 0))
 
         # Configure column weights
         self.frame.columnconfigure(0, weight=1)
@@ -109,15 +118,19 @@ class SetupSection:
         self.api_delay_var.set(delay_value)
         self.delay_label_var.set(f"{delay_value:.1f}s")
         
-        # Save to config - this will be read by get_api_delay()
+        # Save to config
         self.config.set("api_delay", delay_value)
     
     def get_paths(self):
-        """Return current path values - REMOVED flips_path"""
+        """Return current path values"""
         return {
             "base_rom_path": self.base_rom_path_var.get(),
             "output_dir": self.output_dir_var.get()
         }
+    
+    def get_api_delay(self):
+        """Return current API delay value"""
+        return self.api_delay_var.get()
 
 
 class FilterSection:
@@ -137,11 +150,11 @@ class FilterSection:
         self.frame = ttk.LabelFrame(self.parent, text="Hack Filters", padding=15)
         
         # Hack type dropdown
-        ttk.Label(self.frame, text="Hack Type:", font=font).grid(row=0, column=0, sticky="w", pady=(0,5))
+        ttk.Label(self.frame, text="Hack Type:", font=font).grid(row=0, column=0, sticky="w", pady=(0,8))
         ttk.Combobox(
             self.frame, textvariable=self.type_var, values=hack_types,
             state="readonly", style="Custom.TCombobox"
-        ).grid(row=0, column=1, columnspan=3, sticky="ew")
+        ).grid(row=0, column=1, columnspan=3, sticky="ew", pady=(0,15))
 
         # Radio button rows
         self._add_radio_row("Hall of Fame", self.hof_var, 1, font)
@@ -154,12 +167,12 @@ class FilterSection:
     def _add_radio_row(self, label, var, row, font):
         """Helper to create a radio button row"""
         ttk.Label(self.frame, text=f"{label}:", font=font)\
-            .grid(row=row, column=0, sticky="w", pady=3)
+            .grid(row=row, column=0, sticky="w", pady=8)
         for i, val in enumerate(["Any", "Yes", "No"]):
             ttk.Radiobutton(
                 self.frame, text=val, variable=var, value=val,
                 style="Custom.TRadiobutton"
-            ).grid(row=row, column=i+1, padx=8, pady=3, sticky="w")
+            ).grid(row=row, column=i+1, padx=8, pady=8, sticky="w")
     
     def get_filter_values(self):
         """Return current filter values"""
