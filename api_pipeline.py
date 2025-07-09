@@ -193,7 +193,12 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
         raw_title = hack["name"]
         title_clean = title_case(safe_filename(raw_title))
         raw_diff = hack.get("raw_fields", {}).get("difficulty", "")
-        display_diff = DIFFICULTY_LOOKUP.get(raw_diff, "Unknown")
+        
+        # Fix: Handle None/empty difficulty values consistently
+        if not raw_diff or raw_diff in [None, "N/A"]:
+            raw_diff = ""
+        
+        display_diff = DIFFICULTY_LOOKUP.get(raw_diff, "No Difficulty")  # Changed default from "Unknown" to "No Difficulty"
         folder_name = get_sorted_folder_name(display_diff)
 
         if hack_id in processed:
