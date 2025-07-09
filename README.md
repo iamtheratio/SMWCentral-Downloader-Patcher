@@ -1,6 +1,6 @@
-# SMWC Downloader & Patcher v2.3
+# SMWC Downloader & Patcher v2.4
 
-**SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API to fetch hack information and integrates with Flips for patching.
+**SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API to fetch hack information and features a unified patch handler supporting both IPS and BPS formats.
 
 ## 📚 Table of Contents
 
@@ -18,6 +18,7 @@
 - [🧪 Building Executable](#-building-executable)
 - [🎨 UI Features](#-ui-features)
 - [📄 Release Notes](#release-notes)
+  - [v2.4.0](#v240)
   - [v2.3.0](#v230)
   - [v2.2.0](#v220)
   - [v2.1.0](#v210)
@@ -29,7 +30,7 @@
 ## 👤 Users: Quick Start
 
 1. **Download the Latest Release**
-   - Get the latest `.zip` or installer from the [Releases](https://github.com/iamtheratio/SMWCentral-Downloader-Patcher/releases/download/v2.3.0/SMWC.Downloader.V2.3.zip) page.
+   - Get the latest `.zip` or installer from the [Releases](https://github.com/iamtheratio/SMWCentral-Downloader-Patcher/releases/download/v2.4.0/SMWC.Downloader.V2.4.zip) page.
 
 2. **Extract the Files**
    - Unzip to a folder of your choice.
@@ -37,9 +38,9 @@
 3. **First Launch Setup**
    - Double-click `SMWC Downloader.exe` to start.
    - On first launch, set:
-     - Flips executable path (download from [here](https://www.smwcentral.net/?p=section&a=details&id=11474))
-     - Clean SMW ROM path
+     - Clean SMW ROM path (headerless .smc file recommended)
      - Output directory
+   - **Note:** Flips is no longer required - the app now has built-in patching!
 
 4. **Download & Patch ROM Hacks**
    - Select hack type and filters.
@@ -47,13 +48,13 @@
    - Patched ROMs will appear in your output folder.
 
 ### ✨ New Features
-- Official SMWC API Integration (replacing web scraping)
-- Visual indicators for ROM hack updates
-- Improved error handling and retries
-- Rate limit handling for API requests
-- Red italic styling for replaced ROM notifications
-- Automatic difficulty folder updates when SMWC changes hack difficulty
-- Modular code architecture for better maintainability
+- **Built-in Patch Handler**: No more external Flips dependency - unified IPS/BPS patching system
+- **Intelligent Header Detection**: Automatically detects and handles SMC/SFC ROM headers
+- **Enhanced Logging**: Italic styling for patch application messages with detailed progress
+- **Improved Error Handling**: Better error messages and debugging information
+- **Streamlined Setup**: Removed Flips dependency - only ROM and output paths needed
+- **Automatic Checksum Handling**: Proper SNES ROM checksum calculation for IPS patches
+- **Modular Architecture**: Clean separation of patching logic for better maintainability
 
 ### ✅ Core Features
 - Choose Hack type:
@@ -78,20 +79,21 @@
 - Automated workflow:
   - Downloads from SMWC API
   - Unzips downloaded files
-  - Patches using Flips
+  - **Built-in patching** with unified IPS/BPS handler
   - Supports both .bps and .ips patch formats
   - Supports both .smc and .sfc ROM formats
+  - Automatic header detection and handling
   - Renames and organizes files
   - Updates existing hacks
 - Visual feedback:
-  - Progress logging
+  - Progress logging with italic patch application messages
   - Special indicators for updated ROMs
   - Colored log levels
+  - Detailed patching progress
 - Smart file management:
   - Keeps track of processed hacks
   - Detects and handles hack updates
   - Organizes by type and difficulty
-
 
 ### 🗂️ Folder Structure
 Patched hacks are saved based on their type > difficulty attributes:
@@ -110,15 +112,14 @@ Patched hacks are saved based on their type > difficulty attributes:
 ```
 
 ### 🔧 Configuration
-- `config.json`: Essential paths (**All fields are required**)
+- `config.json`: Essential paths (**Base ROM and Output Directory required**)
   ```json
   {
-    "flips_path": "path/to/flips.exe",
     "base_rom_path": "path/to/clean.smc",
     "output_dir": "path/to/output"
   }
   ```
-- **Note:** You must set all three paths (Flips, Base ROM, Output Directory) before you can download and patch ROMs. The app will show an error message if any required path is missing.
+- **Note:** You must set both Base ROM and Output Directory paths before you can download and patch ROMs. Flips is no longer required.
 - `processed.json`: Tracks downloaded hacks
   - Stores hack IDs and metadata
   - Used for update detection
@@ -133,18 +134,23 @@ Patched hacks are saved based on their type > difficulty attributes:
 - Information: Standard operations
 - Debug: Detailed progress including API requests
 - Verbose: All operations and detailed processing steps
-- Error: Only shows error/failure messages for troubleshooting (new in v2.2)
+- Error: Only shows error/failure messages for troubleshooting
+- **New**: Italic styling for patch application messages
 
 ### 👨‍💻 Project Architecture
-The project has been restructured with a modular architecture:
+The project features a modular architecture with unified patching system:
 
 ```
 /SMWCentral Downloader & Patcher
   ├── main.py             # Application entry point
   ├── api_pipeline.py     # API interaction and processing
+  ├── patch_handler.py    # Unified IPS/BPS patch handling
+  ├── patcher_ips.py      # IPS patch implementation
+  ├── patcher_bps.py      # BPS patch implementation
   ├── config_manager.py   # Configuration handling
-  ├── logging_system.py   # Centralized logging
+  ├── logging_system.py   # Centralized logging with styling
   ├── utils.py           # Utility functions
+  ├── smwc_api_proxy.py  # API proxy with rate limiting
   ├── /ui                # UI components
   │   ├── __init__.py    # UI initialization
   │   ├── layout.py      # Main layout management
@@ -153,6 +159,65 @@ The project has been restructured with a modular architecture:
 ```
 
 # Release Notes
+
+## v2.4.0
+This major update introduces a unified patch handling system, eliminates external dependencies, and significantly improves the patching experience with better error handling and user feedback.
+
+### 🔧 Major Functionality Changes
+- **Removed Flips Dependency**: Built-in patch handler replaces external Flips requirement
+- **Unified Patch System**: Single `PatchHandler` class automatically detects and handles both IPS and BPS formats
+- **Intelligent Header Detection**: Automatically detects and removes SMC/SFC headers before patching
+- **Enhanced Error Handling**: Detailed error messages with full stack traces for debugging
+- **Improved Checksum Handling**: Proper SNES ROM checksum calculation for IPS patches
+
+### 🎨 UI & Logging Improvements
+- **Italic Patch Messages**: Patch application messages now display in italics for better visibility
+- **Detailed Progress Logging**: Shows patch type, filename, and detailed progress information
+- **Enhanced Debug Output**: File sizes, paths, and step-by-step patching information
+- **Cleaner Success Messages**: Removed redundant "patch applied successfully" messages
+
+### 🏗️ Architecture Improvements
+- **Modular Patch System**: Separate `patcher_ips.py` and `patcher_bps.py` with unified interface
+- **Consistent API**: Both IPS and BPS patches use identical `Patch.load()` and `patch.apply()` methods
+- **Better Error Propagation**: Improved error handling throughout the patch pipeline
+- **Code Simplification**: Removed complex header detection logic in favor of library-native handling
+
+### 🔧 Technical Improvements
+- **IPS Implementation**: Uses existing `ips_util` library for reliable IPS patching
+- **BPS Implementation**: Enhanced BPS handler with proper temporary file management and fallback methods
+- **Header Management**: Automatic SMC header detection and removal (512-byte headers)
+- **Memory Efficiency**: Better handling of large ROM files during patching
+- **Compatibility Fixes**: Python 3.8+ compatibility for `time.clock` deprecation
+
+### 📦 Dependencies Changes
+- **Removed**: Flips executable requirement
+- **Enhanced**: `python-bps` library integration
+- **Maintained**: `ips_util` library for IPS support
+
+### 🧪 Testing & Validation
+- Verified IPS patches work correctly without checksum corruption
+- Tested BPS patches with proper header handling
+- Validated automatic patch format detection
+- Confirmed error handling and logging improvements
+- Tested both headerless and headered ROM files
+- Verified temporary file cleanup and memory management
+
+### 📁 File Changes
+- **Added**: `patch_handler.py` - Unified patch handling system
+- **Added**: `patcher_ips.py` - IPS patch implementation using ips_util
+- **Added**: `patcher_bps.py` - BPS patch implementation with enhanced error handling
+- **Modified**: `api_pipeline.py` - Updated to use new patch handler
+- **Modified**: `logging_system.py` - Added italic styling support for patch messages
+- **Modified**: `config_manager.py` - Removed Flips path requirement
+- **Modified**: `utils.py` - Added title_case function for consistent naming
+- **Removed**: Direct Flips integration code
+
+### 🎯 User Experience Improvements
+- **Simplified Setup**: Only ROM and output paths needed (no more Flips setup)
+- **Better Feedback**: Clear indication of which patch is being applied
+- **Improved Reliability**: Built-in patching eliminates external tool failures
+- **Enhanced Debugging**: Detailed error messages help troubleshoot issues
+- **Consistent Behavior**: Unified handling regardless of patch format
 
 ## v2.3.0
 This update focuses on robust, centralized SMWC API rate limit handling, improved reliability for large batch operations, and better error logging.
