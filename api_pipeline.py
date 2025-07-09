@@ -1,15 +1,16 @@
 import requests
 import os
 import tempfile
+import time
 
 from utils import (
     safe_filename, get_sorted_folder_name,
     DIFFICULTY_LOOKUP, DIFFICULTY_KEYMAP,
     load_processed, save_processed, make_output_path,
     TYPE_KEYMAP, TYPE_DISPLAY_LOOKUP,
-    title_case  # CHANGED: Import from utils instead of patcher
+    title_case  # REMOVED: get_api_delay - import from smwc_api_proxy instead
 )
-from smwc_api_proxy import smwc_api_get
+from smwc_api_proxy import smwc_api_get, get_api_delay  # ADDED: get_api_delay import
 from patch_handler import PatchHandler
 
 def fetch_hack_list(config, page=1, log=None):
@@ -161,12 +162,17 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                     log(f"✅ Skipped: {title_clean}")
             continue
 
-        file_meta = fetch_file_metadata(hack_id)
+        file_meta = fetch_file_metadata(hack_id, log=log)
         download_url = file_meta.get("download_url")
 
         temp_dir = tempfile.mkdtemp()
         try:
             zip_path = os.path.join(temp_dir, "hack.zip")
+            
+            # Add debug logging for file download
+            if log:
+                log(f"[DEBUG] Downloading file: {download_url}", level="debug")
+            
             r = requests.get(download_url)
             with open(zip_path, "wb") as f:
                 f.write(r.content)
@@ -205,3 +211,9 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 shutil.rmtree(temp_dir)
             except Exception:
                 pass
+
+        # Add delay logging for file downloads
+        delay = get_api_delay()
+        if log:
+            log(f"[DEBUG] Waiting {delay:.1f} seconds before next request.", level="debug")
+        time.sleep(delay)

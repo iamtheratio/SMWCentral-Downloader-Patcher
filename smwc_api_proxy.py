@@ -1,12 +1,18 @@
 import requests
 import time
+from config_manager import ConfigManager
+
+def get_api_delay():
+    """Get current API delay setting from config"""
+    config = ConfigManager()
+    return config.get("api_delay", 0.8)
 
 def smwc_api_get(url, params=None, log=None, max_retries=3):
     for attempt in range(max_retries):
         response = requests.get(url, params=params)
         reset_ts = response.headers.get('X-RateLimit-Reset')
         remaining = response.headers.get('X-RateLimit-Remaining')
-        delay = 0.8  # fallback
+        delay = get_api_delay()  # Use configurable delay instead of hardcoded 0.8
 
         # Try to use dynamic delay if possible
         try:
@@ -49,6 +55,11 @@ def smwc_api_get(url, params=None, log=None, max_retries=3):
             time.sleep(wait_time)
             continue
         response.raise_for_status()
+        
+        # NEW: Log the delay before sleeping
+        if log:
+            log(f"[DEBUG] Waiting {delay:.1f} seconds before next request.", level="debug")
+        
         time.sleep(delay)
         return response
     raise Exception("Failed to fetch data from SMWC API after retries.")

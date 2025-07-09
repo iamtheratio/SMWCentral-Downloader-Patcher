@@ -9,10 +9,14 @@ class SetupSection:
         self.config = config_manager
         self.frame = None
         
-        # Path variables - REMOVED flips_path_var since we don't use Flips anymore
+        # Path variables
         self.base_rom_path_var = tk.StringVar(value=self.config.get("base_rom_path", ""))
         self.output_dir_var = tk.StringVar(value=self.config.get("output_dir", ""))
-    
+        
+        # NEW: API delay slider variable
+        self.api_delay_var = tk.DoubleVar(value=self.config.get("api_delay", 0.8))
+        self.delay_label_var = tk.StringVar(value=f"{self.api_delay_var.get():.1f}s")
+
     def create(self, font):
         """Create the setup section"""
         # CHANGED: Removed "(Required)" from title
@@ -41,12 +45,39 @@ class SetupSection:
         )
         self.output_label.grid(row=3, column=0, columnspan=2, sticky="ew", padx=5)
         
+        # NEW: API Delay Slider
+        ttk.Label(self.frame, text="API Request Delay:", font=font).grid(row=4, column=0, sticky="w", pady=(10,0))
+        self.delay_display = ttk.Label(
+            self.frame, textvariable=self.delay_label_var,
+            font=font, foreground="#0078d4"
+        )
+        self.delay_display.grid(row=4, column=1, sticky="e", padx=(10, 0))
+        
+        # Slider frame
+        slider_frame = ttk.Frame(self.frame)
+        slider_frame.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=(5, 15))
+        
+        # Slider with labels
+        ttk.Label(slider_frame, text="0s", font=(font[0], font[1]-1)).pack(side="left")
+        
+        self.delay_slider = ttk.Scale(
+            slider_frame,
+            from_=0.0,
+            to=5.0,
+            orient="horizontal",
+            variable=self.api_delay_var,
+            command=self._on_delay_changed
+        )
+        self.delay_slider.pack(side="left", fill="x", expand=True, padx=(5, 5))
+        
+        ttk.Label(slider_frame, text="5s", font=(font[0], font[1]-1)).pack(side="right")
+
         ttk.Label(
             self.frame, 
             text="* All fields are required", 
             font=(font[0], font[1]-1, "italic"),
             foreground="#888888"
-        ).grid(row=4, column=0, columnspan=2, sticky="w", padx=5, pady=(15,0))
+        ).grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=(15,0))
 
         # Configure column weights
         self.frame.columnconfigure(0, weight=1)
@@ -71,6 +102,15 @@ class SetupSection:
         if path:
             self.output_dir_var.set(path)
             self.config.set("output_dir", path)
+    
+    def _on_delay_changed(self, value):
+        """Handle delay slider changes"""
+        delay_value = float(value)
+        self.api_delay_var.set(delay_value)
+        self.delay_label_var.set(f"{delay_value:.1f}s")
+        
+        # Save to config - this will be read by get_api_delay()
+        self.config.set("api_delay", delay_value)
     
     def get_paths(self):
         """Return current path values - REMOVED flips_path"""
