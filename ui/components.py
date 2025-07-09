@@ -15,7 +15,8 @@ class SetupSection:
     
     def create(self, font):
         """Create the setup section"""
-        self.frame = ttk.LabelFrame(self.parent, text="Setup (Required)", padding=15)
+        # CHANGED: Removed "(Required)" from title
+        self.frame = ttk.LabelFrame(self.parent, text="Setup", padding=15)
         
         # Setup input fields - REMOVED Flips path section
         ttk.Label(self.frame, text="Base ROM: *", font=font).grid(row=0, column=0, sticky="w")

@@ -6,7 +6,7 @@ DIFFICULTY_LIST = [
     "advanced", "expert", "master", "grandmaster"
 ]
 
-def setup_ui(root, run_pipeline_func, toggle_theme_callback):
+def setup_ui(root, run_pipeline_func, toggle_theme_callback, version=None):
     """Set up the complete UI"""
     from config_manager import ConfigManager
     from logging_system import LoggingSystem
@@ -20,7 +20,7 @@ def setup_ui(root, run_pipeline_func, toggle_theme_callback):
     filter_section = FilterSection(None)
     difficulty_section = DifficultySection(None, DIFFICULTY_LIST)
     
-    # Create main layout
+    # Create main layout - pass version parameter
     layout = MainLayout(
         root, 
         run_pipeline_func, 
@@ -28,7 +28,8 @@ def setup_ui(root, run_pipeline_func, toggle_theme_callback):
         setup_section, 
         filter_section, 
         difficulty_section,
-        logger
+        logger,
+        version  # Add version parameter
     )
     
     # Build UI
