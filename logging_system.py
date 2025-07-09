@@ -39,18 +39,20 @@ class LoggingSystem:
                     fg="#e0e0e0"
                 )
                 self.log_text.tag_configure("error", foreground="#ff6b6b", font=(self.font[0], self.font[1], "italic"))
-                self.log_text.tag_configure("warning", foreground="#888888", font=(self.font[0], self.font[1], "italic"))
+                self.log_text.tag_configure("warning", foreground="#FFB700", font=(self.font[0], self.font[1], "italic")) 
                 self.log_text.tag_configure("debug", foreground="#16C172")
                 self.log_text.tag_configure("filter_info", foreground="#888888", font=(self.font[0], self.font[1], "italic"))
+                self.log_text.tag_configure("applying", foreground="#e0e0e0", font=(self.font[0], self.font[1], "italic"))
             else:
                 self.log_text.configure(
                     bg="#ffffff", 
                     fg="#000000"
                 )
                 self.log_text.tag_configure("error", foreground="red", font=(self.font[0], self.font[1], "italic"))
-                self.log_text.tag_configure("warning", foreground="#555555", font=(self.font[0], self.font[1], "italic"))
+                self.log_text.tag_configure("warning", foreground="#C76E00", font=(self.font[0], self.font[1], "italic")) 
                 self.log_text.tag_configure("debug", foreground="#16C172")
                 self.log_text.tag_configure("filter_info", foreground="#888888", font=(self.font[0], self.font[1], "italic"))
+                self.log_text.tag_configure("applying", foreground="#000000", font=(self.font[0], self.font[1], "italic"))
         except tk.TclError:
             # Widget was destroyed or doesn't exist
             pass
@@ -65,7 +67,7 @@ class LoggingSystem:
             return True  # Show all messages in Verbose mode
         if self.log_level == "Debug":
             return level.lower() != "verbose"  # Show everything except verbose in Debug mode
-        return level.lower() in ["information", "warning", "error"]  # Information mode
+        return level.lower() in ["information", "warning", "error", "applying"]  # Information mode
     
     def log(self, message, level="Information"):
         """Log a message with appropriate styling"""
@@ -95,6 +97,8 @@ class LoggingSystem:
                 tag = "warning"
             elif level.lower() == "debug":
                 tag = "debug"
+            elif level.lower() == "applying":
+                tag = "applying"
             
             if tag:
                 self.log_text.insert(tk.END, message + "\n", tag)
@@ -146,6 +150,8 @@ class LoggingSystem:
                             tag = "warning"
                         elif stored_level.lower() == "debug":
                             tag = "debug"
+                        elif stored_level.lower() == "applying":
+                            tag = "applying"
                         
                         if tag:
                             self.log_text.insert(tk.END, message + "\n", tag)

@@ -1,12 +1,13 @@
 from .components import SetupSection, FilterSection, DifficultySection
 from .layout import MainLayout
+import sv_ttk
 
 DIFFICULTY_LIST = [
     "newcomer", "casual", "skilled",
-    "advanced", "expert", "master", "grandmaster"
+    "advanced", "expert", "master", "grandmaster", "no difficulty"  # ADDED: no difficulty
 ]
 
-def setup_ui(root, run_pipeline_func, toggle_theme_callback):
+def setup_ui(root, run_pipeline_func, toggle_theme_callback, version=None):
     """Set up the complete UI"""
     from config_manager import ConfigManager
     from logging_system import LoggingSystem
@@ -20,7 +21,7 @@ def setup_ui(root, run_pipeline_func, toggle_theme_callback):
     filter_section = FilterSection(None)
     difficulty_section = DifficultySection(None, DIFFICULTY_LIST)
     
-    # Create main layout
+    # Create main layout - pass version parameter
     layout = MainLayout(
         root, 
         run_pipeline_func, 
@@ -28,7 +29,8 @@ def setup_ui(root, run_pipeline_func, toggle_theme_callback):
         setup_section, 
         filter_section, 
         difficulty_section,
-        logger
+        logger,
+        version  # Add version parameter
     )
     
     # Build UI
@@ -45,3 +47,11 @@ def update_log_colors(log_text):
     logger = LoggingSystem()
     logger.log_text = log_text
     logger.update_colors()
+    
+    # Add warning and debug tag colors
+    if sv_ttk.get_theme() == "dark":
+        log_text.tag_config("warning", foreground="#C76E00")  # Orange
+        log_text.tag_config("debug", foreground="#888888")    # Gray
+    else:
+        log_text.tag_config("warning", foreground="#FFB700")  # Orange 
+        log_text.tag_config("debug", foreground="#666666")    # Dark Gray

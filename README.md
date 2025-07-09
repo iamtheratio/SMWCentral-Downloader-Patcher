@@ -1,257 +1,133 @@
-# SMWC Downloader & Patcher v2.3
+# SMWC Downloader & Patcher v2.4
 
-**SMWCentral Downloader & Patcher** is a Python GUI tool built to automate downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). It uses the official SMWC API to fetch hack information and integrates with Flips for patching.
+A Python GUI tool that automates downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). Features built-in IPS/BPS patching and intelligent filtering options.
 
-## 📚 Table of Contents
+## 🚀 Quick Start
 
-- [👤 Users: Quick Start](#-users-quick-start)
-- [✨ New Features](#-new-features)
-- [✅ Core Features](#-core-features)
-- [🗂️ Folder Structure](#-folder-structure)
-- [🔧 Configuration](#-configuration)
-- [🔄 Update Detection](#-update-detection)
-- [📝 Log Levels](#-log-levels)
-- [👨‍💻 Project Architecture](#-project-architecture)
-- [📸 Screenshots](#-screenshots)
-- [📦 Requirements](#-requirements)
-- [🖥️ Usage](#-usage)
-- [🧪 Building Executable](#-building-executable)
-- [🎨 UI Features](#-ui-features)
-- [📄 Release Notes](#release-notes)
-  - [v2.3.0](#v230)
-  - [v2.2.0](#v220)
-  - [v2.1.0](#v210)
-  - [v2.0.0](#v200)
+1. **Download** the [latest release](https://github.com/iamtheratio/SMWCentral-Downloader-Patcher/releases/latest)
+2. **Extract** to your preferred folder
+3. **Run** `SMWC Downloader.exe`
+4. **Setup** paths:
+   - Clean SMW ROM (headerless .smc recommended)
+   - Output directory
+   - Optional: Adjust API delay slider if needed
+5. **Select** hack type, difficulty, and filters
+6. **Click** Download & Patch
 
-### 📸 Screenshots
-![SMWC Downloader Interface](/images/screenshot_app_v2.2.png)
+![SMWC Downloader Interface](/images/screenshot_app_v2.4.png)
 
-## 👤 Users: Quick Start
+## ✨ Key Features
 
-1. **Download the Latest Release**
-   - Get the latest `.zip` or installer from the [Releases](https://github.com/iamtheratio/SMWCentral-Downloader-Patcher/releases/download/v2.3.0/SMWC.Downloader.V2.3.zip) page.
+### Hack Selection
+- **Types**: Standard, Kaizo, Puzzle, Tool-Assisted, Pit
+- **Difficulties**: Newcomer → Grandmaster + **"No Difficulty"** option
+- **Filters**: Hall of Fame, SA-1, Collab, Demo
+- **Mixed Selection**: Combine multiple difficulties (e.g., "Expert + No Difficulty")
 
-2. **Extract the Files**
-   - Unzip to a folder of your choice.
+### Smart Processing
+- **Built-in Patching**: No external tools needed - handles IPS & BPS formats
+- **Auto-Organization**: Files sorted by type/difficulty into numbered folders
+- **Update Detection**: Automatically replaces older versions
+- **API Rate Control**: Adjustable delay slider (0-5 seconds) to prevent throttling
 
-3. **First Launch Setup**
-   - Double-click `SMWC Downloader.exe` to start.
-   - On first launch, set:
-     - Flips executable path (download from [here](https://www.smwcentral.net/?p=section&a=details&id=11474))
-     - Clean SMW ROM path
-     - Output directory
+### Enhanced Experience
+- **Clean Logging**: Organized progress with orange warnings for important info
+- **Modern UI**: Dark/light themes with Windows titlebar integration
+- **Intelligent Filtering**: Special handling for hacks without difficulty ratings
+- **Error Recovery**: Robust handling of network issues and malformed files
 
-4. **Download & Patch ROM Hacks**
-   - Select hack type and filters.
-   - Click **Download & Patch**.
-   - Patched ROMs will appear in your output folder.
+## 🗂️ File Organization
 
-### ✨ New Features
-- Official SMWC API Integration (replacing web scraping)
-- Visual indicators for ROM hack updates
-- Improved error handling and retries
-- Rate limit handling for API requests
-- Red italic styling for replaced ROM notifications
-- Automatic difficulty folder updates when SMWC changes hack difficulty
-- Modular code architecture for better maintainability
-
-### ✅ Core Features
-- Choose Hack type:
-  - Standard
-  - Kaizo
-  - Puzzle
-  - Tool-Assisted
-  - Pit
-- Optional Hack difficulty:
-  - Newcomer
-  - Casual
-  - Skilled
-  - Advanced
-  - Expert
-  - Master
-  - Grandmaster
-- Filter options:
-  - Hall of Fame
-  - SA-1
-  - Collab
-  - Demo
-- Automated workflow:
-  - Downloads from SMWC API
-  - Unzips downloaded files
-  - Patches using Flips
-  - Supports both .bps and .ips patch formats
-  - Supports both .smc and .sfc ROM formats
-  - Renames and organizes files
-  - Updates existing hacks
-- Visual feedback:
-  - Progress logging
-  - Special indicators for updated ROMs
-  - Colored log levels
-- Smart file management:
-  - Keeps track of processed hacks
-  - Detects and handles hack updates
-  - Organizes by type and difficulty
-
-
-### 🗂️ Folder Structure
-Patched hacks are saved based on their type > difficulty attributes:
 ```
 /Output Folder
   /Kaizo
-    /01 - Newcomer
-      Hack Name.smc
-    /02 - Casual
-      Hack Name.smc
+    /01 - Newcomer/
+    /02 - Casual/
+    /07 - Grandmaster/
+    /08 - No Difficulty/    # For unrated hacks
   /Standard
-    /01 - Newcomer
-      Hack Name.smc
-    /02 - Casual
-      Hack Name.smc
+    /01 - Newcomer/
+    /08 - No Difficulty/
 ```
 
-### 🔧 Configuration
-- `config.json`: Essential paths (**All fields are required**)
-  ```json
-  {
-    "flips_path": "path/to/flips.exe",
-    "base_rom_path": "path/to/clean.smc",
-    "output_dir": "path/to/output"
-  }
-  ```
-- **Note:** You must set all three paths (Flips, Base ROM, Output Directory) before you can download and patch ROMs. The app will show an error message if any required path is missing.
-- `processed.json`: Tracks downloaded hacks
-  - Stores hack IDs and metadata
-  - Used for update detection
-  - Maintains organization structure
+## ⚙️ Configuration
 
-### 🔄 Update Detection
-- Detects when newer versions are available and automatically overwrites existing ROM hacks, keeping your library current
-- Shows red italic "Replaced with a new version!" message
-- Automatically updates ROM files while maintaining organization
-
-### 📝 Log Levels
-- Information: Standard operations
-- Debug: Detailed progress including API requests
-- Verbose: All operations and detailed processing steps
-- Error: Only shows error/failure messages for troubleshooting (new in v2.2)
-
-### 👨‍💻 Project Architecture
-The project has been restructured with a modular architecture:
-
-```
-/SMWCentral Downloader & Patcher
-  ├── main.py             # Application entry point
-  ├── api_pipeline.py     # API interaction and processing
-  ├── config_manager.py   # Configuration handling
-  ├── logging_system.py   # Centralized logging
-  ├── utils.py           # Utility functions
-  ├── /ui                # UI components
-  │   ├── __init__.py    # UI initialization
-  │   ├── layout.py      # Main layout management
-  │   └── components.py  # Reusable UI components
-  └── config.json        # Saved configurations
+The app saves settings in `config.json`:
+```json
+{
+  "base_rom_path": "path/to/clean.smc",
+  "output_dir": "path/to/output",
+  "api_delay": 0.8
+}
 ```
 
-# Release Notes
+**API Delay Slider**: Adjust if experiencing rate limiting (higher = slower but more reliable)
 
-## v2.3.0
-This update focuses on robust, centralized SMWC API rate limit handling, improved reliability for large batch operations, and better error logging.
+## 📋 Requirements
 
-### 🔧 Functionality Improvements
-- Improved handling of API rate limits: automatic retries, smart waiting, and detailed logging
-- Modularized API logic for easier maintenance
+- Windows 10/11
+- Clean Super Mario World ROM file
+- Internet connection for SMWC API
 
-### 🏗️ Technical Improvements
-- All API requests now use a single proxy for consistent rate limit handling
-- Dynamic delay calculation based on API headers (when available)
-- Improved debug and warning logging for API responses and rate limit events
+## 🆕 What's New in v2.4
 
-### 📁 File Changes
-- `smwc_api_proxy.py`: Added centralized proxy with dynamic delay
-- `api_pipeline.py`: Updated to use proxy for all SMWC API calls
+- **"No Difficulty" Filter**: Download hacks without difficulty ratings
+- **API Delay Control**: User-adjustable request timing via slider
+- **Enhanced Logging**: Cleaner output with orange warning messages
+- **Mixed Selections**: Combine regular difficulties with "No Difficulty"
+- **Better Performance**: Reduced debug spam, optimized filtering
 
-## v2.2.0
-This update focuses on modernizing the UI with theming support, improving architecture, enhancing user experience, and adding important functionality improvements.
+## 🔧 Technical Notes
 
-### 🔧 Functionality Improvements
-- Added support for both .bps and .ips patch formats
-- Added Error log level to only show failed/critical logs
-- Now require all setup paths (Flips, Base ROM, Output Directory) before allowing downloads
-- Improved release packaging to include only necessary files (executable, config.json, README.md)
+**"No Difficulty" Processing**: Due to SMWC API limitations, selecting "No Difficulty" downloads ALL hacks then filters locally. This takes longer but finds hacks that weren't properly categorized.
 
-### 🎨 UI & Theme Updates
-- Added Sun Valley theme integration for modern Windows 11 styling
-- Implemented dark/light theme toggle with crescent moon switch
-- Added Windows title bar theming support (Windows 10/11)
-- Improved font consistency across theme changes
-- Enhanced UI spacing and padding for better visual hierarchy
-- Right-aligned Browse buttons in Setup section
-- Enlarged Download & Patch button with accent styling
+**File Formats**: Supports .smc/.sfc ROMs and .ips/.bps patches with automatic header detection.
 
-### 🏗️ Architecture Improvements
-- Restructured codebase into modular components
-- Separated UI, configuration, and logging concerns
-- Implemented improved error handling and protection against crashes
-- Created centralized logging system with better level filtering
-- Added debug message coloring for better visibility
+## 📦 Building from Source
 
-### 🔧 Technical Improvements
-- Integrated `sv-ttk` for modern theme system
-- Added `pywinstyles` for Windows title bar customization
-- Improved font handling to prevent size inconsistencies
-- Better theme persistence during application state changes
-- Enhanced UI layout with proper padding and alignment
-- Optimized log message handling to prevent recursion
+```bash
+pip install -r requirements.txt
+python main.py
+```
 
-### 📦 Dependencies Added
-- `sv-ttk>=2.5.5` - Sun Valley theme
-- `pywinstyles>=1.0.0` - Windows title bar theming
+**Dependencies**: `tkinter`, `requests`, `sv-ttk`, `pywinstyles`
 
-### 🧪 Testing & Validation
-- Verified theme switching works correctly
-- Tested font consistency across light/dark modes
-- Validated Windows 10/11 title bar theming
-- Confirmed UI layout improvements
-- Tested button styling and spacing
-- Validated debug/verbose logging functionality
+## 📄 Full Changelog
 
-### 📁 File Changes
-- `main.py`: Added theme system and font management
-- Created modular UI architecture with components
-- Added centralized configuration and logging
-- Updated README with architecture documentation
-- `.gitignore`: Added build artifacts and cache exclusions
+<details>
+<summary>Click to expand version history</summary>
 
-## v2.1.0
-This update focuses on improving filtering flexibility and fixing type handling inconsistencies.
+### v2.4.0 - "No Difficulty" & API Controls
+- Added "No Difficulty" filtering option
+- User-configurable API delay slider
+- Mixed difficulty selection support
+- Enhanced logging with orange warnings
+- Improved folder organization for unrated hacks
 
-### 🔄 Optional Difficulty Filtering
-- Made difficulty selection optional for all hack types
-- Added confirmation dialog when no difficulty selected
-- Downloads all difficulties when none selected
-- Maintains existing filtering when difficulties are selected
+### v2.3.0 - API Rate Limiting
+- Centralized SMWC API proxy
+- Dynamic delay calculation
+- Improved error handling for large batches
 
-### 🛠️ Type Handling Fixes
-- Fixed SMWC API type key handling for Tool-Assisted hacks
-  - Now correctly uses `tool_assisted` internal key
-  - Resolved inflated/incorrect API results
+### v2.2.0 - Modern UI & Theming
+- Sun Valley dark/light theme system
+- Windows titlebar theming
+- Built-in IPS/BPS patch support
+- Error-only log level
+- Modular architecture redesign
+
+### v2.1.0 - Flexible Filtering
+- Optional difficulty selection
+- Fixed Tool-Assisted hack API keys
 - Improved folder naming consistency
-  - Proper casing for all type folders (e.g. "Tool-Assisted")
-  - Consistent naming across all hack types
-  - Better type key normalization
 
-### 🧪 Testing & Validation
-- Verified downloads work without difficulty filters
-- Confirmed difficulty filtering still works when selected
-- Tested confirmation dialog functionality
-- Validated API responses for Tool-Assisted hacks
-- Verified folder structure and naming
-- Tested against all hack types
+### v2.0.0 - Built-in Patching
+- Removed Flips dependency
+- Unified IPS/BPS patch handler
+- Automatic header detection
+- Enhanced error recovery
+</details>
 
-### 📁 File Changes
-- `ui.py`: Modified difficulty validation logic
-- `utils.py`: Updated type key handling and folder naming
-- No changes to core download/patch functionality
+---
 
-## v2.0.0
-[Previous release notes remain unchanged...]
+**Note**: This tool respects SMWC's terms of service and implements rate limiting to avoid server overload. Please use responsibly.

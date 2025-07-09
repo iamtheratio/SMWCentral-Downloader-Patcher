@@ -8,7 +8,7 @@ class MainLayout:
     """Main UI layout manager"""
     
     def __init__(self, root, run_pipeline_func, toggle_theme_callback, 
-                 setup_section, filter_section, difficulty_section, logger):
+                 setup_section, filter_section, difficulty_section, logger, version=None):
         self.root = root
         self.run_pipeline_func = run_pipeline_func
         self.toggle_theme_callback = toggle_theme_callback
@@ -16,6 +16,7 @@ class MainLayout:
         self.filter_section = filter_section
         self.difficulty_section = difficulty_section
         self.logger = logger
+        self.version = version
         self.download_button = None
         self.font = ("Segoe UI", 9)
     
@@ -83,10 +84,26 @@ class MainLayout:
         
         # Log text area
         log_text = self.logger.setup(main_frame)
-        log_text.pack(fill="both", expand=True, pady=(2,0))
+        log_text.pack(fill="both", expand=True, pady=(2,5))
         
         # Store reference for theme toggling
         self.root.log_text = log_text
+        
+        # Add version label in bottom right with 20px padding
+        if self.version:
+            version_label = ttk.Label(self.root, text=self.version, 
+                                    font=("Segoe UI", 8, "italic"))
+            # Use place geometry manager for absolute positioning - right aligned with padding
+            version_label.place(relx=1.0, rely=1.0, anchor="se", x=-26, y=-10)
+            
+            # Set initial color based on theme
+            if sv_ttk.get_theme() == "dark":
+                version_label.configure(foreground="#888888")
+            else:
+                version_label.configure(foreground="#666666")
+            
+            # Store reference for theme updates
+            self.root.version_label = version_label
         
         return main_frame
     
@@ -174,10 +191,8 @@ class MainLayout:
         # Validate required paths first
         paths = self.setup_section.get_paths()
         
-        # Check if any paths are empty
+        # Check if any paths are empty - REMOVED flips_path check
         missing_paths = []
-        if not paths["flips_path"]:
-            missing_paths.append("Flips Path")
         if not paths["base_rom_path"]:
             missing_paths.append("Base ROM Path")
         if not paths["output_dir"]:
@@ -195,6 +210,14 @@ class MainLayout:
         # Get filter payload
         payload = self._generate_filter_payload()
         
+        # ADDED: Check if no difficulties selected
+        if not payload.get("difficulties"):
+            messagebox.showerror(
+                "Selection Required", 
+                "Please select at least one difficulty level to continue."
+            )
+            return
+        
         # Check if no difficulties selected
         if not payload.get("difficulties") and payload.get("type")[0] != "all":
             if not messagebox.askyesno(
@@ -211,7 +234,6 @@ class MainLayout:
             try:
                 self.run_pipeline_func(
                     filter_payload=payload,
-                    flips_path=paths["flips_path"],
                     base_rom_path=paths["base_rom_path"],
                     output_dir=paths["output_dir"],
                     log=self.logger.log

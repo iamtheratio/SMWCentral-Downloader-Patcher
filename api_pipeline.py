@@ -1,43 +1,64 @@
 import requests
 import os
 import tempfile
-import subprocess
+import time
 
 from utils import (
     safe_filename, get_sorted_folder_name,
     DIFFICULTY_LOOKUP, DIFFICULTY_KEYMAP,
     load_processed, save_processed, make_output_path,
-    TYPE_KEYMAP, TYPE_DISPLAY_LOOKUP
+    TYPE_KEYMAP, TYPE_DISPLAY_LOOKUP,
+    title_case  # REMOVED: get_api_delay - import from smwc_api_proxy instead
 )
-from patcher import title_case
-from smwc_api_proxy import smwc_api_get
+from smwc_api_proxy import smwc_api_get, get_api_delay  # ADDED: get_api_delay import
+from patch_handler import PatchHandler
 
 def fetch_hack_list(config, page=1, log=None):
     params = {"a": "getsectionlist", "s": "smwhacks", "n": page}
+    
+    # Handle difficulty filtering with "No Difficulty" support
+    difficulties = config.get("difficulties", [])
+    has_no_difficulty = "no difficulty" in difficulties
+    regular_difficulties = [d for d in difficulties if d != "no difficulty"]
+    
     for key, values in config.items():
         if key == "difficulties" and values:
-            converted = [f"diff_{DIFFICULTY_KEYMAP[d]}" for d in values if d in DIFFICULTY_KEYMAP]
-            params["f[difficulty][]"] = converted
+            if regular_difficulties and not has_no_difficulty:
+                # ONLY regular difficulties - normal API filtering
+                converted = []
+                for d in regular_difficulties:
+                    if d in DIFFICULTY_KEYMAP:
+                        diff_key = DIFFICULTY_KEYMAP[d]
+                        if diff_key:  # Only add if not empty string
+                            converted.append(f"diff_{diff_key}")
+                if converted:
+                    params["f[difficulty][]"] = converted
+            # For cases with "No Difficulty", don't add any difficulty filter to API
         elif values:
             for val in values:
                 params.setdefault(f"f[{key}][]", []).append(val)
-    if log:
-        req = requests.Request("GET", "https://www.smwcentral.net/ajax.php", params=params).prepare()
-        log(f"[DEBUG] API Request URL:\n{req.url}", level="debug")
+    
     response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
-    return response.json().get("data", [])
+    raw_data = response.json().get("data", [])
+    
+    # Simplified logic - only filter in the pipeline, not here
+    if has_no_difficulty and not regular_difficulties:
+        # For "No Difficulty" only - return ALL data without filtering
+        return raw_data
+    elif has_no_difficulty and regular_difficulties:
+        # Mixed selection - return ALL data, let pipeline handle filtering
+        return raw_data
+    
+    # Normal case - return raw data (API already filtered)
+    return raw_data
 
 def fetch_file_metadata(file_id, log=None):
     params = {"a": "getfile", "v": "2", "id": file_id}
     response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
     return response.json()
 
-def patch_with_flips(flips_path, patch_path, base_rom, output_path):
-    # The --apply flag works for both BPS and IPS patches
-    subprocess.run([flips_path, "--apply", patch_path, base_rom, output_path], check=True)
-
-def extract_patch_from_zip(zip_path, extract_to, hack_name=""):
-    """Extract zip and find BPS or IPS patch files"""
+def extract_patches_from_zip(zip_path, extract_to, hack_name=""):
+    """Extract zip and find patch files (IPS or BPS)"""
     import zipfile
     import re
     
@@ -50,75 +71,72 @@ def extract_patch_from_zip(zip_path, extract_to, hack_name=""):
                 raise zipfile.BadZipFile(f"Bad zip file, first bad file: {bad_file}")
             zip_ref.extractall(extract_to)
     except Exception as e:
-        # Could add alternative extraction methods here if needed
         raise e
     
-    # Find all patch files (BPS and IPS)
-    patch_files = {"bps": [], "ips": []}
+    # Find all patch files (IPS and BPS)
+    patch_files = []
     for root, _, files in os.walk(extract_to):
         for fname in files:
-            lower_fname = fname.lower()
-            if lower_fname.endswith(".bps"):
-                patch_files["bps"].append(os.path.join(root, fname))
-            elif lower_fname.endswith(".ips"):
-                patch_files["ips"].append(os.path.join(root, fname))
+            if fname.lower().endswith((".ips", ".bps")):
+                patch_files.append(os.path.join(root, fname))
     
-    # Prioritize BPS over IPS if both exist
-    all_patches = patch_files["bps"] + patch_files["ips"]
-    
-    if not all_patches:
+    if not patch_files:
         return None
     
     # If only one patch file exists, use it
-    if len(all_patches) == 1:
-        return all_patches[0]
+    if len(patch_files) == 1:
+        return patch_files[0]
     
     # Multiple patch files found, use selection strategy
     
-    # Process BPS files first, then IPS files if no BPS match is found
-    for patch_type in ["bps", "ips"]:
-        type_patches = patch_files[patch_type]
-        if not type_patches:
-            continue
-            
-        # Try to match with hack name if provided
-        if hack_name:
-            hack_name_simple = re.sub(r'[^a-zA-Z0-9]', '', hack_name.lower())
-            for patch_file in type_patches:
-                file_name = os.path.basename(patch_file).lower()
-                file_name_simple = re.sub(r'[^a-zA-Z0-9]', '', file_name)
-                if hack_name_simple in file_name_simple:
-                    return patch_file
-        
-        # Look for common main patch indicators
-        main_indicators = ["main", "patch", "rom", "smc", "sfc"]
-        for indicator in main_indicators:
-            for patch_file in type_patches:
-                if indicator in os.path.basename(patch_file).lower():
-                    return patch_file
-        
-        # Exclude common auxiliary patches
-        exclude_indicators = ["music", "graphics", "optional", "extra", "addon"]
-        filtered_files = [f for f in type_patches if not any(
-            indicator in os.path.basename(f).lower() for indicator in exclude_indicators
-        )]
-        
-        if filtered_files:
-            # Use the largest remaining file (often the main patch)
-            return max(filtered_files, key=os.path.getsize)
-        
-        if type_patches:
-            # If all else fails, use the largest file of this type
-            return max(type_patches, key=os.path.getsize)
+    # Try to match with hack name if provided
+    if hack_name:
+        hack_name_simple = re.sub(r'[^a-zA-Z0-9]', '', hack_name.lower())
+        for patch_file in patch_files:
+            file_name = os.path.basename(patch_file).lower()
+            file_name_simple = re.sub(r'[^a-zA-Z0-9]', '', file_name)
+            if hack_name_simple in file_name_simple:
+                return patch_file
     
-    # If we get here, just return the largest patch file of any type
-    return max(all_patches, key=os.path.getsize)
+    # Look for common main patch indicators
+    main_indicators = ["main", "patch", "rom", "smc", "sfc"]
+    for indicator in main_indicators:
+        for patch_file in patch_files:
+            if indicator in os.path.basename(patch_file).lower():
+                return patch_file
+    
+    # Exclude common auxiliary patches
+    exclude_indicators = ["music", "graphics", "optional", "extra", "addon"]
+    filtered_files = [f for f in patch_files if not any(
+        indicator in os.path.basename(f).lower() for indicator in exclude_indicators
+    )]
+    
+    if filtered_files:
+        # Use the largest remaining file (often the main patch)
+        return max(filtered_files, key=os.path.getsize)
+    
+    # If all else fails, use the largest patch file
+    return max(patch_files, key=os.path.getsize)
 
-def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None):
+def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
+    """
+    Main pipeline function using unified patch handler
+    """
     processed = load_processed()
     all_hacks = []
     page = 1
     if log: log("🔎 Starting download...")
+
+    # Check if we need to do post-collection filtering
+    difficulties = filter_payload.get("difficulties", [])
+    has_no_difficulty = "no difficulty" in difficulties
+    regular_difficulties = [d for d in difficulties if d != "no difficulty"]
+    needs_post_filtering = has_no_difficulty and not regular_difficulties
+    
+    # Add warning for "No Difficulty" selections
+    if has_no_difficulty:
+        if log:
+            log("[WRN] 'No Difficulty' selected - downloading ALL hacks then filtering locally due to SMWC API limitations", level="warning")
 
     while True:
         hacks = fetch_hack_list(filter_payload, page=page, log=log)
@@ -128,6 +146,37 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
             break
         all_hacks.extend(hacks)
         page += 1
+
+    # Post-collection filtering for "No Difficulty" scenarios
+    if needs_post_filtering or (has_no_difficulty and regular_difficulties):
+        if log:
+            log(f"🔍 Filtering {len(all_hacks)} hacks for difficulty criteria...")
+        
+        filtered_hacks = []
+        for hack in all_hacks:
+            hack_difficulty = hack.get("raw_fields", {}).get("difficulty", "")
+            
+            if has_no_difficulty and not regular_difficulties:
+                # ONLY "No Difficulty" selected
+                if hack_difficulty == "" or hack_difficulty is None or hack_difficulty == "N/A":
+                    filtered_hacks.append(hack)
+            elif has_no_difficulty and regular_difficulties:
+                # MIXED: Both "No Difficulty" AND regular difficulties
+                selected_diff_keys = []
+                for d in regular_difficulties:
+                    if d in DIFFICULTY_KEYMAP:
+                        diff_key = DIFFICULTY_KEYMAP[d]
+                        if diff_key:
+                            selected_diff_keys.append(f"diff_{diff_key}")
+                
+                # Include if: no difficulty OR matches selected difficulties
+                if (hack_difficulty == "" or hack_difficulty is None or hack_difficulty == "N/A") or hack_difficulty in selected_diff_keys:
+                    filtered_hacks.append(hack)
+        
+        if log:
+            log(f"✅ Filtered to {len(filtered_hacks)} hacks matching criteria")
+        
+        all_hacks = filtered_hacks
 
     if log:
         log(f"📦 Found {len(all_hacks)} total hacks.")
@@ -179,37 +228,58 @@ def run_pipeline(filter_payload, flips_path, base_rom_path, output_dir, log=None
                     log(f"✅ Skipped: {title_clean}")
             continue
 
-        file_meta = fetch_file_metadata(hack_id)
+        file_meta = fetch_file_metadata(hack_id, log=log)
         download_url = file_meta.get("download_url")
 
         temp_dir = tempfile.mkdtemp()
         try:
             zip_path = os.path.join(temp_dir, "hack.zip")
+            
+            # Add debug logging for file download
+            if log:
+                log(f"[DEBUG] Downloading file: {download_url}", level="debug")
+            
             r = requests.get(download_url)
             with open(zip_path, "wb") as f:
                 f.write(r.content)
 
-            patch_path = extract_patch_from_zip(zip_path, temp_dir, title_clean)
+            patch_path = extract_patches_from_zip(zip_path, temp_dir, title_clean)
             if not patch_path:
-                raise Exception("Patch file (BPS or IPS) not found")
+                raise Exception("Patch file (.ips or .bps) not found in archive")
 
             output_filename = f"{title_clean}{base_rom_ext}"
             output_path = os.path.join(make_output_path(output_dir, normalized_type, folder_name), output_filename)
 
-            patch_with_flips(flips_path, patch_path, base_rom_path, output_path)
+            # CHANGED: Pass log function to patch handler
+            success = PatchHandler.apply_patch(patch_path, base_rom_path, output_path, log)
+            if not success:
+                raise Exception("Patch application failed")
 
-            # Determine which patch type was used for logging
-            patch_type = "BPS" if patch_path.lower().endswith(".bps") else "IPS"
             if log:
-                log(f"✅ Patched: {title_clean} ({patch_type})")
+                log(f"✅ Patched: {title_clean}")
 
+            # Update processed data
             processed[hack_id] = {
-                "title": title_clean,
+                "title": raw_title,
                 "current_difficulty": display_diff,
-                "type": TYPE_DISPLAY_LOOKUP.get(normalized_type, normalized_type)
+                "folder_name": folder_name,
+                "file_path": output_path
             }
             save_processed(processed)
 
         except Exception as e:
             if log:
-                log(f"❌ Failed: {title_clean} → {e}", level="Error")
+                log(f"❌ Error processing {title_clean}: {str(e)}", "Error")
+        finally:
+            # Clean up temp files
+            import shutil
+            try:
+                shutil.rmtree(temp_dir)
+            except Exception:
+                pass
+
+        # Add delay logging for file downloads
+        delay = get_api_delay()
+        if log:
+            log(f"[DEBUG] Waiting {delay:.1f} seconds before next request.", level="debug")
+        time.sleep(delay)

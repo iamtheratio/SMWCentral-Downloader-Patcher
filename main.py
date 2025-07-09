@@ -7,6 +7,8 @@ import sys
 import platform
 import pywinstyles
 
+VERSION = "v2.4"
+
 def apply_theme_to_titlebar(root):
     if platform.system() != "Windows":
         return
@@ -60,7 +62,7 @@ def toggle_theme_callback(root):
 
 def main():
     root = tk.Tk()
-    root.title("SMWC Downloader & Patcher v2.2")
+    root.title("SMWC Downloader & Patcher")
     root.geometry("900x850")
     
     # Initial setup
@@ -74,8 +76,8 @@ def main():
     # Apply title bar theme immediately after dark theme is set
     apply_theme_to_titlebar(root)
     
-    # Setup UI and run - this will return the button reference
-    download_button = setup_ui(root, run_pipeline, toggle_theme_callback)
+    # Setup UI and run - pass version to setup_ui
+    download_button = setup_ui(root, run_pipeline, toggle_theme_callback, VERSION)
     
     # Store button reference for pipeline access
     root.download_button = download_button
