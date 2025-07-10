@@ -338,21 +338,3 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 shutil.rmtree(temp_dir)
             except Exception:
                 pass
-
-    # After collecting all hacks, remove duplicates and get actual count
-    unique_hacks = []
-    seen_ids = set()
-
-    for hack in all_hacks:
-        hack_id = hack.get('id')
-        if hack_id not in seen_ids:
-            unique_hacks.append(hack)
-            seen_ids.add(hack_id)
-
-    if log: 
-        log(f"📦 Found {len(unique_hacks)} unique hacks (removed {len(all_hacks) - len(unique_hacks)} duplicates).", level="information")
-
-    # Use unique_hacks instead of all_hacks for processing
-    all_hacks = unique_hacks
-
-
