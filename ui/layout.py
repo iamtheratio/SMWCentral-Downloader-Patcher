@@ -8,6 +8,9 @@ from colors import get_colors
 class MainLayout:
     """Main UI layout manager"""
     
+    # Add this class variable for underline spacing
+    UNDERLINE_SPACING = 20
+    
     def __init__(self, root, run_pipeline_func, toggle_theme_callback, 
                  setup_section, filter_section, difficulty_section, logger, version=None):
         self.root = root
@@ -20,23 +23,150 @@ class MainLayout:
         self.version = version
         self.download_button = None
         self.font = ("Segoe UI", 9)
-    
-    def create(self):
-        """Create the main UI layout"""
-        # Create theme toggle frame for top right
-        self._create_theme_toggle()
         
-        # Main frame
-        main_frame = ttk.Frame(self.root, padding=25)
-        main_frame.pack(fill="both", expand=True)
+        # Page management
+        self.current_page = "Bulk Download"
+        self.pages = {}
+        self.nav_bar = None
+        self.content_frame = None
+    
+    def _create_navigation_bar(self):
+        """Create navigation bar with tabs"""
+        # Create spacer to push navigation down - increase height to 80px
+        spacer = ttk.Frame(self.root, height=60)
+        spacer.pack(side="top", fill="x")
+        
+        # Create navigation bar using a Canvas for complete background control
+        accent_color = "#66c2ff"  # Light blue color for navigation bar
+        
+        nav_height = 60  # Increase from 40 to 50 pixels
+        
+        # Create a canvas for the navigation bar with blue background
+        self.nav_bar = tk.Canvas(
+            self.root,
+            height=nav_height,
+            bg=accent_color,  # Use blue background
+            highlightthickness=0,  # No border
+        )
+        self.nav_bar.pack(fill="x", side="top", pady=0)
+        
+        # Add tab buttons as text directly on the canvas
+        tabs = ["Bulk Download", "Hack History"]
+        tab_width = 130
+        
+        # Store references for click handling
+        self.tab_refs = []
+        
+        for i, tab in enumerate(tabs):
+            x_pos = 10 + (i * tab_width)
+            
+            # Create text item on canvas
+            tab_id = self.nav_bar.create_text(
+                x_pos + 10,  # Add padding
+                nav_height // 2 - 3,  # Subtract 3px to move text up
+                text=tab,
+                font=("Segoe UI", 11, "bold" if tab == self.current_page else "normal"),
+                fill="black",
+                anchor="w"
+            )
+            
+            # Get text dimensions to center underline
+            text_bbox = self.nav_bar.bbox(tab_id)
+            text_width = text_bbox[2] - text_bbox[0]
+            text_left = text_bbox[0]
+            
+            # Create underline rectangle (only for active tab)
+            # Center the line under the text with a margin above the bottom
+            if tab == self.current_page:
+                # Ensure we always create an underline for the current page
+                underline_id = self.nav_bar.create_line(
+                    text_left, nav_height - self.UNDERLINE_SPACING,  # Use the class variable
+                    text_left + text_width, nav_height - self.UNDERLINE_SPACING,  # Use the class variable
+                    width=3,
+                    fill="black"
+                )
+            else:
+                underline_id = None
+            
+            # Store references for later - store text bbox info for underline positioning
+            self.tab_refs.append({
+                "name": tab,
+                "text_id": tab_id,
+                "underline_id": underline_id,
+                "x": x_pos,
+                "width": tab_width,
+                "text_left": text_left,
+                "text_width": text_width
+            })
+            
+            # Calculate bbox for click detection
+            x1 = x_pos
+            y1 = 0
+            x2 = x_pos + tab_width
+            y2 = nav_height
+            
+            # Bind canvas area click to show page
+            self.nav_bar.tag_bind(tab_id, "<Button-1>", lambda e, t=tab: self.show_page(t))
+            
+            # Make cursor change on hover by binding to canvas area
+            self.nav_bar.tag_bind(tab_id, "<Enter>", lambda e: self.nav_bar.config(cursor="hand2"))
+            self.nav_bar.tag_bind(tab_id, "<Leave>", lambda e: self.nav_bar.config(cursor=""))
 
-        # Title
-        ttk.Label(
-            main_frame,
-            text="SMWCentral Downloader & Patcher",
-            font=("Segoe UI", 20, "bold")
-        ).pack(pady=(0, 20))
+    def show_page(self, page_name):
+        """Switch between pages"""
+        # Update the current page
+        self.current_page = page_name
+        
+        # Hide all pages first
+        for name, frame in self.pages.items():
+            frame.pack_forget()
+        
+        # Show the selected page
+        if page_name in self.pages:
+            self.pages[page_name].pack(fill="both", expand=True)
+        
+        # Update tabs on the canvas
+        for tab_ref in self.tab_refs:
+            # Update text style (bold for active)
+            self.nav_bar.itemconfig(
+                tab_ref["text_id"],
+                font=("Segoe UI", 11, "bold" if tab_ref["name"] == page_name else "normal")
+            )
+            
+            # Handle underline
+            if tab_ref["name"] == page_name:
+                # Get updated text dimensions after font change (bold makes text wider)
+                text_bbox = self.nav_bar.bbox(tab_ref["text_id"])
+                text_width = text_bbox[2] - text_bbox[0]
+                text_left = text_bbox[0]
+                
+                # Create underline if not exists
+                if not tab_ref["underline_id"]:
+                    tab_ref["underline_id"] = self.nav_bar.create_line(
+                        text_left, self.nav_bar.winfo_height() - self.UNDERLINE_SPACING,  # Use the class variable
+                        text_left + text_width, self.nav_bar.winfo_height() - self.UNDERLINE_SPACING,  # Use the class variable
+                        width=3,
+                        fill="black"
+                    )
+                else:
+                    # Update position if it exists
+                    self.nav_bar.coords(
+                        tab_ref["underline_id"],
+                        text_left, self.nav_bar.winfo_height() - self.UNDERLINE_SPACING,  # Use the class variable
+                        text_left + text_width, self.nav_bar.winfo_height() - self.UNDERLINE_SPACING  # Use the class variable
+                    )
+            else:
+                # Remove underline if exists
+                if tab_ref["underline_id"]:
+                    self.nav_bar.delete(tab_ref["underline_id"])
+                    tab_ref["underline_id"] = None
 
+    def _create_bulk_download_page(self):
+        """Create the bulk download page (existing UI)"""
+        # Main frame for this page
+        bulk_page = ttk.Frame(self.content_frame, padding=25)
+        self.pages["Bulk Download"] = bulk_page
+        
         # Configure styles
         style = ttk.Style()
         for widget in ("TCheckbutton", "TRadiobutton", "TButton", "TCombobox"):
@@ -47,12 +177,12 @@ class MainLayout:
                       padding=(20, 10))
 
         # Difficulty selection
-        self.difficulty_section.parent = main_frame
+        self.difficulty_section.parent = bulk_page
         difficulty_frame = self.difficulty_section.create(self.font)
         difficulty_frame.pack(fill="x", pady=10)
 
         # Setup & filters section
-        row_frame = ttk.Frame(main_frame)
+        row_frame = ttk.Frame(bulk_page)
         row_frame.pack(fill="both", expand=True, pady=10)
 
         # Configure grid for row_frame
@@ -73,7 +203,7 @@ class MainLayout:
 
         # Download & Patch button
         self.download_button = ttk.Button(
-            main_frame, 
+            bulk_page, 
             text="Download & Patch", 
             command=self._run_pipeline_threaded,
             style="Large.Accent.TButton"
@@ -81,7 +211,7 @@ class MainLayout:
         self.download_button.pack(pady=(10, 15))
         
         # Log section with level dropdown and clear button
-        log_header_frame = ttk.Frame(main_frame)
+        log_header_frame = ttk.Frame(bulk_page)
         log_header_frame.pack(fill="x", pady=(20, 5))
         
         # Log level dropdown (left side)
@@ -105,11 +235,79 @@ class MainLayout:
         ).pack(side="right")
         
         # Log text area (full width below)
-        log_text = self.logger.setup(main_frame)
+        log_text = self.logger.setup(bulk_page)
         log_text.pack(fill="both", expand=True, pady=(2, 5))
         
         # Store reference for theme toggling
         self.root.log_text = log_text
+    
+    def _create_hack_history_page(self):
+        """Create a blank page for hack history"""
+        # Main frame for this page
+        history_page = ttk.Frame(self.content_frame, padding=25)
+        self.pages["Hack History"] = history_page
+        
+        # Add placeholder content
+        ttk.Label(
+            history_page,
+            text="Hack History Page",
+            font=("Segoe UI", 14)
+        ).pack(pady=50)
+        
+        ttk.Label(
+            history_page,
+            text="This page will be implemented in a future update.",
+            font=("Segoe UI", 10)
+        ).pack()
+
+    def _create_theme_toggle(self):
+        """Create theme toggle switch"""
+        # Position the theme toggle to be visible in the top-right corner
+        theme_frame = ttk.Frame(self.root)
+        theme_frame.place(relx=1.0, rely=0.0, anchor="ne", x=-10, y=10)
+        
+        # Add theme switch
+        theme_switch = ttk.Checkbutton(
+            theme_frame,
+            style="Switch.TCheckbutton",
+            command=lambda: self.toggle_theme_callback(self.root)
+        )
+        theme_switch.pack(side="left")
+        theme_switch.state(['selected'] if sv_ttk.get_theme() == "dark" else [])
+        
+        # Add moon icon
+        moon_label = ttk.Label(
+            theme_frame, 
+            text="🌙",
+            font=("Segoe UI Emoji", 12),
+        )
+        moon_label.pack(side="left", padx=(2, 5))
+        
+        # Store references for later access
+        self.root.theme_switch = theme_switch
+        self.root.moon_label = moon_label
+        
+        # Make sure the theme toggle is on top of everything
+        theme_frame.lift()
+
+    def create(self):
+        """Create the main UI layout"""
+        # Create theme toggle frame for top right first
+        self._create_theme_toggle()
+        
+        # Create navigation bar at the top (with 50px spacer)
+        self._create_navigation_bar()
+        
+        # Content frame - will hold all pages
+        self.content_frame = ttk.Frame(self.root)
+        self.content_frame.pack(fill="both", expand=True)
+        
+        # Create pages
+        self._create_bulk_download_page()
+        self._create_hack_history_page()
+        
+        # Show default page (this will ensure underline is correctly displayed)
+        self.show_page("Bulk Download")
         
         # Add version label in bottom right with 20px padding
         if self.version:
@@ -124,36 +322,16 @@ class MainLayout:
             
             # Store reference for theme updates
             self.root.version_label = version_label
-        
-        return main_frame
     
-    def _create_theme_toggle(self):
-        """Create theme toggle switch"""
-        theme_frame = ttk.Frame(self.root)
-        theme_frame.pack(anchor="ne", padx=10, pady=5)
-        
-        # Add empty label for spacing
-        ttk.Label(
-            theme_frame, 
-            text="", 
-            width=1
-        ).pack(side="left", padx=(0, 5))
-        
-        # Add theme switch
-        theme_switch = ttk.Checkbutton(
-            theme_frame,
-            style="Switch.TCheckbutton",
-            command=lambda: self.toggle_theme_callback(self.root)
-        )
-        theme_switch.pack(side="left")
-        theme_switch.state(['selected'])  # Start checked for dark mode
-        
-        # Add moon icon
-        ttk.Label(
-            theme_frame, 
-            text="🌙",
-            font=("Segoe UI Emoji", 12),
-        ).pack(side="left", padx=(2, 5))
+        # Make sure theme toggle remains on top
+        self.root.update_idletasks()
+        if hasattr(self.root, 'theme_switch'):
+            self.root.theme_switch.master.lift()
+    
+        # Force a refresh of the navigation tabs to ensure underline is properly displayed
+        self.root.after(100, lambda: self.show_page(self.current_page))
+    
+        return self.content_frame
     
     def _create_log_controls(self, parent):
         """Create log level controls"""
