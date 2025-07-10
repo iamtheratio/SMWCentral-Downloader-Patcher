@@ -104,9 +104,12 @@ class SetupSection:
             self.config.set("output_dir", path)
     
     def _on_delay_changed(self, value):
-        delay_val = float(value)
+        # FIXED: Round to nearest 0.1 increment
+        delay_val = round(float(value), 1)
         self.delay_label_var.set(f"{delay_val:.1f}s")
         self.config.set("api_delay", delay_val)
+        # Update the slider variable to match the rounded value
+        self.api_delay_var.set(delay_val)
     
     def get_paths(self):
         return {
