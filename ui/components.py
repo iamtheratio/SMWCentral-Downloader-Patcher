@@ -78,8 +78,8 @@ class SetupSection:
         colors = get_colors()
         ttk.Label(
             self.frame,
-            text="Higher values = slower but more reliable downloads",
-            font=(font[0], font[1]-1),
+            text="Controls delay between API requests, increase if experiencing rate limits.",
+            font=(font[0], font[1]-1, "italic"),
             foreground=colors["description"]
         ).grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 5))
         
@@ -125,19 +125,19 @@ class FilterSection:
         self.parent = parent
         self.frame = None
         
-        # Variables
-        self.type_var = tk.StringVar(value="Standard")
-        self.demo_var = tk.StringVar(value="Either")
-        self.hof_var = tk.StringVar(value="Either")
-        self.sa1_var = tk.StringVar(value="Either")
-        self.collab_var = tk.StringVar(value="Either")
+        # Variables - Changed defaults
+        self.type_var = tk.StringVar(value="Kaizo")  # DEFAULT TO KAIZO
+        self.demo_var = tk.StringVar(value="Any")    # CHANGED TO ANY
+        self.hof_var = tk.StringVar(value="Any")     # CHANGED TO ANY
+        self.sa1_var = tk.StringVar(value="Any")     # CHANGED TO ANY
+        self.collab_var = tk.StringVar(value="Any")  # CHANGED TO ANY
         self.waiting_var = tk.BooleanVar(value=False)
     
     def create(self, font, hack_types):
         """Create the filter section"""
         self.frame = ttk.LabelFrame(self.parent, text="Filters", padding=15)
         
-        # Hack Type section - RESTORED TO DROPDOWN
+        # Hack Type section - DROPDOWN WITH KAIZO DEFAULT
         ttk.Label(self.frame, text="Hack Type:", font=font).grid(row=0, column=0, sticky="w", pady=(0, 10))
         
         self.type_combo = ttk.Combobox(
@@ -150,11 +150,11 @@ class FilterSection:
         )
         self.type_combo.grid(row=0, column=1, sticky="ew", padx=(10, 0), pady=(0, 10))
         
-        # Filter options
-        self._add_radio_row("Demo:", self.demo_var, 1, font)
-        self._add_radio_row("Hall of Fame:", self.hof_var, 2, font)
-        self._add_radio_row("SA-1:", self.sa1_var, 3, font)
-        self._add_radio_row("Collab:", self.collab_var, 4, font)
+        # Filter options - REORDERED AND CHANGED TO "Any"
+        self._add_radio_row("Hall of Fame:", self.hof_var, 1, font)
+        self._add_radio_row("SA-1:", self.sa1_var, 2, font)
+        self._add_radio_row("Collab:", self.collab_var, 3, font)
+        self._add_radio_row("Demo:", self.demo_var, 4, font)
         
         # Include Waiting checkbox
         ttk.Checkbutton(
@@ -175,7 +175,8 @@ class FilterSection:
         radio_frame = ttk.Frame(self.frame)
         radio_frame.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=2)
         
-        for i, option in enumerate(["Either", "Yes", "No"]):
+        # CHANGED OPTIONS TO Any/Yes/No
+        for i, option in enumerate(["Any", "Yes", "No"]):
             ttk.Radiobutton(
                 radio_frame, text=option, variable=var, value=option,
                 style="Custom.TRadiobutton"

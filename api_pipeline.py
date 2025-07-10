@@ -8,9 +8,9 @@ from utils import (
     DIFFICULTY_LOOKUP, DIFFICULTY_KEYMAP,
     load_processed, save_processed, make_output_path,
     TYPE_KEYMAP, TYPE_DISPLAY_LOOKUP,
-    title_case  # REMOVED: get_api_delay - import from smwc_api_proxy instead
+    title_case
 )
-from smwc_api_proxy import smwc_api_get, get_api_delay  # ADDED: get_api_delay import
+from smwc_api_proxy import smwc_api_get, get_api_delay
 from patch_handler import PatchHandler
 
 def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
@@ -34,8 +34,17 @@ def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
                 if converted:
                     params["f[difficulty][]"] = converted
         elif key != "waiting" and values:
-            for val in values:
-                params.setdefault(f"f[{key}][]", []).append(val)
+            # FIXED: Handle single values vs arrays properly
+            if isinstance(values, list) and len(values) > 1:
+                # Multiple values - use array format
+                for val in values:
+                    params.setdefault(f"f[{key}][]", []).append(val)
+            elif isinstance(values, list) and len(values) == 1:
+                # Single value in list - use single format
+                params[f"f[{key}]"] = values[0]
+            elif not isinstance(values, list):
+                # Single value - use single format
+                params[f"f[{key}]"] = values
     
     response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
     response_data = response.json()

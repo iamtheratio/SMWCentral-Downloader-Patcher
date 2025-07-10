@@ -122,16 +122,17 @@ class BulkDownloadPage:
             "waiting": filter_values["waiting"]
         }
 
-        # Convert Yes/No to API flag
+        # Convert Yes/No to API flag, ignore "Any" - FIXED: Don't wrap in array
         for key, var_value in [
             ("demo", filter_values["demo"]), 
             ("hof", filter_values["hof"]),
             ("sa1", filter_values["sa1"]), 
             ("collab", filter_values["collab"])
         ]:
-            flag = {"Yes": "1", "No": "0"}.get(var_value)
-            if flag:
-                payload[key] = [flag]
+            # Only add filter if it's not "Any" (which means no filter)
+            if var_value in ["Yes", "No"]:
+                flag = {"Yes": "1", "No": "0"}[var_value]
+                payload[key] = flag  # FIXED: Remove the array wrapping
 
         return payload
     
