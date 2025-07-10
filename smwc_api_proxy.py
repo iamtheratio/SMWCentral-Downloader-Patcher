@@ -16,7 +16,23 @@ def smwc_api_get(url, params=None, log=None):
         full_url = url + "?" + urllib.parse.urlencode(params, doseq=True)
         log(f"[DEBUG] API Request: {full_url}", level="debug")
     
-    response = requests.get(url, params=params)
+    try:
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()  # Raise exception for bad status codes
+        
+        # Check if response is valid JSON
+        try:
+            response.json()  # Test if JSON is valid
+        except ValueError as e:
+            if log:
+                log(f"[ERROR] Invalid JSON response: {e}", level="error")
+                log(f"[ERROR] Response text: {response.text[:500]}...", level="error")
+            raise Exception(f"Invalid JSON response from API: {e}")
+        
+    except requests.exceptions.RequestException as e:
+        if log:
+            log(f"[ERROR] Network error: {e}", level="error")
+        raise Exception(f"Network error: {e}")
 
     # Simplified logging - only show rate limit info when needed
     if log and response.headers.get('X-RateLimit-Remaining'):

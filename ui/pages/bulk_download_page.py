@@ -17,6 +17,7 @@ class BulkDownloadPage:
         self.font = ("Segoe UI", 9)
         self.download_button = None
         self.frame = None
+        self.log_level_combo = None
     
     def create(self):
         """Create the bulk download page"""
@@ -72,15 +73,18 @@ class BulkDownloadPage:
         # Log level dropdown (left side)
         ttk.Label(log_header_frame, text="Log Level:", font=self.font).pack(side="left")
         
-        log_level_combo = ttk.Combobox(
+        self.log_level_combo = ttk.Combobox(
             log_header_frame,
             values=["Debug", "Information", "Warning", "Error"],
             state="readonly",
             font=self.font,
             width=12
         )
-        log_level_combo.set("Information")
-        log_level_combo.pack(side="left", padx=(10, 0))
+        self.log_level_combo.set("Information")
+        self.log_level_combo.pack(side="left", padx=(10, 0))
+        
+        # Bind log level change
+        self.log_level_combo.bind("<<ComboboxSelected>>", self._on_log_level_changed)
         
         # Clear button (right side)
         ttk.Button(
@@ -93,10 +97,17 @@ class BulkDownloadPage:
         log_text = self.logger.setup(self.frame)
         log_text.pack(fill="both", expand=True, pady=(2, 5))
         
-        # Store reference for theme toggling
-        self.setup_section.config.config["root"] = {"log_text": log_text}
+        # Store reference for theme toggling - CORRECTLY on root, not in config
+        root = self.parent.winfo_toplevel()
+        root.log_text = log_text
         
         return self.frame
+    
+    def _on_log_level_changed(self, event=None):
+        """Handle log level change"""
+        if self.log_level_combo:
+            new_level = self.log_level_combo.get()
+            self.logger.set_log_level(new_level)
     
     def _generate_filter_payload(self):
         """Build API filter payload from UI selections"""
@@ -156,15 +167,6 @@ class BulkDownloadPage:
             )
             return
         
-        # Check if no difficulties selected
-        if not payload.get("difficulties") and payload.get("type")[0] != "all":
-            if not messagebox.askyesno(
-                "No Difficulties Selected", 
-                "No difficulty filters selected. This will download ALL difficulties for the selected hack type. Continue?",
-                icon="warning"
-            ):
-                return  # User canceled
-        
         # Disable button and show running state
         self.download_button.configure(state="disabled", text="Running...")
         
@@ -181,13 +183,12 @@ class BulkDownloadPage:
                 self.logger.log(f"❌ Error: {e}", level="Error")
             finally:
                 # Re-enable button when done
-                if self.setup_section.config.config.get("root"):
-                    root = list(self.setup_section.config.config["root"].keys())[0] if self.setup_section.config.config["root"] else None
-                    if hasattr(root, 'after'):
-                        root.after(0, lambda: self.download_button.configure(
-                            state="normal", 
-                            text="Download & Patch"
-                        ))
+                root = self.parent.winfo_toplevel()
+                if root:
+                    root.after(0, lambda: self.download_button.configure(
+                        state="normal", 
+                        text="Download & Patch"
+                    ))
         
         # Start pipeline in separate thread
         thread = threading.Thread(target=pipeline_worker, daemon=True)

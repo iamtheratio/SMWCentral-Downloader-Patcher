@@ -57,7 +57,7 @@ class SetupSection:
         
         # Slider frame
         slider_frame = ttk.Frame(self.frame)
-        slider_frame.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 10))  # Changed from 5 to 10
+        slider_frame.grid(row=5, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 10))
         
         # Slider with labels
         ttk.Label(slider_frame, text="0s", font=(font[0], font[1]-1)).pack(side="left")
@@ -72,70 +72,49 @@ class SetupSection:
         )
         self.delay_slider.pack(side="left", fill="x", expand=True, padx=(5, 5))
         
-        ttk.Label(slider_frame, text="3s", font=(font[0], font[1]-1)).pack(side="right")  # Changed from "5s" to "3s"
+        ttk.Label(slider_frame, text="3s", font=(font[0], font[1]-1)).pack(side="right")
         
         # Slider description
         colors = get_colors()
         ttk.Label(
-            self.frame, 
-            text="Controls delay between API requests. Increase if experiencing rate limiting errors.",
-            font=(font[0], font[1]-1, "italic"),
+            self.frame,
+            text="Higher values = slower but more reliable downloads",
+            font=(font[0], font[1]-1),
             foreground=colors["description"]
-        ).grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=(0, 20))
+        ).grid(row=6, column=0, columnspan=2, sticky="ew", padx=5, pady=(0, 5))
         
-        # Required fields note
-        ttk.Label(
-            self.frame, 
-            text="* All fields are required", 
-            font=(font[0], font[1]-1, "italic"),
-            foreground=colors["description"]
-        ).grid(row=7, column=0, columnspan=2, sticky="w", padx=5, pady=(0, 0))
-
         # Configure column weights
         self.frame.columnconfigure(0, weight=1)
-        self.frame.columnconfigure(1, weight=0)
         
         return self.frame
     
     def _browse_rom(self):
-        filename = filedialog.askopenfilename(
+        path = filedialog.askopenfilename(
             title="Select Base ROM",
-            filetypes=[
-                ("Super Nintendo ROMs", "*.smc *.sfc"),
-                ("All files", "*.*")
-            ]
+            filetypes=[("ROM files", "*.smc *.sfc"), ("All files", "*.*")]
         )
-        if filename:
-            self.base_rom_path_var.set(filename)
-            self.config.set("base_rom_path", filename)
+        if path:
+            self.base_rom_path_var.set(path)
+            self.config.set("base_rom_path", path)
     
     def _select_output_dir(self):
-        path = filedialog.askdirectory()
+        path = filedialog.askdirectory(title="Select Output Directory")
         if path:
             self.output_dir_var.set(path)
             self.config.set("output_dir", path)
     
     def _on_delay_changed(self, value):
-        """Handle delay slider changes"""
-        # Round to nearest 0.1
-        delay_value = round(float(value), 1)
-        
-        # Update the slider to show the rounded value
-        self.api_delay_var.set(delay_value)
-        self.delay_label_var.set(f"{delay_value:.1f}s")
-        
-        # Save to config
-        self.config.set("api_delay", delay_value)
+        delay_val = float(value)
+        self.delay_label_var.set(f"{delay_val:.1f}s")
+        self.config.set("api_delay", delay_val)
     
     def get_paths(self):
-        """Return current path values"""
         return {
             "base_rom_path": self.base_rom_path_var.get(),
             "output_dir": self.output_dir_var.get()
         }
     
     def get_api_delay(self):
-        """Return current API delay value"""
         return self.api_delay_var.get()
 
 
@@ -145,59 +124,71 @@ class FilterSection:
     def __init__(self, parent):
         self.parent = parent
         self.frame = None
-        self.type_var = tk.StringVar(value="Kaizo")
-        self.hof_var = tk.StringVar(value="Any")
-        self.sa1_var = tk.StringVar(value="Any")
-        self.collab_var = tk.StringVar(value="Any")
-        self.demo_var = tk.StringVar(value="Any")
-        self.waiting_var = tk.BooleanVar(value=False)  # Add waiting checkbox variable
+        
+        # Variables
+        self.type_var = tk.StringVar(value="Standard")
+        self.demo_var = tk.StringVar(value="Either")
+        self.hof_var = tk.StringVar(value="Either")
+        self.sa1_var = tk.StringVar(value="Either")
+        self.collab_var = tk.StringVar(value="Either")
+        self.waiting_var = tk.BooleanVar(value=False)
     
     def create(self, font, hack_types):
         """Create the filter section"""
-        self.frame = ttk.LabelFrame(self.parent, text="Hack Filters", padding=15)
+        self.frame = ttk.LabelFrame(self.parent, text="Filters", padding=15)
         
-        # Hack type dropdown
-        ttk.Label(self.frame, text="Hack Type:", font=font).grid(row=0, column=0, sticky="w", pady=(0,8))
-        ttk.Combobox(
-            self.frame, textvariable=self.type_var, values=hack_types,
-            state="readonly", style="Custom.TCombobox"
-        ).grid(row=0, column=1, columnspan=3, sticky="ew", pady=(7,15))  # Just add 3px top padding
-
-        # Radio button rows
-        self._add_radio_row("Hall of Fame", self.hof_var, 1, font)
-        self._add_radio_row("SA-1", self.sa1_var, 2, font)
-        self._add_radio_row("Collab", self.collab_var, 3, font)
-        self._add_radio_row("Demo", self.demo_var, 4, font)
+        # Hack Type section - RESTORED TO DROPDOWN
+        ttk.Label(self.frame, text="Hack Type:", font=font).grid(row=0, column=0, sticky="w", pady=(0, 10))
         
-        # Add waiting checkbox at the bottom
+        self.type_combo = ttk.Combobox(
+            self.frame,
+            textvariable=self.type_var,
+            values=hack_types,
+            state="readonly",
+            font=font,
+            style="Custom.TCombobox"
+        )
+        self.type_combo.grid(row=0, column=1, sticky="ew", padx=(10, 0), pady=(0, 10))
+        
+        # Filter options
+        self._add_radio_row("Demo:", self.demo_var, 1, font)
+        self._add_radio_row("Hall of Fame:", self.hof_var, 2, font)
+        self._add_radio_row("SA-1:", self.sa1_var, 3, font)
+        self._add_radio_row("Collab:", self.collab_var, 4, font)
+        
+        # Include Waiting checkbox
         ttk.Checkbutton(
-            self.frame, 
-            text="Include Waiting", 
+            self.frame,
+            text="Include Waiting",
             variable=self.waiting_var,
             style="Custom.TCheckbutton"
-        ).grid(row=5, column=0, columnspan=4, sticky="w", pady=(15,0))
+        ).grid(row=5, column=0, columnspan=2, sticky="w", pady=(10, 0))
+        
+        # Configure column weights
+        self.frame.columnconfigure(1, weight=1)
         
         return self.frame
     
     def _add_radio_row(self, label, var, row, font):
-        """Helper to create a radio button row"""
-        ttk.Label(self.frame, text=f"{label}:", font=font)\
-            .grid(row=row, column=0, sticky="w", pady=8)
-        for i, val in enumerate(["Any", "Yes", "No"]):
+        ttk.Label(self.frame, text=label, font=font).grid(row=row, column=0, sticky="w", pady=2)
+        
+        radio_frame = ttk.Frame(self.frame)
+        radio_frame.grid(row=row, column=1, sticky="w", padx=(10, 0), pady=2)
+        
+        for i, option in enumerate(["Either", "Yes", "No"]):
             ttk.Radiobutton(
-                self.frame, text=val, variable=var, value=val,
+                radio_frame, text=option, variable=var, value=option,
                 style="Custom.TRadiobutton"
-            ).grid(row=row, column=i+1, padx=8, pady=8, sticky="w")
+            ).pack(side="left", padx=(0, 15))
     
     def get_filter_values(self):
-        """Return current filter values"""
         return {
             "type": self.type_var.get(),
+            "demo": self.demo_var.get(),
             "hof": self.hof_var.get(),
             "sa1": self.sa1_var.get(),
             "collab": self.collab_var.get(),
-            "demo": self.demo_var.get(),
-            "waiting": self.waiting_var.get()  # Add waiting value
+            "waiting": self.waiting_var.get()
         }
 
 
@@ -208,38 +199,56 @@ class DifficultySection:
         self.parent = parent
         self.frame = None
         self.difficulty_list = difficulty_list
-        self.difficulty_vars = {d: tk.BooleanVar() for d in difficulty_list}
-        self.toggle_all_state = tk.BooleanVar(value=False)
-        self.toggle_button = None
+        self.difficulty_vars = {}
+        self.select_all_var = tk.BooleanVar()
+        
+        # Initialize difficulty variables
+        for diff in difficulty_list:
+            self.difficulty_vars[diff] = tk.BooleanVar()
     
     def create(self, font):
-        """Create the difficulty selection section"""
+        """Create the difficulty section - SINGLE ROW FORMAT"""
         self.frame = ttk.LabelFrame(self.parent, text="Difficulty Selection", padding=15)
         
-        # Checkboxes for each difficulty in a horizontal layout
-        for i, d in enumerate(self.difficulty_list):
-            ttk.Checkbutton(
-                self.frame, text=d.title(), variable=self.difficulty_vars[d],
-                style="Custom.TCheckbutton"
-            ).grid(row=0, column=i, padx=10)
+        # Difficulty checkboxes in single horizontal row
+        diff_frame = ttk.Frame(self.frame)
+        diff_frame.pack(fill="x", pady=(0, 10))
         
-        # Toggle button
-        self.toggle_button = ttk.Button(
-            self.frame, text="Select All", command=self._toggle_difficulties,
+        for i, difficulty in enumerate(self.difficulty_list):
+            display_name = difficulty.replace("_", " ").title()
+            if difficulty == "no difficulty":
+                display_name = "No Difficulty"
+            
+            ttk.Checkbutton(
+                diff_frame,
+                text=display_name,
+                variable=self.difficulty_vars[difficulty],
+                style="Custom.TCheckbutton"
+            ).pack(side="left", padx=(0, 15))
+        
+        # Select All button underneath
+        ttk.Button(
+            self.frame,
+            text="Select All",
+            command=self._toggle_difficulties,
             style="Custom.TButton"
-        )
-        self.toggle_button.grid(row=1, column=0, pady=10, sticky="w")
+        ).pack(anchor="w")
         
         return self.frame
     
     def _toggle_difficulties(self):
-        """Toggle all difficulty checkboxes"""
-        new_state = not self.toggle_all_state.get()
+        """Toggle all difficulties on or off"""
+        # Check current state - if any are checked, uncheck all; otherwise check all
+        any_checked = any(var.get() for var in self.difficulty_vars.values())
+        new_state = not any_checked
+        
         for var in self.difficulty_vars.values():
             var.set(new_state)
-        self.toggle_all_state.set(new_state)
-        self.toggle_button.config(text="Deselect All" if new_state else "Select All")
     
     def get_selected_difficulties(self):
-        """Return list of selected difficulties"""
-        return [d for d in self.difficulty_list if self.difficulty_vars[d].get()]
+        """Get list of selected difficulties"""
+        selected = []
+        for diff, var in self.difficulty_vars.items():
+            if var.get():
+                selected.append(diff)
+        return selected
