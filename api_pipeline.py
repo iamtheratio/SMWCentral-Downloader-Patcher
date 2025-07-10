@@ -34,17 +34,25 @@ def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
                 if converted:
                     params["f[difficulty][]"] = converted
         elif key != "waiting" and values:
-            # FIXED: Handle single values vs arrays properly
-            if isinstance(values, list) and len(values) > 1:
-                # Multiple values - use array format
-                for val in values:
-                    params.setdefault(f"f[{key}][]", []).append(val)
-            elif isinstance(values, list) and len(values) == 1:
-                # Single value in list - use single format
-                params[f"f[{key}]"] = values[0]
-            elif not isinstance(values, list):
-                # Single value - use single format
-                params[f"f[{key}]"] = values
+            # FIXED: Special handling for different parameter types
+            if key == "type":
+                # Type parameter always needs array format
+                if isinstance(values, list):
+                    params["f[type][]"] = values
+                else:
+                    params["f[type][]"] = [values]
+            else:
+                # Other filters (hof, demo, sa1, collab) use single format when single value
+                if isinstance(values, list) and len(values) > 1:
+                    # Multiple values - use array format
+                    for val in values:
+                        params.setdefault(f"f[{key}][]", []).append(val)
+                elif isinstance(values, list) and len(values) == 1:
+                    # Single value in list - use single format
+                    params[f"f[{key}]"] = values[0]
+                elif not isinstance(values, list):
+                    # Single value - use single format
+                    params[f"f[{key}]"] = values
     
     response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
     response_data = response.json()

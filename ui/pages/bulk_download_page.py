@@ -70,12 +70,12 @@ class BulkDownloadPage:
         log_header_frame = ttk.Frame(self.frame)
         log_header_frame.pack(fill="x", pady=(20, 5))
         
-        # Log level dropdown (left side)
+        # Log level dropdown (left side) - UPDATED ORDER AND REMOVED WARNING
         ttk.Label(log_header_frame, text="Log Level:", font=self.font).pack(side="left")
         
         self.log_level_combo = ttk.Combobox(
             log_header_frame,
-            values=["Debug", "Information", "Warning", "Error"],
+            values=["Information", "Debug", "Error"],  # REORDERED AND REMOVED WARNING
             state="readonly",
             font=self.font,
             width=12
