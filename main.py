@@ -7,7 +7,7 @@ import sys
 import platform
 import pywinstyles
 
-VERSION = "v2.4"
+VERSION = "v2.5"
 
 def apply_theme_to_titlebar(root):
     if platform.system() != "Windows":
@@ -60,6 +60,14 @@ def toggle_theme_callback(root):
         root.update_idletasks()  # Force update
         update_log_colors(root.log_text)
 
+def clear_log_shortcut(root):
+    """Handle Ctrl+L keyboard shortcut"""
+    if hasattr(root, 'log_text'):
+        log_text = root.log_text
+        log_text.config(state="normal")
+        log_text.delete(1.0, tk.END)
+        log_text.config(state="disabled")
+
 def main():
     root = tk.Tk()
     root.title("SMWC Downloader & Patcher")
@@ -81,6 +89,9 @@ def main():
     
     # Store button reference for pipeline access
     root.download_button = download_button
+    
+    # Add keyboard shortcut for clearing log
+    root.bind("<Control-l>", lambda e: clear_log_shortcut(root))
     
     root.mainloop()
 

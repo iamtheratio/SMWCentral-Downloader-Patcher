@@ -9,6 +9,13 @@ def get_api_delay():
 
 def smwc_api_get(url, params=None, log=None):
     delay = get_api_delay()
+    
+    # Log the full API request URL for debugging
+    if log and params:
+        import urllib.parse
+        full_url = url + "?" + urllib.parse.urlencode(params, doseq=True)
+        log(f"[DEBUG] API Request: {full_url}", level="debug")
+    
     response = requests.get(url, params=params)
 
     # Simplified logging - only show rate limit info when needed
