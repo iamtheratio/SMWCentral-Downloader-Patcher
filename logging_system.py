@@ -1,6 +1,8 @@
 import tkinter as tk
 from tkinter import scrolledtext
+from tkinter import ttk
 import sv_ttk
+from colors import get_colors
 
 class LoggingSystem:
     """Centralized logging system with theme support"""
@@ -27,32 +29,38 @@ class LoggingSystem:
         
         return self.log_text
     
+    def setup_log_with_controls(self, parent):
+        """Create just the log text widget (controls are handled by layout)"""
+        self.log_text = scrolledtext.ScrolledText(
+            parent,
+            wrap=tk.WORD,
+            height=20,
+            font=self.font,
+            state="disabled"
+        )
+        
+        # Apply initial colors
+        self.update_colors()
+        
+        return self.log_text
+
     def update_colors(self):
         """Update log colors based on current theme"""
         if not self.log_text:
             return
             
         try:
-            if sv_ttk.get_theme() == "dark":
-                self.log_text.configure(
-                    bg="#2b2b2b", 
-                    fg="#e0e0e0"
-                )
-                self.log_text.tag_configure("error", foreground="#ff6b6b", font=(self.font[0], self.font[1], "italic"))
-                self.log_text.tag_configure("warning", foreground="#FFB700", font=(self.font[0], self.font[1], "italic")) 
-                self.log_text.tag_configure("debug", foreground="#16C172")
-                self.log_text.tag_configure("filter_info", foreground="#888888", font=(self.font[0], self.font[1], "italic"))
-                self.log_text.tag_configure("applying", foreground="#e0e0e0", font=(self.font[0], self.font[1], "italic"))
-            else:
-                self.log_text.configure(
-                    bg="#ffffff", 
-                    fg="#000000"
-                )
-                self.log_text.tag_configure("error", foreground="red", font=(self.font[0], self.font[1], "italic"))
-                self.log_text.tag_configure("warning", foreground="#C76E00", font=(self.font[0], self.font[1], "italic")) 
-                self.log_text.tag_configure("debug", foreground="#16C172")
-                self.log_text.tag_configure("filter_info", foreground="#888888", font=(self.font[0], self.font[1], "italic"))
-                self.log_text.tag_configure("applying", foreground="#000000", font=(self.font[0], self.font[1], "italic"))
+            colors = get_colors()
+            
+            self.log_text.configure(
+                bg=colors["log_bg"], 
+                fg=colors["log_fg"]
+            )
+            self.log_text.tag_configure("error", foreground=colors["error"], font=(self.font[0], self.font[1], "italic"))
+            self.log_text.tag_configure("warning", foreground=colors["warning"], font=(self.font[0], self.font[1], "italic")) 
+            self.log_text.tag_configure("debug", foreground=colors["debug"])
+            self.log_text.tag_configure("filter_info", foreground=colors["filter_info"], font=(self.font[0], self.font[1], "italic"))
+            self.log_text.tag_configure("applying", foreground=colors["applying"], font=(self.font[0], self.font[1], "italic"))
         except tk.TclError:
             # Widget was destroyed or doesn't exist
             pass
@@ -111,6 +119,13 @@ class LoggingSystem:
         except tk.TclError:
             # Widget was destroyed or doesn't exist
             pass
+    
+    def clear_log(self):
+        """Clear the log text"""
+        if self.log_text:
+            self.log_text.config(state="normal")
+            self.log_text.delete(1.0, tk.END)
+            self.log_text.config(state="disabled")
     
     def set_log_level(self, level):
         """Change log level and refresh display"""

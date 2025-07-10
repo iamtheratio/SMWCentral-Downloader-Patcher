@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import ttk, filedialog
+from colors import get_colors
 
 class SetupSection:
     """Setup section with path controls"""
@@ -47,9 +48,10 @@ class SetupSection:
         
         # API Delay Slider section
         ttk.Label(self.frame, text="API Request Delay:", font=font).grid(row=4, column=0, sticky="w", pady=(0, 10))
+        colors = get_colors()
         self.delay_display = ttk.Label(
             self.frame, textvariable=self.delay_label_var,
-            font=font, foreground="#0078d4"
+            font=font, foreground=colors["api_delay"]
         )
         self.delay_display.grid(row=4, column=1, sticky="e", padx=(10, 0), pady=(0, 5))
         
@@ -73,11 +75,12 @@ class SetupSection:
         ttk.Label(slider_frame, text="3s", font=(font[0], font[1]-1)).pack(side="right")  # Changed from "5s" to "3s"
         
         # Slider description
+        colors = get_colors()
         ttk.Label(
             self.frame, 
             text="Controls delay between API requests. Increase if experiencing rate limiting errors.",
             font=(font[0], font[1]-1, "italic"),
-            foreground="#888888"
+            foreground=colors["description"]
         ).grid(row=6, column=0, columnspan=2, sticky="w", padx=5, pady=(0, 20))
         
         # Required fields note
@@ -85,7 +88,7 @@ class SetupSection:
             self.frame, 
             text="* All fields are required", 
             font=(font[0], font[1]-1, "italic"),
-            foreground="#888888"
+            foreground=colors["description"]
         ).grid(row=7, column=0, columnspan=2, sticky="w", padx=5, pady=(0, 0))
 
         # Configure column weights

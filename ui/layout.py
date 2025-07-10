@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import threading
 from utils import TYPE_KEYMAP
 import sv_ttk
+from colors import get_colors
 
 class MainLayout:
     """Main UI layout manager"""
@@ -79,12 +80,33 @@ class MainLayout:
         )
         self.download_button.pack(pady=(10, 15))
         
-        # Log level selector
-        self._create_log_controls(main_frame)
+        # Log section with level dropdown and clear button
+        log_header_frame = ttk.Frame(main_frame)
+        log_header_frame.pack(fill="x", pady=(20, 5))
         
-        # Log text area
+        # Log level dropdown (left side)
+        ttk.Label(log_header_frame, text="Log Level:", font=self.font).pack(side="left")
+        
+        log_level_combo = ttk.Combobox(
+            log_header_frame,
+            values=["Debug", "Information", "Warning", "Error"],
+            state="readonly",
+            font=self.font,
+            width=12
+        )
+        log_level_combo.set("Information")
+        log_level_combo.pack(side="left", padx=(10, 0))
+        
+        # Clear button (right side)
+        ttk.Button(
+            log_header_frame,
+            text="Clear",
+            command=self.logger.clear_log
+        ).pack(side="right")
+        
+        # Log text area (full width below)
         log_text = self.logger.setup(main_frame)
-        log_text.pack(fill="both", expand=True, pady=(2,5))
+        log_text.pack(fill="both", expand=True, pady=(2, 5))
         
         # Store reference for theme toggling
         self.root.log_text = log_text
@@ -97,10 +119,8 @@ class MainLayout:
             version_label.place(relx=1.0, rely=1.0, anchor="se", x=-26, y=-10)
             
             # Set initial color based on theme
-            if sv_ttk.get_theme() == "dark":
-                version_label.configure(foreground="#888888")
-            else:
-                version_label.configure(foreground="#666666")
+            colors = get_colors()
+            version_label.configure(foreground=colors["version_label"])
             
             # Store reference for theme updates
             self.root.version_label = version_label
