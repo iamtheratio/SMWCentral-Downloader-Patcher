@@ -277,7 +277,7 @@ class HackHistoryPage:
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
-        if item and column in ["#1", "#6"]:  # Completed and Date columns are clickable
+        if item and column in ["#1", "#6", "#7"]:  # Completed, Date, and Notes columns are clickable
             self.tree.config(cursor="hand2")
         else:
             self.tree.config(cursor="")
@@ -409,6 +409,8 @@ class HackHistoryPage:
         # FIXED: Clean up any active date editing before processing new clicks
         if hasattr(self, 'date_entry') and self.date_entry:
             self._cleanup_date_edit()
+        if hasattr(self, 'notes_entry') and self.notes_entry:
+            self._cleanup_notes_edit()
 
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
@@ -423,12 +425,18 @@ class HackHistoryPage:
                 hack_id = tags[0]
                 self._toggle_completed(hack_id)
     
-        # Handle completed date click - FIXED: This should be elif, not standalone
+        # FIXED: These elif statements need to be properly indented at the same level as the if above
         elif column == "#6":  # Completed date column
             tags = self.tree.item(item)["tags"]
             if tags:
                 hack_id = tags[0]
                 self._edit_date_cell(hack_id, item, event)
+    
+        elif column == "#7":  # Notes column
+            tags = self.tree.item(item)["tags"]
+            if tags:
+                hack_id = tags[0]
+                self._edit_notes_cell(hack_id, item, event)
 
     def _edit_date_cell(self, hack_id, item, event):
         """Allow direct editing of date cell"""
@@ -690,3 +698,89 @@ class HackHistoryPage:
     def _on_item_double_click(self, event):
         """Handle double clicks - placeholder for future functionality"""
         pass
+
+    def _edit_notes_cell(self, hack_id, item, event):
+        """Allow direct editing of notes cell"""
+        if hasattr(self, 'notes_entry') and self.notes_entry:
+            self._cleanup_notes_edit()
+    
+        hack_id_str = str(hack_id)
+    
+        # Find the hack data
+        hack_data = None
+        for hack in self.filtered_data:
+            if hack.get("id") == hack_id_str:
+                hack_data = hack
+                break
+    
+        if not hack_data:
+            return
+    
+        # Get the bounding box of the notes cell
+        bbox = self.tree.bbox(item, "#7")
+        if not bbox:
+            return
+    
+        # Get current notes value
+        current_notes = hack_data.get("notes", "")
+    
+        # Create inline entry widget
+        x, y, width, height = bbox
+        self.notes_entry = ttk.Entry(self.tree, font=("Segoe UI", 10))
+        self.notes_entry.place(x=x, y=y, width=width, height=height)
+    
+        # Set current value and select all text
+        self.notes_entry.insert(0, current_notes)
+        self.notes_entry.select_range(0, tk.END)
+        self.notes_entry.focus()
+    
+        # Store references
+        self.editing_notes_hack_id = hack_id_str
+    
+        # Character limit validation
+        def limit_chars(event=None):
+            if len(self.notes_entry.get()) > 280:
+                self.notes_entry.delete(280, tk.END)
+    
+        # Bind events
+        self.notes_entry.bind("<Return>", self._save_notes_edit)
+        self.notes_entry.bind("<Escape>", self._cleanup_notes_edit)
+        self.notes_entry.bind("<FocusOut>", self._save_notes_edit)
+        self.notes_entry.bind("<KeyRelease>", limit_chars)
+
+    def _save_notes_edit(self, event=None):
+        """Save the edited notes"""
+        if not hasattr(self, 'notes_entry') or not self.notes_entry:
+            return
+    
+        try:
+            new_notes = self.notes_entry.get().strip()
+        except tk.TclError:
+            self._cleanup_notes_edit()
+            return
+    
+        # Find the hack data
+        hack_data = None
+        for hack in self.filtered_data:
+            if hack.get("id") == self.editing_notes_hack_id:
+                hack_data = hack
+                break
+    
+        if hack_data:
+            if self.data_manager.update_hack(self.editing_notes_hack_id, "notes", new_notes):
+                hack_data["notes"] = new_notes
+    
+        self._cleanup_notes_edit()
+        self._refresh_table()
+
+    def _cleanup_notes_edit(self, event=None):
+        """Clean up notes editing"""
+        if hasattr(self, 'notes_entry') and self.notes_entry:
+            try:
+                self.notes_entry.destroy()
+            except tk.TclError:
+                pass
+            self.notes_entry = None
+    
+        if hasattr(self, 'editing_notes_hack_id'):
+            delattr(self, 'editing_notes_hack_id')
