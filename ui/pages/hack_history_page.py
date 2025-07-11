@@ -277,10 +277,72 @@ class HackHistoryPage:
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
+        # Handle cursor changes for clickable columns
         if item and column in ["#1", "#6", "#7"]:  # Completed, Date, and Notes columns are clickable
             self.tree.config(cursor="hand2")
         else:
             self.tree.config(cursor="")
+        
+        # Handle tooltip for notes column - FIXED: Cell-based instead of pixel-based
+        if item and column == "#7":  # Notes column
+            # Check if we're already showing tooltip for this item
+            if hasattr(self, 'current_tooltip_item') and self.current_tooltip_item == item:
+                return  # Already showing tooltip for this cell
+            
+            # Get hack data for this item
+            tags = self.tree.item(item)["tags"]
+            if tags:
+                hack_id = tags[0]
+                # Find the hack data
+                for hack in self.filtered_data:
+                    if hack.get("id") == str(hack_id):
+                        full_notes = hack.get("notes", "").strip()
+                        if full_notes:  # Only show tooltip if there are notes
+                            self._show_tooltip(event, full_notes, item)
+                        else:
+                            self._hide_tooltip()
+                        break
+        else:
+            self._hide_tooltip()
+
+    def _show_tooltip(self, event, text, item):
+        """Show tooltip with notes text"""
+        # Remove existing tooltip
+        self._hide_tooltip()
+        
+        # Import colors
+        from colors import get_colors
+        colors = get_colors()
+        
+        # Create tooltip window
+        self.tooltip = tk.Toplevel(self.tree)
+        self.tooltip.wm_overrideredirect(True)
+        self.tooltip.wm_geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
+        
+        # Create label with theme-appropriate colors
+        label = tk.Label(self.tooltip, text=text, 
+                        background=colors["tooltip_bg"], 
+                        foreground=colors["tooltip_fg"],
+                        relief="solid", borderwidth=1,
+                        highlightbackground=colors["tooltip_border"],
+                        font=("Segoe UI", 9), wraplength=300, justify="left")
+        label.pack()
+        
+        # Store which item we're showing tooltip for
+        self.current_tooltip_item = item
+
+    def _hide_tooltip(self):
+        """Hide tooltip"""
+        if hasattr(self, 'tooltip') and self.tooltip:
+            try:
+                self.tooltip.destroy()
+            except tk.TclError:
+                pass
+            self.tooltip = None
+        
+        # Clear current tooltip item
+        if hasattr(self, 'current_tooltip_item'):
+            self.current_tooltip_item = None
 
     def _refresh_table(self):
         """Refresh table data from data manager"""
