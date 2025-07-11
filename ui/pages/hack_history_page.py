@@ -406,6 +406,10 @@ class HackHistoryPage:
 
     def _on_item_click(self, event):
         """Handle single clicks on table items"""
+        # FIXED: Clean up any active date editing before processing new clicks
+        if hasattr(self, 'date_entry') and self.date_entry:
+            self._cleanup_date_edit()
+
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
@@ -419,7 +423,7 @@ class HackHistoryPage:
                 hack_id = tags[0]
                 self._toggle_completed(hack_id)
     
-        # Handle completed date click - NEW: Direct cell editing
+        # Handle completed date click - FIXED: This should be elif, not standalone
         elif column == "#6":  # Completed date column
             tags = self.tree.item(item)["tags"]
             if tags:
@@ -428,90 +432,115 @@ class HackHistoryPage:
 
     def _edit_date_cell(self, hack_id, item, event):
         """Allow direct editing of date cell"""
+        # FIXED: Clean up any existing date entry before creating a new one
+        if hasattr(self, 'date_entry') and self.date_entry:
+            self._cleanup_date_edit()
+    
         hack_id_str = str(hack_id)
-        
+    
         # Find the hack data
         hack_data = None
         for hack in self.filtered_data:
             if hack.get("id") == hack_id_str:
                 hack_data = hack
                 break
-        
+    
         if not hack_data:
             return
-        
+    
         # Get the bounding box of the date cell
         bbox = self.tree.bbox(item, "#6")
         if not bbox:
             return
-        
+    
         # Get current date value
         current_date = hack_data.get("completed_date", "")
-        
+    
         # Create inline entry widget
         x, y, width, height = bbox
-        
+    
         # Create entry widget positioned exactly over the cell
         self.date_entry = ttk.Entry(self.tree, font=("Segoe UI", 10))
         self.date_entry.place(x=x, y=y, width=width, height=height)
-        
+    
         # Set current value and select all text
         self.date_entry.insert(0, current_date)
         self.date_entry.select_range(0, tk.END)
         self.date_entry.focus()
-        
+    
         # Store references for saving/canceling
         self.editing_hack_id = hack_id_str
         self.editing_item = item
         self.original_date = current_date
-        
+    
         # Bind events
         self.date_entry.bind("<Return>", self._save_date_edit)
         self.date_entry.bind("<Escape>", self._cancel_date_edit)
-        self.date_entry.bind("<FocusOut>", self._save_date_edit)
+        self.date_entry.bind("<FocusOut>", self._on_date_focus_out)
+
+    def _on_date_focus_out(self, event=None):
+        """Handle focus out event for date entry"""
+        if hasattr(self, 'date_entry') and self.date_entry:
+            self.date_entry.after(10, self._check_and_save_date)
+
+    def _check_and_save_date(self):
+        """Check if we should save the date edit"""
+        if hasattr(self, 'date_entry') and self.date_entry:
+            try:
+                focused_widget = self.date_entry.focus_get()
+                if focused_widget != self.date_entry:
+                    self._save_date_edit()
+            except tk.TclError:
+                self._cleanup_date_edit()
 
     def _save_date_edit(self, event=None):
         """Save the edited date after validation"""
         if not hasattr(self, 'date_entry') or not self.date_entry:
             return
-        
+    
         # Prevent multiple validation attempts
         if hasattr(self, '_validating_date') and self._validating_date:
             return
-        
-        new_date = self.date_entry.get().strip()
-        
+    
+        try:
+            new_date = self.date_entry.get().strip()
+        except tk.TclError:
+            self._cleanup_date_edit()
+            return
+    
         # Validate and normalize the date if not empty
         if new_date:
             normalized_date = self._normalize_date(new_date)
             if not normalized_date:
-                self._validating_date = True  # Prevent recursive validation
+                self._validating_date = True
                 messagebox.showerror("Invalid Date", 
                                "Please enter a valid date in YYYY-MM-DD format\n(e.g., 2025-01-15)")
                 self._validating_date = False
-                self.date_entry.focus()  # Keep focus for correction
-                self.date_entry.select_range(0, tk.END)  # Select all for easy correction
+                
+                if hasattr(self, 'date_entry') and self.date_entry:
+                    try:
+                        self.date_entry.focus()
+                        self.date_entry.select_range(0, tk.END)
+                    except tk.TclError:
+                        self._cleanup_date_edit()
                 return
-            new_date = normalized_date  # Use the normalized date
-        
+            new_date = normalized_date
+    
         # Find the hack data
         hack_data = None
         for hack in self.filtered_data:
             if hack.get("id") == self.editing_hack_id:
                 hack_data = hack
                 break
-        
+    
         if hack_data:
-            # Update in data manager
             if self.data_manager.update_hack(self.editing_hack_id, "completed_date", new_date):
-                # Update local data
                 hack_data["completed_date"] = new_date
                 
-                # Auto-update completed status based on date
-                if new_date:  # If date is set, mark as completed
+                if new_date:
                     hack_data["completed"] = True
                     self.data_manager.update_hack(self.editing_hack_id, "completed", True)
-                else:  # If date is cleared, mark as not completed
+                else:
                     hack_data["completed"] = False
                     self.data_manager.update_hack(self.editing_hack_id, "completed", False)
                 
@@ -519,7 +548,6 @@ class HackHistoryPage:
             else:
                 print(f"ERROR: Failed to update date for hack {self.editing_hack_id}")
         
-        # Clean up and refresh
         self._cleanup_date_edit()
         self._refresh_table()
 
@@ -528,39 +556,19 @@ class HackHistoryPage:
         if not date_string:
             return ""
         
-        # Common date formats used globally
         date_formats = [
-            "%Y-%m-%d",     # 2025-01-15 (ISO format - already normalized)
-            "%Y/%m/%d",     # 2025/01/15
-            "%m/%d/%Y",     # 01/15/2025 (US format)
-            "%d/%m/%Y",     # 15/01/2025 (European format)
-            "%m-%d-%Y",     # 01-15-2025
-            "%d-%m-%Y",     # 15-01-2025
-            "%m.%d.%Y",     # 01.15.2025
-            "%d.%m.%Y",     # 15.01.2025
-            "%Y.%m.%d",     # 2025.01.15
-            "%d %m %Y",     # 15 01 2025
-            "%m %d %Y",     # 01 15 2025
-            "%Y %m %d",     # 2025 01 15
-            "%B %d, %Y",    # January 15, 2025
-            "%d %B %Y",     # 15 January 2025
-            "%b %d, %Y",    # Jan 15, 2025
-            "%d %b %Y",     # 15 Jan 2025
-            "%Y%m%d",       # 20250115 (compact format)
-            "%m%d%Y",       # 01152025
-            "%d%m%Y",       # 15012025
+            "%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%d/%m/%Y", "%m-%d-%Y", "%d-%m-%Y",
+            "%m.%d.%Y", "%d.%m.%Y", "%Y.%m.%d", "%d %m %Y", "%m %d %Y", "%Y %m %d",
+            "%B %d, %Y", "%d %B %Y", "%b %d, %Y", "%d %b %Y", "%Y%m%d", "%m%d%Y", "%d%m%Y"
         ]
         
         for date_format in date_formats:
             try:
-                # Parse the date
                 parsed_date = datetime.strptime(date_string, date_format)
-                # Return in normalized YYYY-MM-DD format
                 return parsed_date.strftime("%Y-%m-%d")
             except ValueError:
                 continue
         
-        # If no format matched, return None to indicate invalid date
         return None
 
     def _cancel_date_edit(self, event=None):
@@ -570,21 +578,15 @@ class HackHistoryPage:
     def _cleanup_date_edit(self):
         """Clean up date editing widgets and variables"""
         if hasattr(self, 'date_entry') and self.date_entry:
-            self.date_entry.destroy()
+            try:
+                self.date_entry.destroy()
+            except tk.TclError:
+                pass
             self.date_entry = None
-        
-        # Clean up all editing-related attributes
+    
         for attr in ['editing_hack_id', 'editing_item', 'original_date', '_validating_date']:
             if hasattr(self, attr):
                 delattr(self, attr)
-
-    def _is_valid_date(self, date_string):
-        """Validate date string with global date format support"""
-        if not date_string:
-            return True  # Empty string is valid (clears date)
-        
-        # Use the normalize function to check validity
-        return self._normalize_date(date_string) is not None
 
     def _clear_filters(self):
         """Clear all filter values"""
