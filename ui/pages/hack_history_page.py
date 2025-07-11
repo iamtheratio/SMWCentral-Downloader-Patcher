@@ -258,10 +258,13 @@ class HackHistoryPage:
         h_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal", command=self.tree.xview)
         self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
         
-        # Pack table and scrollbars
+        # Pack table and scrollbars (set horizontal scrollbar to auto-display)
         self.tree.grid(row=0, column=0, sticky="nsew")
         v_scrollbar.grid(row=0, column=1, sticky="ns")
-        h_scrollbar.grid(row=1, column=0, sticky="ew")
+        h_scrollbar.grid_remove()  # Initially hide the horizontal scrollbar
+        
+        # Make a binding to show/hide scrollbar when needed
+        self.tree.bind("<Configure>", lambda e: self._toggle_h_scrollbar(h_scrollbar))
         
         table_frame.grid_rowconfigure(0, weight=1)
         table_frame.grid_columnconfigure(0, weight=1)
@@ -975,4 +978,14 @@ class HackHistoryPage:
         
         # Display in a dialog
         messagebox.showinfo(title, details)
+
+    def _toggle_h_scrollbar(self, scrollbar):
+        """Show or hide horizontal scrollbar based on content width"""
+        tree_width = self.tree.winfo_width()
+        content_width = sum(self.tree.column(col)["width"] for col in self.tree["columns"])
+        
+        if content_width > tree_width:
+            scrollbar.grid(row=1, column=0, sticky="ew")
+        else:
+            scrollbar.grid_remove()
 
