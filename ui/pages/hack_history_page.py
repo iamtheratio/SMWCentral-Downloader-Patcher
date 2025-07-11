@@ -21,27 +21,28 @@ class HackHistoryPage:
         self.frame = None
         self.data_manager = HackDataManager()
         
-        # Filter variables
+        # ADDED: Initialize combobox references
+        self.type_combo = None
+        self.diff_combo = None
+        
+        # Initialize filter variables
         self.name_filter = tk.StringVar()
         self.type_filter = tk.StringVar(value="All")
         self.difficulty_filter = tk.StringVar(value="All")
         self.completed_filter = tk.StringVar(value="All")
         self.rating_filter = tk.StringVar(value="All")
-        
-        # NEW: Additional filter variables for new attributes
         self.hall_of_fame_filter = tk.StringVar(value="All")
         self.sa1_filter = tk.StringVar(value="All")
         self.collaboration_filter = tk.StringVar(value="All")
         self.demo_filter = tk.StringVar(value="All")
         
-        # Table data
-        self.tree = None
+        # Initialize other variables
         self.filtered_data = []
-        
-        # For inline editing
-        self.editing_item = None
-        self.editing_column = None
+        self.tree = None
         self.edit_widget = None
+        self.original_value = None
+        self.edit_item = None
+        self.edit_column = None
         
     def create(self):
         """Create the hack history page"""
@@ -62,7 +63,9 @@ class HackHistoryPage:
     
     def show(self):
         """Called when the page becomes visible - refresh data"""
+        print("HackHistoryPage.show() called")  # DEBUG
         if self.frame:
+            print("Refreshing data and table...")  # DEBUG
             self._refresh_data_and_table()
     
     def hide(self):
@@ -75,8 +78,12 @@ class HackHistoryPage:
         """Refresh data from file and update table"""
         # ADDED: Reload data from processed.json to pick up new downloads
         self.data_manager = HackDataManager()  # Reinitialize to reload data
+        
+        # ADDED: Refresh dropdown filter values
+        self._refresh_filter_dropdowns()
+        
         self._refresh_table()
-    
+
     def _create_filters(self):
         """Create organized filter controls in 2x3 grid layout"""
         filter_frame = ttk.LabelFrame(self.frame, text="Filters", padding=15)
@@ -86,15 +93,15 @@ class HackHistoryPage:
         grid_container = ttk.Frame(filter_frame)
         grid_container.pack(fill="x")
         
-        # === COLUMN 1 (Left - Name and Dropdowns) - FIXED: Narrower width ===
+        # === COLUMN 1 (Left - Name and Dropdowns) ===
         col1_frame = ttk.Frame(grid_container)
-        col1_frame.pack(side="left", fill="x", padx=(0, 15))  # REMOVED: expand=True, reduced padding
+        col1_frame.pack(side="left", fill="x", padx=(0, 15))
         
         # Column 1, Row 1: Name
         name_frame = ttk.Frame(col1_frame)
         name_frame.pack(fill="x", pady=(0, 8))
         ttk.Label(name_frame, text="Name:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
-        name_entry = ttk.Entry(name_frame, textvariable=self.name_filter, width=90)  # ADDED: Fixed width
+        name_entry = ttk.Entry(name_frame, textvariable=self.name_filter, width=90)
         name_entry.pack(fill="x", pady=(2, 0))
         name_entry.bind("<KeyRelease>", lambda e: self._apply_filters())
         
@@ -102,25 +109,25 @@ class HackHistoryPage:
         dropdowns_frame = ttk.Frame(col1_frame)
         dropdowns_frame.pack(fill="x")
         
-        # Type filter - FIXED: Smaller width
+        # Type filter - STORE REFERENCE
         type_frame = ttk.Frame(dropdowns_frame)
-        type_frame.pack(side="left", padx=(0, 12))  # CHANGED: No expand, less padding
+        type_frame.pack(side="left", padx=(0, 12))
         ttk.Label(type_frame, text="Type:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         types = ["All"] + self.data_manager.get_unique_types()
-        type_combo = ttk.Combobox(type_frame, textvariable=self.type_filter, 
-                                 values=types, state="readonly", width=14)  # ADDED: Fixed width
-        type_combo.pack(pady=(2, 0))
-        type_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
+        self.type_combo = ttk.Combobox(type_frame, textvariable=self.type_filter, 
+                         values=types, state="readonly", width=14)  # STORED: as self.type_combo
+        self.type_combo.pack(pady=(2, 0))
+        self.type_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
         
-        # Difficulty filter - FIXED: Smaller width
+        # Difficulty filter - STORE REFERENCE
         diff_frame = ttk.Frame(dropdowns_frame)
-        diff_frame.pack(side="left", padx=(0, 12))  # CHANGED: No expand, less padding
+        diff_frame.pack(side="left", padx=(0, 12))
         ttk.Label(diff_frame, text="Difficulty:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         difficulties = ["All"] + self.data_manager.get_unique_difficulties()
-        diff_combo = ttk.Combobox(diff_frame, textvariable=self.difficulty_filter, 
-                                 values=difficulties, state="readonly", width=14)  # ADDED: Fixed width
-        diff_combo.pack(pady=(2, 0))
-        diff_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
+        self.diff_combo = ttk.Combobox(diff_frame, textvariable=self.difficulty_filter, 
+                         values=difficulties, state="readonly", width=14)  # STORED: as self.diff_combo
+        self.diff_combo.pack(pady=(2, 0))
+        self.diff_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
         
         # Completed filter - FIXED: Smaller width
         completed_frame = ttk.Frame(dropdowns_frame)
@@ -197,12 +204,21 @@ class HackHistoryPage:
             ttk.Radiobutton(demo_radio_frame, text=display, variable=self.demo_filter,
                            value=value, command=self._apply_filters).pack(side="left", padx=(0, 5))  # CHANGED: Less padding
         
-        # === CLEAR BUTTON (Below the grid) - CHANGED: Right aligned ===
+        # === CLEAR BUTTON (Below the grid) - CHANGED: Right aligned with Refresh button ===
         clear_button_frame = ttk.Frame(filter_frame)
         clear_button_frame.pack(fill="x", pady=(15, 0))
         
-        ttk.Button(clear_button_frame, text="Clear All Filters", 
-                  command=self._clear_filters).pack(side="right")  # CHANGED: from pack() to pack(side="right")
+        # Button container for right alignment
+        button_container = ttk.Frame(clear_button_frame)
+        button_container.pack(side="right")
+        
+        # Refresh List button
+        ttk.Button(button_container, text="Refresh List", 
+                  command=self._refresh_data_and_table).pack(side="left", padx=(0, 10))
+        
+        # Clear All Filters button
+        ttk.Button(button_container, text="Clear All Filters", 
+                  command=self._clear_filters).pack(side="left")
     
     def _create_table(self):
         """Create the main data table"""
@@ -569,8 +585,8 @@ class HackHistoryPage:
         if not bbox:
             return
         
-        self.editing_item = item
-        self.editing_column = "#7"  # FIXED: Update to correct column
+        self.edit_item = item
+        self.edit_column = "#7"  # FIXED: Update to correct column
         
         # Create text widget over the cell
         current_notes = hack_data["notes"]
@@ -606,7 +622,7 @@ class HackHistoryPage:
     
     def _save_current_edit(self):
         """Save any current edit in progress"""
-        if self.edit_widget and self.editing_item:
+        if self.edit_widget and self.edit_item:
             # This would need hack_id and hack_data, so we'll just cancel for now
             self._cancel_edit()
     
@@ -615,5 +631,27 @@ class HackHistoryPage:
         if self.edit_widget:
             self.edit_widget.destroy()
             self.edit_widget = None
-        self.editing_item = None
-        self.editing_column = None
+        self.edit_item = None
+        self.edit_column = None
+    
+    def _refresh_filter_dropdowns(self):
+        """Refresh the values in filter dropdowns to include new data"""
+        # Get fresh data for dropdowns
+        types = ["All"] + self.data_manager.get_unique_types()
+        difficulties = ["All"] + self.data_manager.get_unique_difficulties()
+        
+        # Update Type dropdown if it exists
+        if hasattr(self, 'type_combo') and self.type_combo:
+            current_type = self.type_filter.get()
+            self.type_combo['values'] = types
+            # Preserve current selection if it's still valid, otherwise reset to "All"
+            if current_type not in types:
+                self.type_filter.set("All")
+        
+        # Update Difficulty dropdown if it exists
+        if hasattr(self, 'diff_combo') and self.diff_combo:
+            current_diff = self.difficulty_filter.get()
+            self.diff_combo['values'] = difficulties
+            # Preserve current selection if it's still valid, otherwise reset to "All"
+            if current_diff not in difficulties:
+                self.difficulty_filter.set("All")

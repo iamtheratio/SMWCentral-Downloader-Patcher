@@ -9,7 +9,7 @@ from utils import (
     DIFFICULTY_LOOKUP, DIFFICULTY_KEYMAP,
     load_processed, save_processed, make_output_path,
     TYPE_KEYMAP, TYPE_DISPLAY_LOOKUP,
-    title_case
+    title_case, clean_hack_title  # ADDED: Import the new function
 )
 from smwc_api_proxy import smwc_api_get, get_api_delay
 from patch_handler import PatchHandler
@@ -339,11 +339,11 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
 
             # Update processed data
             processed[hack_id] = {
-                "title": raw_title,
+                "title": clean_hack_title(raw_title),  # CHANGED: Clean the title
                 "current_difficulty": display_diff,
                 "folder_name": folder_name,
                 "file_path": output_path,
-                "hack_type": normalized_type,  # Use the normalized type from filter
+                "hack_type": normalized_type,
                 # REMOVED: redundant "difficulty" field
                 # CHANGED: Use actual hack metadata from API response
                 "hall_of_fame": bool(hack.get("raw_fields", {}).get("hof", 0)),
@@ -374,7 +374,7 @@ def save_hack_to_processed_json(hack_data, file_path, hack_type):
     
     # Extract actual boolean values from SMWC API response
     processed_data = {
-        "title": hack_data.get("title", "Unknown"),
+        "title": clean_hack_title(hack_data.get("title", "Unknown")),  # CHANGED: Clean the title
         "current_difficulty": hack_data.get("difficulty", "Unknown"),
         "folder_name": get_sorted_folder_name(hack_data.get("difficulty", "Unknown")),
         "file_path": file_path,
