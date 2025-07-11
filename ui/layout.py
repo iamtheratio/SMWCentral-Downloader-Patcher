@@ -39,12 +39,8 @@ class MainLayout:
         # Initialize page manager
         self.page_manager = PageManager(self.content_frame)
         
-        # Create theme controls
-        self.theme_controls = ThemeControls(self.root, self.toggle_theme_callback)
-        self.theme_controls.create()
-        
         # Create navigation bar
-        self.navigation = NavigationBar(self.root, self.page_manager)
+        self.navigation = NavigationBar(self.root, self.page_manager, self.toggle_theme_callback)
         self.navigation.create()
         
         # Store navigation reference for theme updates
@@ -62,10 +58,6 @@ class MainLayout:
         
         # Show default page
         self.navigation.show_page("Bulk Download")
-        
-        # Ensure theme controls stay on top
-        self.root.update_idletasks()
-        self.theme_controls.lift()
         
         # Force refresh navigation
         self.root.after(100, lambda: self.navigation.show_page("Bulk Download"))

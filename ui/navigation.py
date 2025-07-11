@@ -1,22 +1,24 @@
 import tkinter as tk
 from tkinter import ttk
 from colors import get_colors
+import sv_ttk
 
 class NavigationBar:
     """Handles the main navigation bar with tabs"""
     
-    def __init__(self, root, page_manager):
+    def __init__(self, root, page_manager, toggle_theme_callback=None):  # ONLY ADDED toggle_theme_callback
         self.root = root
         self.page_manager = page_manager
+        self.toggle_theme_callback = toggle_theme_callback  # ONLY ADDED THIS LINE
         self.nav_bar = None
         self.tab_refs = []
         self.current_page = "Bulk Download"
         
     def create(self):
         """Create the navigation bar"""
-        # Create spacer to push navigation down
-        spacer = ttk.Frame(self.root, height=60)
-        spacer.pack(side="top", fill="x")
+        # REMOVED: Create spacer to push navigation down
+        # spacer = ttk.Frame(self.root, height=60)
+        # spacer.pack(side="top", fill="x")
         
         # Get colors from theme
         colors = get_colors()
@@ -57,7 +59,32 @@ class NavigationBar:
             self.nav_bar.tag_bind(tab_id, "<Button-1>", lambda e, t=tab: self.show_page(t))
             self.nav_bar.tag_bind(tab_id, "<Enter>", lambda e: self.nav_bar.config(cursor="hand2"))
             self.nav_bar.tag_bind(tab_id, "<Leave>", lambda e: self.nav_bar.config(cursor=""))
+        
+        # ONLY ADDED: Embed existing theme toggle in navigation bar
+        if self.toggle_theme_callback:
+            theme_frame = ttk.Frame(self.root)
+            
+            theme_switch = ttk.Checkbutton(
+                theme_frame,
+                style="Switch.TCheckbutton",
+                command=lambda: self.toggle_theme_callback(self.root)
+            )
+            theme_switch.pack(side="left")
+            theme_switch.state(['selected'] if sv_ttk.get_theme() == "dark" else [])
+            
+            moon_label = ttk.Label(
+                theme_frame, 
+                text="🌙",
+                font=("Segoe UI Emoji", 12),
+            )
+            moon_label.pack(side="left", padx=(2, 0))
+            
+            # Embed in canvas
+            self.nav_bar.create_window(
+                870, nav_height // 2, window=theme_frame, anchor="e"
+            )
     
+    # EVERYTHING ELSE UNCHANGED
     def show_page(self, page_name):
         """Switch to a specific page"""
         self.current_page = page_name
