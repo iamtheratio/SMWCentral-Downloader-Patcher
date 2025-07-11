@@ -41,7 +41,12 @@ class HackDataManager:
                 hack_info = {
                     "id": hack_id,
                     "title": hack_data.get("title", "Unknown"),
-                    "difficulty": hack_data.get("current_difficulty", "Unknown"),
+                    "hack_type": hack_data.get("hack_type", "unknown").title(),  # Capitalize for display
+                    "difficulty": hack_data.get("current_difficulty", "Unknown"),  # Use current_difficulty only
+                    "hall_of_fame": hack_data.get("hall_of_fame", False),
+                    "sa1_compatibility": hack_data.get("sa1_compatibility", False),
+                    "collaboration": hack_data.get("collaboration", False),
+                    "demo": hack_data.get("demo", False),
                     "file_path": hack_data.get("file_path", ""),
                     "completed": hack_data.get("completed", False),
                     "completed_date": hack_data.get("completed_date", ""),
@@ -63,12 +68,16 @@ class HackDataManager:
             return True
         return False
     
+    def get_unique_types(self):
+        """Get list of unique hack types"""
+        return ["Kaizo", "Pit", "Puzzle", "Standard", "Tool-Assisted"]  # Fixed list in alphabetical order
+
     def get_unique_difficulties(self):
         """Get list of unique difficulties"""
         difficulties = set()
         for hack_data in self.data.values():
             if isinstance(hack_data, dict):
                 diff = hack_data.get("current_difficulty", "Unknown")
-                if diff:
+                if diff and diff != "Unknown":
                     difficulties.add(diff)
         return sorted(list(difficulties))

@@ -102,7 +102,7 @@ def clear_log_shortcut(root):
 def main():
     root = tk.Tk()
     root.title("SMWC Downloader & Patcher")
-    root.geometry("900x850")
+    root.geometry("1000x900")
     
     # Initial setup
     style = ttk.Style()

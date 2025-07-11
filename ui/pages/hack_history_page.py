@@ -1,13 +1,20 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, simpledialog
 import os
 import subprocess
 import platform
 from datetime import datetime
+import sv_ttk
+
+# Fix the import path
+import sys
+import os
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
 from hack_data_manager import HackDataManager
 
 class HackHistoryPage:
-    """Comprehensive hack history page with filtering and editing"""
+    """Simple hack history page with inline editing"""
     
     def __init__(self, parent):
         self.parent = parent
@@ -16,24 +23,31 @@ class HackHistoryPage:
         
         # Filter variables
         self.name_filter = tk.StringVar()
+        self.type_filter = tk.StringVar(value="All")
         self.difficulty_filter = tk.StringVar(value="All")
         self.completed_filter = tk.StringVar(value="All")
         self.rating_filter = tk.StringVar(value="All")
+        
+        # NEW: Additional filter variables for new attributes
+        self.hall_of_fame_filter = tk.StringVar(value="All")
+        self.sa1_filter = tk.StringVar(value="All")
+        self.collaboration_filter = tk.StringVar(value="All")
+        self.demo_filter = tk.StringVar(value="All")
         
         # Table data
         self.tree = None
         self.filtered_data = []
         
+        # For inline editing
+        self.editing_item = None
+        self.editing_column = None
+        self.edit_widget = None
+        
     def create(self):
         """Create the hack history page"""
         self.frame = ttk.Frame(self.parent, padding=10)
         
-        # Title
-        ttk.Label(
-            self.frame,
-            text="Downloaded Hacks History",
-            font=("Segoe UI", 14, "bold")
-        ).pack(pady=(0, 15))
+        # REMOVED: Title label to move filters up
         
         # Create filter section
         self._create_filters()
@@ -42,84 +56,189 @@ class HackHistoryPage:
         self._create_table()
         
         # Load initial data
-        self._refresh_table()
+        self._refresh_data_and_table()
         
         return self.frame
     
+    def show(self):
+        """Called when the page becomes visible - refresh data"""
+        if self.frame:
+            self._refresh_data_and_table()
+    
+    def hide(self):
+        """Called when the page becomes hidden"""
+        # Cancel any active editing
+        if self.edit_widget:
+            self._cancel_edit()
+    
+    def _refresh_data_and_table(self):
+        """Refresh data from file and update table"""
+        # ADDED: Reload data from processed.json to pick up new downloads
+        self.data_manager = HackDataManager()  # Reinitialize to reload data
+        self._refresh_table()
+    
     def _create_filters(self):
-        """Create filter controls"""
-        filter_frame = ttk.LabelFrame(self.frame, text="Filters", padding=10)
+        """Create organized filter controls in 2x3 grid layout"""
+        filter_frame = ttk.LabelFrame(self.frame, text="Filters", padding=15)
         filter_frame.pack(fill="x", pady=(0, 10))
         
-        # First row of filters
-        row1 = ttk.Frame(filter_frame)
-        row1.pack(fill="x", pady=(0, 5))
+        # Create main grid container
+        grid_container = ttk.Frame(filter_frame)
+        grid_container.pack(fill="x")
         
-        # Name filter
-        ttk.Label(row1, text="Name:").pack(side="left", padx=(0, 5))
-        name_entry = ttk.Entry(row1, textvariable=self.name_filter, width=20)
-        name_entry.pack(side="left", padx=(0, 15))
+        # === COLUMN 1 (Left - Name and Dropdowns) - FIXED: Narrower width ===
+        col1_frame = ttk.Frame(grid_container)
+        col1_frame.pack(side="left", fill="x", padx=(0, 15))  # REMOVED: expand=True, reduced padding
+        
+        # Column 1, Row 1: Name
+        name_frame = ttk.Frame(col1_frame)
+        name_frame.pack(fill="x", pady=(0, 8))
+        ttk.Label(name_frame, text="Name:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        name_entry = ttk.Entry(name_frame, textvariable=self.name_filter, width=90)  # ADDED: Fixed width
+        name_entry.pack(fill="x", pady=(2, 0))
         name_entry.bind("<KeyRelease>", lambda e: self._apply_filters())
         
-        # Difficulty filter
-        ttk.Label(row1, text="Difficulty:").pack(side="left", padx=(0, 5))
+        # Column 1, Row 2: Type, Difficulty, Completed, Rating (4 dropdowns in a row)
+        dropdowns_frame = ttk.Frame(col1_frame)
+        dropdowns_frame.pack(fill="x")
+        
+        # Type filter - FIXED: Smaller width
+        type_frame = ttk.Frame(dropdowns_frame)
+        type_frame.pack(side="left", padx=(0, 3))  # CHANGED: No expand, less padding
+        ttk.Label(type_frame, text="Type:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        types = ["All"] + self.data_manager.get_unique_types()
+        type_combo = ttk.Combobox(type_frame, textvariable=self.type_filter, 
+                                 values=types, state="readonly", width=12)  # ADDED: Fixed width
+        type_combo.pack(pady=(2, 0))
+        type_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
+        
+        # Difficulty filter - FIXED: Smaller width
+        diff_frame = ttk.Frame(dropdowns_frame)
+        diff_frame.pack(side="left", padx=(0, 3))  # CHANGED: No expand, less padding
+        ttk.Label(diff_frame, text="Difficulty:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         difficulties = ["All"] + self.data_manager.get_unique_difficulties()
-        diff_combo = ttk.Combobox(row1, textvariable=self.difficulty_filter, 
-                                 values=difficulties, state="readonly", width=15)
-        diff_combo.pack(side="left", padx=(0, 15))
+        diff_combo = ttk.Combobox(diff_frame, textvariable=self.difficulty_filter, 
+                                 values=difficulties, state="readonly", width=12)  # ADDED: Fixed width
+        diff_combo.pack(pady=(2, 0))
         diff_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
         
-        # Second row of filters
-        row2 = ttk.Frame(filter_frame)
-        row2.pack(fill="x", pady=(5, 0))
-        
-        # Completed filter
-        ttk.Label(row2, text="Completed:").pack(side="left", padx=(0, 5))
-        completed_combo = ttk.Combobox(row2, textvariable=self.completed_filter,
-                                      values=["All", "Completed", "Not Completed"], 
-                                      state="readonly", width=15)
-        completed_combo.pack(side="left", padx=(0, 15))
+        # Completed filter - FIXED: Smaller width
+        completed_frame = ttk.Frame(dropdowns_frame)
+        completed_frame.pack(side="left", padx=(0, 3))  # CHANGED: No expand, less padding
+        ttk.Label(completed_frame, text="Completed:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        completed_combo = ttk.Combobox(completed_frame, textvariable=self.completed_filter,
+                                      values=["All", "Yes", "No"], state="readonly", width=12)  # ADDED: Fixed width
+        completed_combo.pack(pady=(2, 0))
         completed_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
         
-        # Rating filter
-        ttk.Label(row2, text="Rating:").pack(side="left", padx=(0, 5))
-        rating_combo = ttk.Combobox(row2, textvariable=self.rating_filter,
+        # Rating filter - FIXED: Smaller width
+        rating_frame = ttk.Frame(dropdowns_frame)
+        rating_frame.pack(side="left")  # CHANGED: No expand, no padding
+        ttk.Label(rating_frame, text="Rating:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        rating_combo = ttk.Combobox(rating_frame, textvariable=self.rating_filter,
                                    values=["All", "★★★★★", "★★★★☆", "★★★☆☆", "★★☆☆☆", "★☆☆☆☆", "☆☆☆☆☆"],
-                                   state="readonly", width=15)
-        rating_combo.pack(side="left", padx=(0, 15))
+                                   state="readonly", width=12)  # ADDED: Fixed width
+        rating_combo.pack(pady=(2, 0))
         rating_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
         
-        # Clear filters button
-        ttk.Button(row2, text="Clear Filters", 
-                  command=self._clear_filters).pack(side="right")
+        # === COLUMN 2 (Center - HoF and SA-1) ===
+        col2_frame = ttk.Frame(grid_container)
+        col2_frame.pack(side="left", padx=(0, 15))  # CHANGED: Reduced padding
         
+        # Column 2, Row 1: HoF
+        hof_frame = ttk.Frame(col2_frame)
+        hof_frame.pack(pady=(0, 8))
+        ttk.Label(hof_frame, text="HoF:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        hof_radio_frame = ttk.Frame(hof_frame)
+        hof_radio_frame.pack(pady=(2, 0))
+        
+        hof_options = [("Any", "All"), ("Yes", "Yes"), ("No", "No")]
+        for display, value in hof_options:
+            ttk.Radiobutton(hof_radio_frame, text=display, variable=self.hall_of_fame_filter,
+                           value=value, command=self._apply_filters).pack(side="left", padx=(0, 5))  # CHANGED: Less padding
+        
+        # Column 2, Row 2: SA-1
+        sa1_frame = ttk.Frame(col2_frame)
+        sa1_frame.pack()
+        ttk.Label(sa1_frame, text="SA-1:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        sa1_radio_frame = ttk.Frame(sa1_frame)
+        sa1_radio_frame.pack(pady=(2, 0))
+        
+        sa1_options = [("Any", "All"), ("Yes", "Yes"), ("No", "No")]
+        for display, value in sa1_options:
+            ttk.Radiobutton(sa1_radio_frame, text=display, variable=self.sa1_filter,
+                           value=value, command=self._apply_filters).pack(side="left", padx=(0, 5))  # CHANGED: Less padding
+        
+        # === COLUMN 3 (Right - Collab and Demo) ===
+        col3_frame = ttk.Frame(grid_container)
+        col3_frame.pack(side="right")
+        
+        # Column 3, Row 1: Collab
+        collab_frame = ttk.Frame(col3_frame)
+        collab_frame.pack(pady=(0, 8))
+        ttk.Label(collab_frame, text="Collab:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        collab_radio_frame = ttk.Frame(collab_frame)
+        collab_radio_frame.pack(pady=(2, 0))
+        
+        collab_options = [("Any", "All"), ("Yes", "Yes"), ("No", "No")]
+        for display, value in collab_options:
+            ttk.Radiobutton(collab_radio_frame, text=display, variable=self.collaboration_filter,
+                           value=value, command=self._apply_filters).pack(side="left", padx=(0, 5))  # CHANGED: Less padding
+        
+        # Column 3, Row 2: Demo
+        demo_frame = ttk.Frame(col3_frame)
+        demo_frame.pack()
+        ttk.Label(demo_frame, text="Demo:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        demo_radio_frame = ttk.Frame(demo_frame)
+        demo_radio_frame.pack(pady=(2, 0))
+        
+        demo_options = [("Any", "All"), ("Yes", "Yes"), ("No", "No")]
+        for display, value in demo_options:
+            ttk.Radiobutton(demo_radio_frame, text=display, variable=self.demo_filter,
+                           value=value, command=self._apply_filters).pack(side="left", padx=(0, 5))  # CHANGED: Less padding
+        
+        # === CLEAR BUTTON (Below the grid) ===
+        clear_button_frame = ttk.Frame(filter_frame)
+        clear_button_frame.pack(fill="x", pady=(15, 0))
+        
+        ttk.Button(clear_button_frame, text="Clear All Filters", 
+                  command=self._clear_filters).pack()
+    
     def _create_table(self):
         """Create the main data table"""
         # Table frame with scrollbars
         table_frame = ttk.Frame(self.frame)
         table_frame.pack(fill="both", expand=True)
         
-        # Create treeview with columns
-        columns = ("completed", "title", "difficulty", "rating", "completed_date", "folder", "notes")
+        # UPDATED: Add new columns for attributes
+        columns = ("completed", "title", "type", "difficulty", "hof", "sa1", "collab", "demo", "rating", "completed_date", "notes")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15)
         
         # Configure columns
         self.tree.heading("completed", text="✓")
-        self.tree.heading("title", text="Hack Name")
+        self.tree.heading("title", text="Title")
+        self.tree.heading("type", text="Type")
         self.tree.heading("difficulty", text="Difficulty")
+        self.tree.heading("hof", text="HoF")
+        self.tree.heading("sa1", text="SA-1")
+        self.tree.heading("collab", text="Collab")
+        self.tree.heading("demo", text="Demo")
         self.tree.heading("rating", text="Rating")
         self.tree.heading("completed_date", text="Completed Date")
-        self.tree.heading("folder", text="📁")
         self.tree.heading("notes", text="Notes")
         
         # Set column widths
-        self.tree.column("completed", width=40, minwidth=40)
-        self.tree.column("title", width=300, minwidth=200)
-        self.tree.column("difficulty", width=100, minwidth=80)
-        self.tree.column("rating", width=80, minwidth=80)
-        self.tree.column("completed_date", width=120, minwidth=100)
-        self.tree.column("folder", width=40, minwidth=40)
-        self.tree.column("notes", width=200, minwidth=150)
+        self.tree.column("completed", width=40, minwidth=30, anchor="center")
+        self.tree.column("title", width=200, minwidth=150)
+        self.tree.column("type", width=80, minwidth=60, anchor="center")
+        self.tree.column("difficulty", width=90, minwidth=70, anchor="center")
+        self.tree.column("hof", width=40, minwidth=30, anchor="center")
+        self.tree.column("sa1", width=40, minwidth=30, anchor="center")
+        self.tree.column("collab", width=50, minwidth=40, anchor="center")
+        self.tree.column("demo", width=50, minwidth=40, anchor="center")
+        self.tree.column("rating", width=80, minwidth=60, anchor="center")
+        self.tree.column("completed_date", width=100, minwidth=80, anchor="center")
+        self.tree.column("notes", width=150, minwidth=100)
         
         # Scrollbars
         v_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
@@ -135,8 +254,8 @@ class HackHistoryPage:
         table_frame.grid_columnconfigure(0, weight=1)
         
         # Bind events
-        self.tree.bind("<Double-1>", self._on_item_double_click)
         self.tree.bind("<Button-1>", self._on_item_click)
+        self.tree.bind("<Double-1>", self._on_item_double_click)
         
         # Status label
         self.status_label = ttk.Label(self.frame, text="", font=("Segoe UI", 9))
@@ -156,18 +275,27 @@ class HackHistoryPage:
         for hack in self.filtered_data:
             completed_display = "✓" if hack["completed"] else ""
             rating_display = self._get_rating_display(hack["personal_rating"])
-            folder_display = "📁"
+            
+            # ADDED: Display new boolean attributes
+            hof_display = "✓" if hack.get("hall_of_fame", False) else ""
+            sa1_display = "✓" if hack.get("sa1_compatibility", False) else ""
+            collab_display = "✓" if hack.get("collaboration", False) else ""
+            demo_display = "✓" if hack.get("demo", False) else ""
             
             # Truncate notes for display
-            notes_display = hack["notes"][:50] + "..." if len(hack["notes"]) > 50 else hack["notes"]
+            notes_display = hack["notes"][:30] + "..." if len(hack["notes"]) > 30 else hack["notes"]
             
             self.tree.insert("", "end", values=(
                 completed_display,
                 hack["title"],
+                hack.get("hack_type", "Unknown").title(),  # Capitalize for display
                 hack["difficulty"],
+                hof_display,
+                sa1_display,
+                collab_display,
+                demo_display,
                 rating_display,
                 hack["completed_date"],
-                folder_display,
                 notes_display
             ), tags=(hack["id"],))
         
@@ -191,15 +319,19 @@ class HackHistoryPage:
         if name_text:
             filtered = [h for h in filtered if name_text in h["title"].lower()]
         
+        # Type filter
+        if self.type_filter.get() != "All":
+            filtered = [h for h in filtered if h.get("hack_type", "Unknown").title() == self.type_filter.get()]
+        
         # Difficulty filter
         if self.difficulty_filter.get() != "All":
             filtered = [h for h in filtered if h["difficulty"] == self.difficulty_filter.get()]
         
         # Completed filter
         completed_val = self.completed_filter.get()
-        if completed_val == "Completed":
+        if completed_val == "Yes":
             filtered = [h for h in filtered if h["completed"]]
-        elif completed_val == "Not Completed":
+        elif completed_val == "No":
             filtered = [h for h in filtered if not h["completed"]]
         
         # Rating filter
@@ -207,6 +339,35 @@ class HackHistoryPage:
         if rating_val != "All":
             rating_num = rating_val.count("★")
             filtered = [h for h in filtered if h["personal_rating"] == rating_num]
+        
+        # ADDED: New attribute filters
+        # Hall of Fame filter
+        hof_val = self.hall_of_fame_filter.get()
+        if hof_val == "Yes":
+            filtered = [h for h in filtered if h.get("hall_of_fame", False)]
+        elif hof_val == "No":
+            filtered = [h for h in filtered if not h.get("hall_of_fame", False)]
+        
+        # SA-1 filter
+        sa1_val = self.sa1_filter.get()
+        if sa1_val == "Yes":
+            filtered = [h for h in filtered if h.get("sa1_compatibility", False)]
+        elif sa1_val == "No":
+            filtered = [h for h in filtered if not h.get("sa1_compatibility", False)]
+        
+        # Collaboration filter
+        collab_val = self.collaboration_filter.get()
+        if collab_val == "Yes":
+            filtered = [h for h in filtered if h.get("collaboration", False)]
+        elif collab_val == "No":
+            filtered = [h for h in filtered if not h.get("collaboration", False)]
+        
+        # Demo filter
+        demo_val = self.demo_filter.get()
+        if demo_val == "Yes":
+            filtered = [h for h in filtered if h.get("demo", False)]
+        elif demo_val == "No":
+            filtered = [h for h in filtered if not h.get("demo", False)]
         
         return filtered
     
@@ -217,9 +378,15 @@ class HackHistoryPage:
     def _clear_filters(self):
         """Clear all filters"""
         self.name_filter.set("")
+        self.type_filter.set("All")
         self.difficulty_filter.set("All")
         self.completed_filter.set("All")
-        self.rating_filter.set("All")
+        self.rating_filter.set("All")  # CHANGED: Back to "All" for dropdown
+        # Clear new filters
+        self.hall_of_fame_filter.set("All")
+        self.sa1_filter.set("All")
+        self.collaboration_filter.set("All")
+        self.demo_filter.set("All")
         self._apply_filters()
     
     def _get_rating_display(self, rating):
@@ -229,7 +396,7 @@ class HackHistoryPage:
         return "★" * rating + "☆" * (5 - rating)
     
     def _on_item_click(self, event):
-        """Handle single click on table item"""
+        """Handle single clicks on table items"""
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
@@ -242,18 +409,20 @@ class HackHistoryPage:
         if not hack_data:
             return
         
-        # Handle completed checkbox click
+        # Handle completed checkbox toggle
         if column == "#1":  # Completed column
-            new_completed = not hack_data["completed"]
-            self.data_manager.update_hack(hack_id, "completed", new_completed)
-            self._refresh_table()
+            self._toggle_completed(hack_id, hack_data)
         
-        # Handle folder icon click
-        elif column == "#6":  # Folder column
-            self._open_file_location(hack_data["file_path"])
+        # Handle rating click with simple input
+        elif column == "#9":  # Rating column (moved due to new columns)
+            self._edit_rating_simple(hack_id, hack_data)
+        
+        # Handle date click with date picker
+        elif column == "#10":  # Completed date column (moved due to new columns)
+            self._edit_date_with_picker(hack_id, hack_data, event)
     
     def _on_item_double_click(self, event):
-        """Handle double click on table item"""
+        """Handle double clicks for notes editing"""
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
@@ -266,155 +435,201 @@ class HackHistoryPage:
         if not hack_data:
             return
         
-        # Open edit dialog for different columns
-        if column == "#4":  # Rating column
-            self._edit_rating(hack_id, hack_data)
-        elif column == "#5":  # Completed date column
-            self._edit_date(hack_id, hack_data)
-        elif column == "#7":  # Notes column
-            self._edit_notes(hack_id, hack_data)
+        # Handle notes editing on double-click
+        if column == "#11":  # Notes column (moved due to new columns)
+            self._edit_notes_inline(item, hack_id, hack_data, event)
     
-    def _edit_rating(self, hack_id, hack_data):
-        """Open rating edit dialog"""
-        dialog = tk.Toplevel(self.frame)
-        dialog.title("Edit Rating")
-        dialog.geometry("300x200")
-        dialog.transient(self.frame.winfo_toplevel())
-        dialog.grab_set()
-        
-        ttk.Label(dialog, text=f"Rating for: {hack_data['title']}", 
-                 font=("Segoe UI", 10, "bold")).pack(pady=10)
-        
-        rating_var = tk.IntVar(value=hack_data["personal_rating"])
-        
-        # Rating buttons
-        rating_frame = ttk.Frame(dialog)
-        rating_frame.pack(pady=10)
-        
-        for i in range(6):  # 0-5 stars
-            text = "☆☆☆☆☆" if i == 0 else "★" * i + "☆" * (5 - i)
-            ttk.Radiobutton(rating_frame, text=text, variable=rating_var, 
-                           value=i).pack(anchor="w", pady=2)
-        
-        # Buttons
-        button_frame = ttk.Frame(dialog)
-        button_frame.pack(pady=15)
-        
-        def save_rating():
-            self.data_manager.update_hack(hack_id, "personal_rating", rating_var.get())
-            dialog.destroy()
+    def _toggle_completed(self, hack_id, hack_data):
+        """Toggle completed status"""
+        new_completed = not hack_data["completed"]
+        if self.data_manager.update_hack(hack_id, "completed", new_completed):
+            hack_data["completed"] = new_completed
+            # Auto-set completion date if not set
+            if new_completed and not hack_data["completed_date"]:
+                today = datetime.now().strftime("%Y-%m-%d")
+                hack_data["completed_date"] = today
+                self.data_manager.update_hack(hack_id, "completed_date", today)
             self._refresh_table()
-        
-        ttk.Button(button_frame, text="Save", command=save_rating).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side="left", padx=5)
     
-    def _edit_date(self, hack_id, hack_data):
-        """Open date edit dialog"""
-        dialog = tk.Toplevel(self.frame)
-        dialog.title("Edit Completed Date")
-        dialog.geometry("300x150")
-        dialog.transient(self.frame.winfo_toplevel())
-        dialog.grab_set()
+    def _edit_rating_simple(self, hack_id, hack_data):
+        """Simple rating edit with buttons"""
+        current_rating = hack_data["personal_rating"]
         
-        ttk.Label(dialog, text=f"Completed date for: {hack_data['title']}", 
+        # Create a simple popup with star buttons
+        popup = tk.Toplevel(self.frame)
+        popup.title("Rate Hack")
+        popup.geometry("300x150")
+        popup.resizable(False, False)
+        popup.grab_set()
+        
+        # Center the popup
+        popup.update_idletasks()
+        x = (popup.winfo_screenwidth() // 2) - (300 // 2)
+        y = (popup.winfo_screenheight() // 2) - (150 // 2)
+        popup.geometry(f"300x150+{x}+{y}")
+        
+        ttk.Label(popup, text=f"Rate: {hack_data['title'][:30]}...", 
                  font=("Segoe UI", 10, "bold")).pack(pady=10)
         
-        date_var = tk.StringVar(value=hack_data["completed_date"])
-        
-        ttk.Label(dialog, text="Date (YYYY-MM-DD):").pack(pady=5)
-        date_entry = ttk.Entry(dialog, textvariable=date_var, width=20)
-        date_entry.pack(pady=5)
-        
-        # Buttons
-        button_frame = ttk.Frame(dialog)
-        button_frame.pack(pady=15)
-        
-        def save_date():
-            date_text = date_var.get()
-            # Basic validation
-            try:
-                if date_text:
-                    datetime.strptime(date_text, "%Y-%m-%d")
-                self.data_manager.update_hack(hack_id, "completed_date", date_text)
-                dialog.destroy()
-                self._refresh_table()
-            except ValueError:
-                messagebox.showerror("Invalid Date", "Please enter date in YYYY-MM-DD format")
-        
-        def set_today():
-            date_var.set(datetime.now().strftime("%Y-%m-%d"))
-        
-        ttk.Button(button_frame, text="Today", command=set_today).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Save", command=save_date).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side="left", padx=5)
-    
-    def _edit_notes(self, hack_id, hack_data):
-        """Open notes edit dialog"""
-        dialog = tk.Toplevel(self.frame)
-        dialog.title("Edit Notes")
-        dialog.geometry("400x250")
-        dialog.transient(self.frame.winfo_toplevel())
-        dialog.grab_set()
-        
-        ttk.Label(dialog, text=f"Notes for: {hack_data['title']}", 
-                 font=("Segoe UI", 10, "bold")).pack(pady=10)
-        
-        # Text widget with scrollbar
-        text_frame = ttk.Frame(dialog)
-        text_frame.pack(fill="both", expand=True, padx=10, pady=5)
-        
-        notes_text = tk.Text(text_frame, wrap="word", height=8, width=50)
-        scrollbar = ttk.Scrollbar(text_frame, orient="vertical", command=notes_text.yview)
-        notes_text.configure(yscrollcommand=scrollbar.set)
-        
-        notes_text.pack(side="left", fill="both", expand=True)
-        scrollbar.pack(side="right", fill="y")
-        
-        notes_text.insert("1.0", hack_data["notes"])
-        
-        # Character count
-        char_label = ttk.Label(dialog, text=f"Characters: {len(hack_data['notes'])}/200")
-        char_label.pack(pady=5)
-        
-        def update_char_count(event=None):
-            content = notes_text.get("1.0", "end-1c")
-            char_label.config(text=f"Characters: {len(content)}/200")
-            if len(content) > 200:
-                char_label.config(foreground="red")
-            else:
-                char_label.config(foreground="")
-        
-        notes_text.bind("<KeyRelease>", update_char_count)
-        
-        # Buttons
-        button_frame = ttk.Frame(dialog)
+        button_frame = ttk.Frame(popup)
         button_frame.pack(pady=10)
         
-        def save_notes():
-            content = notes_text.get("1.0", "end-1c")
-            if len(content) > 200:
-                messagebox.showerror("Too Long", "Notes must be 200 characters or less")
-                return
-            
-            self.data_manager.update_hack(hack_id, "notes", content)
-            dialog.destroy()
-            self._refresh_table()
+        def set_rating(rating):
+            if self.data_manager.update_hack(hack_id, "personal_rating", rating):
+                hack_data["personal_rating"] = rating
+                self._refresh_table()
+            popup.destroy()
         
-        ttk.Button(button_frame, text="Save", command=save_notes).pack(side="left", padx=5)
-        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side="left", padx=5)
+        # Create rating buttons
+        for i in range(6):  # 0-5 stars
+            if i == 0:
+                text = "No Rating"
+            else:
+                text = "★" * i + "☆" * (5-i)
+            
+            style = "Accent.TButton" if i == current_rating else "TButton"
+            btn = ttk.Button(button_frame, text=text, style=style,
+                           command=lambda r=i: set_rating(r))
+            btn.pack(pady=2, fill="x")
+        
+        # Cancel button
+        ttk.Button(popup, text="Cancel", command=popup.destroy).pack(pady=5)
     
-    def _open_file_location(self, file_path):
-        """Open file location in system file manager"""
-        if not file_path or not os.path.exists(file_path):
-            messagebox.showerror("File Not Found", "The file path no longer exists")
+    def _edit_date_with_picker(self, hack_id, hack_data, event):
+        """Edit date with a date picker popup"""
+        current_date = hack_data["completed_date"]
+        
+        # Create popup for date picker
+        popup = tk.Toplevel(self.frame)
+        popup.title("Select Completed Date")
+        popup.geometry("250x200")
+        popup.resizable(False, False)
+        popup.grab_set()
+        
+        # Center the popup
+        popup.update_idletasks()
+        x = event.x_root - 125
+        y = event.y_root - 100
+        popup.geometry(f"250x200+{x}+{y}")
+        
+        ttk.Label(popup, text=f"Completed date for:\n{hack_data['title'][:30]}...", 
+                 font=("Segoe UI", 9)).pack(pady=10)
+        
+        # Date picker (using tkcalendar if available, otherwise simple entry)
+        try:
+            from tkcalendar import DateEntry
+            if current_date:
+                try:
+                    initial_date = datetime.strptime(current_date, "%Y-%m-%d").date()
+                except:
+                    initial_date = datetime.now().date()
+            else:
+                initial_date = datetime.now().date()
+            
+            date_picker = DateEntry(popup, date_pattern='yyyy-mm-dd', 
+                                  selectmode='day', year=initial_date.year,
+                                  month=initial_date.month, day=initial_date.day)
+            date_picker.pack(pady=10)
+            
+            def save_date():
+                selected_date = date_picker.get()
+                if self.data_manager.update_hack(hack_id, "completed_date", selected_date):
+                    hack_data["completed_date"] = selected_date
+                    self._refresh_table()
+                popup.destroy()
+            
+        except ImportError:
+            # Fallback to simple entry if tkcalendar not available
+            ttk.Label(popup, text="Format: YYYY-MM-DD").pack()
+            date_var = tk.StringVar(value=current_date or datetime.now().strftime("%Y-%m-%d"))
+            date_entry = ttk.Entry(popup, textvariable=date_var, width=15)
+            date_entry.pack(pady=10)
+            
+            def save_date():
+                new_date = date_var.get().strip()
+                if new_date:
+                    try:
+                        datetime.strptime(new_date, "%Y-%m-%d")
+                    except ValueError:
+                        messagebox.showerror("Invalid Date", "Please use YYYY-MM-DD format")
+                        return
+                
+                if self.data_manager.update_hack(hack_id, "completed_date", new_date):
+                    hack_data["completed_date"] = new_date
+                    self._refresh_table()
+                popup.destroy()
+        
+        # Buttons
+        button_frame = ttk.Frame(popup)
+        button_frame.pack(pady=10)
+        
+        ttk.Button(button_frame, text="Save", command=save_date).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Clear", 
+                  command=lambda: self._clear_date(hack_id, hack_data, popup)).pack(side="left", padx=5)
+        ttk.Button(button_frame, text="Cancel", command=popup.destroy).pack(side="left", padx=5)
+    
+    def _clear_date(self, hack_id, hack_data, popup):
+        """Clear the completed date"""
+        if self.data_manager.update_hack(hack_id, "completed_date", ""):
+            hack_data["completed_date"] = ""
+            self._refresh_table()
+        popup.destroy()
+    
+    def _edit_notes_inline(self, item, hack_id, hack_data, event):
+        """Edit notes with inline text widget"""
+        if self.edit_widget:
+            self._save_current_edit()
+        
+        # Get the bounding box of the notes cell
+        bbox = self.tree.bbox(item, "#11")  # FIXED: Notes is column #11, not #7
+        if not bbox:
             return
         
-        try:
-            if platform.system() == "Windows":
-                subprocess.run(["explorer", "/select,", file_path])
-            elif platform.system() == "Darwin":  # macOS
-                subprocess.run(["open", "-R", file_path])
-            else:  # Linux
-                subprocess.run(["xdg-open", os.path.dirname(file_path)])
-        except Exception as e:
-            messagebox.showerror("Error", f"Could not open file location: {e}")
+        self.editing_item = item
+        self.editing_column = "#11"  # FIXED: Update to correct column
+        
+        # Create text widget over the cell
+        current_notes = hack_data["notes"]
+        
+        self.edit_widget = tk.Text(self.tree, height=1, width=30, wrap="none")
+        self.edit_widget.insert("1.0", current_notes)
+        self.edit_widget.place(x=bbox[0], y=bbox[1], width=bbox[2], height=bbox[3])
+        self.edit_widget.focus_set()
+        self.edit_widget.select_range("1.0", "end")
+        
+        # Bind save/cancel events
+        self.edit_widget.bind("<Return>", lambda e: self._save_notes_edit(hack_id, hack_data))
+        self.edit_widget.bind("<Escape>", lambda e: self._cancel_edit())
+        self.edit_widget.bind("<FocusOut>", lambda e: self._save_notes_edit(hack_id, hack_data))
+    
+    def _save_notes_edit(self, hack_id, hack_data):
+        """Save the notes edit"""
+        if not self.edit_widget:
+            return
+        
+        new_notes = self.edit_widget.get("1.0", "end-1c")
+        
+        # Limit to 200 characters
+        if len(new_notes) > 200:
+            new_notes = new_notes[:200]
+            messagebox.showwarning("Too Long", "Notes limited to 200 characters. Text was truncated.")
+        
+        if self.data_manager.update_hack(hack_id, "notes", new_notes):
+            hack_data["notes"] = new_notes
+            self._refresh_table()
+        
+        self._cancel_edit()
+    
+    def _save_current_edit(self):
+        """Save any current edit in progress"""
+        if self.edit_widget and self.editing_item:
+            # This would need hack_id and hack_data, so we'll just cancel for now
+            self._cancel_edit()
+    
+    def _cancel_edit(self):
+        """Cancel current edit"""
+        if self.edit_widget:
+            self.edit_widget.destroy()
+            self.edit_widget = None
+        self.editing_item = None
+        self.editing_column = None

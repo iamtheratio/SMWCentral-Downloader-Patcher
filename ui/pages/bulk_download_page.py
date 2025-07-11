@@ -198,3 +198,19 @@ class BulkDownloadPage:
     def get_download_button(self):
         """Return the download button reference"""
         return self.download_button
+
+    def on_download_click(self):
+        """Handle download button click"""
+        
+        # Get current filter settings
+        current_filters = {
+            "hack_type": self.hack_type_var.get(),
+            "difficulty": self.difficulty_var.get(),
+            "hall_of_fame": self.hall_of_fame_var.get(),
+            "sa1": self.sa1_var.get(),
+            "collaboration": self.collaboration_var.get(), 
+            "demo": self.demo_var.get()
+        }
+        
+        # Pass filters to the download pipeline
+        self.run_pipeline_func(filters=current_filters)

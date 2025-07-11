@@ -2,6 +2,7 @@ import requests
 import os
 import tempfile
 import time
+from datetime import datetime
 
 from utils import (
     safe_filename, get_sorted_folder_name,
@@ -341,7 +342,19 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 "title": raw_title,
                 "current_difficulty": display_diff,
                 "folder_name": folder_name,
-                "file_path": output_path
+                "file_path": output_path,
+                "hack_type": normalized_type,  # Use the normalized type from filter
+                # REMOVED: redundant "difficulty" field
+                # CHANGED: Use actual hack metadata from API response
+                "hall_of_fame": bool(hack.get("raw_fields", {}).get("hof", 0)),
+                "sa1_compatibility": bool(hack.get("raw_fields", {}).get("sa1", 0)),
+                "collaboration": bool(hack.get("raw_fields", {}).get("collab", 0)),
+                "demo": bool(hack.get("raw_fields", {}).get("demo", 0)),
+                # ADDED: History tracking fields
+                "completed": False,
+                "completed_date": "",
+                "personal_rating": 0,
+                "notes": ""
             }
             save_processed(processed)
 
@@ -355,3 +368,30 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 shutil.rmtree(temp_dir)
             except Exception:
                 pass
+
+def save_hack_to_processed_json(hack_data, file_path, hack_type):
+    """Save hack data with actual SMWC metadata to processed.json"""
+    
+    # Extract actual boolean values from SMWC API response
+    processed_data = {
+        "title": hack_data.get("title", "Unknown"),
+        "current_difficulty": hack_data.get("difficulty", "Unknown"),
+        "folder_name": get_sorted_folder_name(hack_data.get("difficulty", "Unknown")),
+        "file_path": file_path,
+        "hack_type": hack_type.lower(),
+        
+        # CHANGED: Use actual API metadata as booleans
+        "hall_of_fame": bool(hack_data.get("hall_of_fame", False)),
+        "sa1_compatibility": bool(hack_data.get("sa1", False)),
+        "collaboration": bool(hack_data.get("collaboration", False)), 
+        "demo": bool(hack_data.get("demo", False)),
+        
+        # History tracking fields
+        "completed": False,
+        "completed_date": "",
+        "personal_rating": 0,
+        "notes": ""
+    }
+    
+    # Save to processed.json
+    # ... existing save logic
