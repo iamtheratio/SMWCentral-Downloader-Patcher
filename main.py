@@ -7,7 +7,7 @@ import sys
 import platform
 import pywinstyles
 
-VERSION = "v2.5"
+VERSION = "v3.0"
 
 def apply_theme_to_titlebar(root):
     if platform.system() != "Windows":

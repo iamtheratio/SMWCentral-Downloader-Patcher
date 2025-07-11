@@ -878,18 +878,18 @@ class HackHistoryPage:
             elif hof_filter_value == "No" and hack.get("hall_of_fame", False):
                 continue
                 
-            # SA-1 filter
+            # SA-1 filter - FIXED: Use correct field name "sa1_compatibility"
             sa1_filter_value = self.sa1_filter.get()
-            if sa1_filter_value == "Yes" and not hack.get("sa1", False):
+            if sa1_filter_value == "Yes" and not hack.get("sa1_compatibility", False):
                 continue
-            elif sa1_filter_value == "No" and hack.get("sa1", False):
+            elif sa1_filter_value == "No" and hack.get("sa1_compatibility", False):
                 continue
                 
-            # Collaboration filter
+            # Collaboration filter - FIXED: Use correct field name
             collab_filter_value = self.collaboration_filter.get()
-            if collab_filter_value == "Yes" and not hack.get("collab", False):
+            if collab_filter_value == "Yes" and not hack.get("collaboration", False):
                 continue
-            elif collab_filter_value == "No" and hack.get("collab", False):
+            elif collab_filter_value == "No" and hack.get("collaboration", False):
                 continue
                 
             # Demo filter
