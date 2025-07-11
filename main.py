@@ -34,8 +34,16 @@ def apply_font_settings(root, style):
     # Configure all widgets before updating
     style.configure(".", font=default_font)
     for widget in ["TLabel", "TButton", "TCheckbutton", "TRadiobutton", 
-                  "TCombobox", "TEntry", "Treeview"]:
+                  "TCombobox", "TEntry"]:  # REMOVED: "Treeview" from this list
         style.configure(widget, font=default_font)
+
+    # ADDED: Configure Treeview with larger font and row height for better readability
+    style.configure("Treeview", 
+                   font=("Segoe UI", 10),  # Larger font for table
+                   rowheight=25)  # More padding
+    
+    style.configure("Treeview.Heading", 
+                   font=("Segoe UI", 10, "bold"))  # Bold headers
 
     # Configure custom button style for both themes
     style.configure("Large.Accent.TButton", 

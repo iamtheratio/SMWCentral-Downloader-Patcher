@@ -197,21 +197,23 @@ class HackHistoryPage:
             ttk.Radiobutton(demo_radio_frame, text=display, variable=self.demo_filter,
                            value=value, command=self._apply_filters).pack(side="left", padx=(0, 5))  # CHANGED: Less padding
         
-        # === CLEAR BUTTON (Below the grid) ===
+        # === CLEAR BUTTON (Below the grid) - CHANGED: Right aligned ===
         clear_button_frame = ttk.Frame(filter_frame)
         clear_button_frame.pack(fill="x", pady=(15, 0))
         
         ttk.Button(clear_button_frame, text="Clear All Filters", 
-                  command=self._clear_filters).pack()
+                  command=self._clear_filters).pack(side="right")  # CHANGED: from pack() to pack(side="right")
     
     def _create_table(self):
         """Create the main data table"""
+        # REMOVED: Font configuration (now handled in main.py apply_font_settings)
+    
         # Table frame with scrollbars
         table_frame = ttk.Frame(self.frame)
         table_frame.pack(fill="both", expand=True)
         
-        # UPDATED: Add new columns for attributes
-        columns = ("completed", "title", "type", "difficulty", "hof", "sa1", "collab", "demo", "rating", "completed_date", "notes")
+        # UPDATED: Focus on essential columns only
+        columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "notes")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15)
         
         # Configure columns
@@ -219,26 +221,18 @@ class HackHistoryPage:
         self.tree.heading("title", text="Title")
         self.tree.heading("type", text="Type")
         self.tree.heading("difficulty", text="Difficulty")
-        self.tree.heading("hof", text="HoF")
-        self.tree.heading("sa1", text="SA-1")
-        self.tree.heading("collab", text="Collab")
-        self.tree.heading("demo", text="Demo")
         self.tree.heading("rating", text="Rating")
         self.tree.heading("completed_date", text="Completed Date")
         self.tree.heading("notes", text="Notes")
         
-        # Set column widths
-        self.tree.column("completed", width=40, minwidth=30, anchor="center")
-        self.tree.column("title", width=200, minwidth=150)
-        self.tree.column("type", width=80, minwidth=60, anchor="center")
-        self.tree.column("difficulty", width=90, minwidth=70, anchor="center")
-        self.tree.column("hof", width=40, minwidth=30, anchor="center")
-        self.tree.column("sa1", width=40, minwidth=30, anchor="center")
-        self.tree.column("collab", width=50, minwidth=40, anchor="center")
-        self.tree.column("demo", width=50, minwidth=40, anchor="center")
-        self.tree.column("rating", width=80, minwidth=60, anchor="center")
-        self.tree.column("completed_date", width=100, minwidth=80, anchor="center")
-        self.tree.column("notes", width=150, minwidth=100)
+        # Set column widths - ADJUSTED: Slightly wider to accommodate larger font
+        self.tree.column("completed", width=45, minwidth=35, anchor="center")  # INCREASED: +5px
+        self.tree.column("title", width=220, minwidth=170)  # INCREASED: +20px
+        self.tree.column("type", width=90, minwidth=70, anchor="center")  # INCREASED: +10px
+        self.tree.column("difficulty", width=100, minwidth=80, anchor="center")  # INCREASED: +10px
+        self.tree.column("rating", width=90, minwidth=70, anchor="center")  # INCREASED: +10px
+        self.tree.column("completed_date", width=110, minwidth=90, anchor="center")  # INCREASED: +10px
+        self.tree.column("notes", width=170, minwidth=120)  # INCREASED: +20px
         
         # Scrollbars
         v_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
@@ -276,24 +270,14 @@ class HackHistoryPage:
             completed_display = "✓" if hack["completed"] else ""
             rating_display = self._get_rating_display(hack["personal_rating"])
             
-            # ADDED: Display new boolean attributes
-            hof_display = "✓" if hack.get("hall_of_fame", False) else ""
-            sa1_display = "✓" if hack.get("sa1_compatibility", False) else ""
-            collab_display = "✓" if hack.get("collaboration", False) else ""
-            demo_display = "✓" if hack.get("demo", False) else ""
-            
             # Truncate notes for display
             notes_display = hack["notes"][:30] + "..." if len(hack["notes"]) > 30 else hack["notes"]
             
             self.tree.insert("", "end", values=(
                 completed_display,
                 hack["title"],
-                hack.get("hack_type", "Unknown").title(),  # Capitalize for display
+                hack.get("hack_type", "Unknown").title(),
                 hack["difficulty"],
-                hof_display,
-                sa1_display,
-                collab_display,
-                demo_display,
                 rating_display,
                 hack["completed_date"],
                 notes_display
@@ -414,11 +398,11 @@ class HackHistoryPage:
             self._toggle_completed(hack_id, hack_data)
         
         # Handle rating click with simple input
-        elif column == "#9":  # Rating column (moved due to new columns)
+        elif column == "#5":  # Rating column (moved due to new columns)
             self._edit_rating_simple(hack_id, hack_data)
         
         # Handle date click with date picker
-        elif column == "#10":  # Completed date column (moved due to new columns)
+        elif column == "#6":  # Completed date column (moved due to new columns)
             self._edit_date_with_picker(hack_id, hack_data, event)
     
     def _on_item_double_click(self, event):
@@ -436,7 +420,7 @@ class HackHistoryPage:
             return
         
         # Handle notes editing on double-click
-        if column == "#11":  # Notes column (moved due to new columns)
+        if column == "#7":  # Notes column (moved due to new columns)
             self._edit_notes_inline(item, hack_id, hack_data, event)
     
     def _toggle_completed(self, hack_id, hack_data):
@@ -581,12 +565,12 @@ class HackHistoryPage:
             self._save_current_edit()
         
         # Get the bounding box of the notes cell
-        bbox = self.tree.bbox(item, "#11")  # FIXED: Notes is column #11, not #7
+        bbox = self.tree.bbox(item, "#7")  # FIXED: Notes is column #7, not #11
         if not bbox:
             return
         
         self.editing_item = item
-        self.editing_column = "#11"  # FIXED: Update to correct column
+        self.editing_column = "#7"  # FIXED: Update to correct column
         
         # Create text widget over the cell
         current_notes = hack_data["notes"]
