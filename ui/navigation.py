@@ -6,20 +6,18 @@ import sv_ttk
 class NavigationBar:
     """Handles the main navigation bar with tabs"""
     
-    def __init__(self, root, page_manager, toggle_theme_callback=None):  # ONLY ADDED toggle_theme_callback
+    def __init__(self, root, page_manager, toggle_theme_callback=None):
         self.root = root
         self.page_manager = page_manager
-        self.toggle_theme_callback = toggle_theme_callback  # ONLY ADDED THIS LINE
+        self.toggle_theme_callback = toggle_theme_callback
         self.nav_bar = None
         self.tab_refs = []
+        self.theme_frame = None  # ADDED: Store reference to theme frame
+        self.moon_label = None   # ADDED: Store reference to moon label
         self.current_page = "Bulk Download"
         
     def create(self):
         """Create the navigation bar"""
-        # REMOVED: Create spacer to push navigation down
-        # spacer = ttk.Frame(self.root, height=60)
-        # spacer.pack(side="top", fill="x")
-        
         # Get colors from theme
         colors = get_colors()
         nav_height = 60
@@ -27,7 +25,7 @@ class NavigationBar:
         self.nav_bar = tk.Canvas(
             self.root,
             height=nav_height,
-            bg=colors["nav_bg"],  # Use theme-based color
+            bg=colors["nav_bg"],
             highlightthickness=0,
         )
         self.nav_bar.pack(fill="x", side="top", pady=0)
@@ -41,14 +39,13 @@ class NavigationBar:
             
             tab_id = self.nav_bar.create_text(
                 x_pos + 10,
-                nav_height // 2,  # CENTERED VERTICALLY (removed -3 offset)
+                nav_height // 2,
                 text=tab,
                 font=("Segoe UI", 11, "bold" if tab == self.current_page else "normal"),
-                fill=colors["nav_text"],  # Use theme-based text color
+                fill=colors["nav_text"],
                 anchor="w"
             )
             
-            # Store tab reference WITHOUT underline_id
             self.tab_refs.append({
                 "name": tab,
                 "text_id": tab_id,
@@ -60,31 +57,40 @@ class NavigationBar:
             self.nav_bar.tag_bind(tab_id, "<Enter>", lambda e: self.nav_bar.config(cursor="hand2"))
             self.nav_bar.tag_bind(tab_id, "<Leave>", lambda e: self.nav_bar.config(cursor=""))
         
-        # ONLY ADDED: Embed existing theme toggle in navigation bar
+        # FIXED: Dynamic positioning for toggle
         if self.toggle_theme_callback:
-            theme_frame = ttk.Frame(self.root)
+            colors = get_colors()
+            
+            # Create toggle first with default position
+            self.theme_frame = tk.Frame(
+                self.root,
+                bg=colors["toggle_bg"]
+            )
             
             theme_switch = ttk.Checkbutton(
-                theme_frame,
+                self.theme_frame,
                 style="Switch.TCheckbutton",
-                command=lambda: self.toggle_theme_callback(self.root)
+                command=lambda: self.toggle_theme_callback(self.root),
+                takefocus=False
             )
             theme_switch.pack(side="left")
             theme_switch.state(['selected'] if sv_ttk.get_theme() == "dark" else [])
             
-            moon_label = ttk.Label(
-                theme_frame, 
+            self.moon_label = tk.Label(
+                self.theme_frame, 
                 text="🌙",
                 font=("Segoe UI Emoji", 12),
+                bg=colors["toggle_bg"],
+                fg=colors["nav_text"]
             )
-            moon_label.pack(side="left", padx=(2, 0))
+            self.moon_label.pack(side="left", padx=(2, 0))
             
-            # Embed in canvas
-            self.nav_bar.create_window(
-                870, nav_height // 2, window=theme_frame, anchor="e"
-            )
+            # ADDED: Bind to configure event to update position when window resizes
+            self.nav_bar.bind("<Configure>", self._update_toggle_position)
+            
+            # Initial position setup
+            self.root.after(100, self._update_toggle_position)
     
-    # EVERYTHING ELSE UNCHANGED
     def show_page(self, page_name):
         """Switch to a specific page"""
         self.current_page = page_name
@@ -92,22 +98,65 @@ class NavigationBar:
         self._update_tab_styles(page_name)
     
     def _update_tab_styles(self, active_page):
-        """Update tab styling based on active page - NO UNDERLINES"""
-        colors = get_colors()  # Get current theme colors
+        """Update tab styling based on active page"""
+        colors = get_colors()
         
         for tab_ref in self.tab_refs:
-            # Update text style - only font weight changes for active state
             self.nav_bar.itemconfig(
                 tab_ref["text_id"],
                 font=("Segoe UI", 11, "bold" if tab_ref["name"] == active_page else "normal"),
-                fill=colors["nav_text"]  # Update text color for theme
+                fill=colors["nav_text"]
             )
-            # NO UNDERLINE LOGIC - removed all underline handling
     
     def update_theme(self):
         """Update navigation bar colors when theme changes"""
         colors = get_colors()
         if self.nav_bar:
             self.nav_bar.configure(bg=colors["nav_bg"])
-            # Update all text colors
             self._update_tab_styles(self.current_page)
+            
+            # Update toggle background rectangle
+            for item in self.nav_bar.find_withtag("toggle_bg"):
+                self.nav_bar.itemconfig(item, fill=colors["toggle_bg"], outline=colors["toggle_bg"])
+            
+            # FIXED: Update theme frame and moon label to match rectangle background
+            if self.theme_frame:
+                self.theme_frame.configure(bg=colors["toggle_bg"])
+            
+            if self.moon_label:
+                self.moon_label.configure(bg=colors["toggle_bg"], fg=colors["nav_text"])
+    
+    # ADDED: Method to update toggle position dynamically
+    def _update_toggle_position(self, event=None):
+        """Update toggle position to stay on the right edge"""
+        if hasattr(self, 'theme_frame') and self.theme_frame:
+            # Get current canvas width
+            canvas_width = self.nav_bar.winfo_width()
+            nav_height = 60
+            
+            # Rectangle coordinates
+            rect_width = 120
+            rect_height = 100
+            rect_x = canvas_width - rect_width  # CHANGED: Removed -10 padding
+            rect_y = (nav_height - rect_height) // 2
+            
+            # Delete old rectangle and create new one
+            self.nav_bar.delete("toggle_bg")
+            colors = get_colors()
+            self.nav_bar.create_rectangle(
+                rect_x, rect_y,
+                rect_x + rect_width, rect_y + rect_height,
+                fill=colors["toggle_bg"],
+                outline=colors["toggle_bg"],
+                tags="toggle_bg"
+            )
+            
+            # Update toggle button position
+            toggle_x = canvas_width - 10  # CHANGED: Reduced from -20 to -10
+            self.nav_bar.delete("toggle_window")
+            self.nav_bar.create_window(
+                toggle_x, nav_height // 2, 
+                window=self.theme_frame, 
+                anchor="e",
+                tags="toggle_window"
+            )

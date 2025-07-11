@@ -38,6 +38,26 @@ def apply_font_settings(root, style):
     style.configure("Large.Accent.TButton", 
                    font=("Segoe UI", 10, "bold"),
                    padding=(20, 10))
+    
+    # UPDATED: More comprehensive toggle switch style
+    from colors import get_colors
+    colors = get_colors()
+    
+    # Custom toggle switch style with rectangle background and no outlines
+    style.configure("NavToggle.Switch.TCheckbutton",
+                   background=colors["toggle_bg"],
+                   focuscolor="none",
+                   borderwidth=0,
+                   relief="flat",
+                   highlightthickness=0,
+                   padding=0)
+    
+    # ADDED: Configure the toggle switch layout to remove borders
+    style.layout("NavToggle.Switch.TCheckbutton", [
+        ('Checkbutton.padding', {'children': [
+            ('Checkbutton.indicator', {'side': 'left', 'sticky': ''})
+        ], 'sticky': 'nswe'})
+    ])
 
     # Apply font to root and force update
     root.option_add("*font", default_font)
@@ -51,6 +71,14 @@ def toggle_theme_callback(root):
     
     # Apply fonts immediately after theme change
     apply_font_settings(root, style)
+    
+    # ADDED: Update custom toggle style with new colors
+    from colors import get_colors
+    colors = get_colors()
+    style.configure("NavToggle.Switch.TCheckbutton",
+                   background=colors["toggle_bg"],
+                   focuscolor="none",
+                   borderwidth=0)
     
     # Update title bar
     apply_theme_to_titlebar(root)
