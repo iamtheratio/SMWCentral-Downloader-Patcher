@@ -43,5 +43,5 @@ def get_colors():
             # Navigation colors
             "nav_bg": "#0078d4",      # Darker blue for light mode (matches accent button)  
             "nav_text": "#ffffff",    # White text for light mode
-            "toggle_bg": "#f0f0f0",   # ADDED: Light gray background for toggle
+            "toggle_bg": "#EEEEEE",   # ADDED: Light gray background for toggle
         }

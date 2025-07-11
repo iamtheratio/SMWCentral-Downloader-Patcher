@@ -32,10 +32,10 @@ class NavigationBar:
         
         # Add tabs - CENTERED VERTICALLY, NO UNDERLINES
         tabs = ["Bulk Download", "Hack History"]
-        tab_width = 130
+        tab_width = 140
         
         for i, tab in enumerate(tabs):
-            x_pos = 10 + (i * tab_width)
+            x_pos = 20 + (i * tab_width)
             
             tab_id = self.nav_bar.create_text(
                 x_pos + 10,
@@ -83,7 +83,7 @@ class NavigationBar:
                 bg=colors["toggle_bg"],
                 fg=colors["nav_text"]
             )
-            self.moon_label.pack(side="left", padx=(2, 0))
+            self.moon_label.pack(side="left", padx=(2, 8))
             
             # ADDED: Bind to configure event to update position when window resizes
             self.nav_bar.bind("<Configure>", self._update_toggle_position)
@@ -135,7 +135,7 @@ class NavigationBar:
             nav_height = 60
             
             # Rectangle coordinates
-            rect_width = 120
+            rect_width = 128
             rect_height = 100
             rect_x = canvas_width - rect_width  # CHANGED: Removed -10 padding
             rect_y = (nav_height - rect_height) // 2
