@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from colors import get_colors
 import sv_ttk
+from PIL import Image, ImageTk  # ADDED: Import PIL for image handling
 
 class NavigationBar:
     """Handles the main navigation bar with tabs"""
@@ -12,8 +13,9 @@ class NavigationBar:
         self.toggle_theme_callback = toggle_theme_callback
         self.nav_bar = None
         self.tab_refs = []
-        self.theme_frame = None  # ADDED: Store reference to theme frame
-        self.moon_label = None   # ADDED: Store reference to moon label
+        self.theme_frame = None
+        self.moon_label = None
+        self.moon_image = None  # ADDED: Store image reference
         self.current_page = "Bulk Download"
         
     def create(self):
@@ -76,14 +78,32 @@ class NavigationBar:
             theme_switch.pack(side="left")
             theme_switch.state(['selected'] if sv_ttk.get_theme() == "dark" else [])
             
-            self.moon_label = tk.Label(
-                self.theme_frame, 
-                text="🌙",
-                font=("Segoe UI Emoji", 12),
-                bg=colors["toggle_bg"],
-                fg=colors["nav_text"]
-            )
-            self.moon_label.pack(side="left", padx=(2, 8))
+            # CHANGED: Load PNG image instead of emoji
+            try:
+                # Load and resize the moon image
+                image = Image.open("assets/moon.png")  # Adjust path as needed
+                image = image.resize((20, 20), Image.Resampling.LANCZOS)  # Resize to 20x20 pixels
+                self.moon_image = ImageTk.PhotoImage(image)
+                
+                self.moon_label = tk.Label(
+                    self.theme_frame,
+                    image=self.moon_image,  # CHANGED: Use image instead of text
+                    bg=colors["toggle_bg"],
+                    borderwidth=0,
+                    highlightthickness=0
+                )
+            except Exception as e:
+                # Fallback to emoji if image loading fails
+                print(f"Could not load moon image: {e}")
+                self.moon_label = tk.Label(
+                    self.theme_frame, 
+                    text="🌙",
+                    font=("Segoe UI Emoji", 12),
+                    bg=colors["toggle_bg"],
+                    fg=colors["nav_text"]
+                )
+            
+            self.moon_label.pack(side="left", padx=(10, 12))
             
             # ADDED: Bind to configure event to update position when window resizes
             self.nav_bar.bind("<Configure>", self._update_toggle_position)
