@@ -47,6 +47,9 @@ class MainLayout:
         self.navigation = NavigationBar(self.root, self.page_manager)
         self.navigation.create()
         
+        # Store navigation reference for theme updates
+        self.root.navigation = self.navigation
+        
         # Pack content frame after navigation
         self.content_frame.pack(fill="both", expand=True)
         

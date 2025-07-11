@@ -59,6 +59,10 @@ def toggle_theme_callback(root):
     if hasattr(root, 'log_text'):
         root.update_idletasks()  # Force update
         update_log_colors(root.log_text)
+    
+    # Update navigation bar colors if it exists
+    if hasattr(root, 'navigation'):
+        root.navigation.update_theme()
 
 def clear_log_shortcut(root):
     """Handle Ctrl+L keyboard shortcut"""

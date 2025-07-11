@@ -5,8 +5,6 @@ from colors import get_colors
 class NavigationBar:
     """Handles the main navigation bar with tabs"""
     
-    UNDERLINE_SPACING = 20
-    
     def __init__(self, root, page_manager):
         self.root = root
         self.page_manager = page_manager
@@ -20,19 +18,19 @@ class NavigationBar:
         spacer = ttk.Frame(self.root, height=60)
         spacer.pack(side="top", fill="x")
         
-        # Create navigation canvas
-        accent_color = "#66c2ff"
+        # Get colors from theme
+        colors = get_colors()
         nav_height = 60
         
         self.nav_bar = tk.Canvas(
             self.root,
             height=nav_height,
-            bg=accent_color,
+            bg=colors["nav_bg"],  # Use theme-based color
             highlightthickness=0,
         )
         self.nav_bar.pack(fill="x", side="top", pady=0)
         
-        # Add tabs
+        # Add tabs - CENTERED VERTICALLY, NO UNDERLINES
         tabs = ["Bulk Download", "Hack History"]
         tab_width = 130
         
@@ -41,34 +39,19 @@ class NavigationBar:
             
             tab_id = self.nav_bar.create_text(
                 x_pos + 10,
-                nav_height // 2 - 3,
+                nav_height // 2,  # CENTERED VERTICALLY (removed -3 offset)
                 text=tab,
                 font=("Segoe UI", 11, "bold" if tab == self.current_page else "normal"),
-                fill="black",
+                fill=colors["nav_text"],  # Use theme-based text color
                 anchor="w"
             )
             
-            text_bbox = self.nav_bar.bbox(tab_id)
-            text_width = text_bbox[2] - text_bbox[0]
-            text_left = text_bbox[0]
-            
-            underline_id = None
-            if tab == self.current_page:
-                underline_id = self.nav_bar.create_line(
-                    text_left, nav_height - self.UNDERLINE_SPACING,
-                    text_left + text_width, nav_height - self.UNDERLINE_SPACING,
-                    width=3,
-                    fill="black"
-                )
-            
+            # Store tab reference WITHOUT underline_id
             self.tab_refs.append({
                 "name": tab,
                 "text_id": tab_id,
-                "underline_id": underline_id,
                 "x": x_pos,
-                "width": tab_width,
-                "text_left": text_left,
-                "text_width": text_width
+                "width": tab_width
             })
             
             self.nav_bar.tag_bind(tab_id, "<Button-1>", lambda e, t=tab: self.show_page(t))
@@ -82,34 +65,22 @@ class NavigationBar:
         self._update_tab_styles(page_name)
     
     def _update_tab_styles(self, active_page):
-        """Update tab styling based on active page"""
+        """Update tab styling based on active page - NO UNDERLINES"""
+        colors = get_colors()  # Get current theme colors
+        
         for tab_ref in self.tab_refs:
-            # Update text style
+            # Update text style - only font weight changes for active state
             self.nav_bar.itemconfig(
                 tab_ref["text_id"],
-                font=("Segoe UI", 11, "bold" if tab_ref["name"] == active_page else "normal")
+                font=("Segoe UI", 11, "bold" if tab_ref["name"] == active_page else "normal"),
+                fill=colors["nav_text"]  # Update text color for theme
             )
-            
-            # Handle underline
-            if tab_ref["name"] == active_page:
-                text_bbox = self.nav_bar.bbox(tab_ref["text_id"])
-                text_width = text_bbox[2] - text_bbox[0]
-                text_left = text_bbox[0]
-                
-                if not tab_ref["underline_id"]:
-                    tab_ref["underline_id"] = self.nav_bar.create_line(
-                        text_left, self.nav_bar.winfo_height() - self.UNDERLINE_SPACING,
-                        text_left + text_width, self.nav_bar.winfo_height() - self.UNDERLINE_SPACING,
-                        width=3,
-                        fill="black"
-                    )
-                else:
-                    self.nav_bar.coords(
-                        tab_ref["underline_id"],
-                        text_left, self.nav_bar.winfo_height() - self.UNDERLINE_SPACING,
-                        text_left + text_width, self.nav_bar.winfo_height() - self.UNDERLINE_SPACING
-                    )
-            else:
-                if tab_ref["underline_id"]:
-                    self.nav_bar.delete(tab_ref["underline_id"])
-                    tab_ref["underline_id"] = None
+            # NO UNDERLINE LOGIC - removed all underline handling
+    
+    def update_theme(self):
+        """Update navigation bar colors when theme changes"""
+        colors = get_colors()
+        if self.nav_bar:
+            self.nav_bar.configure(bg=colors["nav_bg"])
+            # Update all text colors
+            self._update_tab_styles(self.current_page)

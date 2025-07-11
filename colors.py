@@ -17,7 +17,11 @@ def get_colors():
             # UI element colors
             "api_delay": "#0078d4",
             "version_label": "#888888",
-            "description": "#888888"
+            "description": "#888888",
+            
+            # Navigation colors
+            "nav_bg": "#60cdff",      # Lighter blue for dark mode (matches accent button)
+            "nav_text": "#000000",    # Black text for dark mode
         }
     else:
         return {
@@ -33,5 +37,9 @@ def get_colors():
             # UI element colors
             "api_delay": "#0078d4",
             "version_label": "#666666",
-            "description": "#888888"
+            "description": "#888888",
+            
+            # Navigation colors
+            "nav_bg": "#0078d4",      # Darker blue for light mode (matches accent button)  
+            "nav_text": "#ffffff",    # White text for light mode
         }
