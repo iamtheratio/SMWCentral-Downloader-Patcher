@@ -104,30 +104,30 @@ class HackHistoryPage:
         
         # Type filter - FIXED: Smaller width
         type_frame = ttk.Frame(dropdowns_frame)
-        type_frame.pack(side="left", padx=(0, 3))  # CHANGED: No expand, less padding
+        type_frame.pack(side="left", padx=(0, 12))  # CHANGED: No expand, less padding
         ttk.Label(type_frame, text="Type:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         types = ["All"] + self.data_manager.get_unique_types()
         type_combo = ttk.Combobox(type_frame, textvariable=self.type_filter, 
-                                 values=types, state="readonly", width=12)  # ADDED: Fixed width
+                                 values=types, state="readonly", width=14)  # ADDED: Fixed width
         type_combo.pack(pady=(2, 0))
         type_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
         
         # Difficulty filter - FIXED: Smaller width
         diff_frame = ttk.Frame(dropdowns_frame)
-        diff_frame.pack(side="left", padx=(0, 3))  # CHANGED: No expand, less padding
+        diff_frame.pack(side="left", padx=(0, 12))  # CHANGED: No expand, less padding
         ttk.Label(diff_frame, text="Difficulty:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         difficulties = ["All"] + self.data_manager.get_unique_difficulties()
         diff_combo = ttk.Combobox(diff_frame, textvariable=self.difficulty_filter, 
-                                 values=difficulties, state="readonly", width=12)  # ADDED: Fixed width
+                                 values=difficulties, state="readonly", width=14)  # ADDED: Fixed width
         diff_combo.pack(pady=(2, 0))
         diff_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
         
         # Completed filter - FIXED: Smaller width
         completed_frame = ttk.Frame(dropdowns_frame)
-        completed_frame.pack(side="left", padx=(0, 3))  # CHANGED: No expand, less padding
+        completed_frame.pack(side="left", padx=(0, 12))  # CHANGED: No expand, less padding
         ttk.Label(completed_frame, text="Completed:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         completed_combo = ttk.Combobox(completed_frame, textvariable=self.completed_filter,
-                                      values=["All", "Yes", "No"], state="readonly", width=12)  # ADDED: Fixed width
+                                      values=["All", "Yes", "No"], state="readonly", width=14)  # ADDED: Fixed width
         completed_combo.pack(pady=(2, 0))
         completed_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
         
@@ -137,7 +137,7 @@ class HackHistoryPage:
         ttk.Label(rating_frame, text="Rating:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         rating_combo = ttk.Combobox(rating_frame, textvariable=self.rating_filter,
                                    values=["All", "★★★★★", "★★★★☆", "★★★☆☆", "★★☆☆☆", "★☆☆☆☆", "☆☆☆☆☆"],
-                                   state="readonly", width=12)  # ADDED: Fixed width
+                                   state="readonly", width=14)  # ADDED: Fixed width
         rating_combo.pack(pady=(2, 0))
         rating_combo.bind("<<ComboboxSelected>>", lambda e: self._apply_filters())
         
