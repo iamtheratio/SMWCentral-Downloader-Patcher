@@ -406,24 +406,36 @@ class HackHistoryPage:
 
     def _on_item_click(self, event):
         """Handle single clicks on table items"""
-        # FIXED: Clean up any active date editing before processing new clicks
+        # First check if we need to save any active date edit
+        needs_refresh = False
         if hasattr(self, 'date_entry') and self.date_entry:
-            self._cleanup_date_edit()
+            # Save the current edit before starting a new one
+            self._save_date_edit()
+            needs_refresh = True  # We'll need to refresh after saving
 
+        # Now identify what was clicked
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
         if not item or not column:
             return
         
-        # Handle completed checkbox toggle (existing functionality)
+        # If we saved an edit, refresh the table first to ensure we have fresh data
+        if needs_refresh:
+            self._refresh_table()
+            # Re-identify the clicked item after refresh (it might have changed position)
+            item = self.tree.identify("item", event.x, event.y)
+            if not item:
+                return
+        
+        # Handle completed checkbox toggle
         if column == "#1":  # First column is completed
             tags = self.tree.item(item)["tags"]
             if tags:
                 hack_id = tags[0]
                 self._toggle_completed(hack_id)
     
-        # Handle completed date click - FIXED: This should be elif, not standalone
+        # Handle completed date click
         elif column == "#6":  # Completed date column
             tags = self.tree.item(item)["tags"]
             if tags:
@@ -468,8 +480,7 @@ class HackHistoryPage:
         self.date_entry = ttk.Entry(self.tree, font=("Segoe UI", 10))
         self.date_entry.place(x=x, y=y, width=width, height=height)
         self.date_entry.insert(0, current_date)
-        self.date_entry.select_range(0, tk.END)
-
+        
         # Register a window-level binding that saves when clicking elsewhere
         self.binding_id = self.tree.winfo_toplevel().bind("<Button-1>", self._check_date_click, add="+")
 
@@ -477,8 +488,32 @@ class HackHistoryPage:
         self.date_entry.bind("<Return>", lambda e: self._save_date_edit())
         self.date_entry.bind("<Escape>", lambda e: self._cancel_date_edit())
         
-        # Focus the widget after all bindings are set
-        self.date_entry.focus_set()
+        # FIXED: Use after method with stronger focus management
+        # This helps ensure the widget truly gets focus
+        self.tree.after(50, lambda: self._ensure_entry_focus())
+
+    def _ensure_entry_focus(self):
+        """Ensure the entry widget has proper focus and selection"""
+        if hasattr(self, 'date_entry') and self.date_entry:
+            try:
+                # Grab all focus to this widget
+                self.date_entry.focus_force()
+                
+                # Ensure the application window has focus
+                self.tree.winfo_toplevel().focus_force()
+                
+                # Then set focus back to our entry and select all text
+                self.date_entry.focus_force()
+                self.date_entry.select_range(0, tk.END)
+                
+                # Set insertion cursor at end just in case
+                self.date_entry.icursor(tk.END)
+                
+                # Process all pending events to ensure focus is applied
+                self.tree.update_idletasks()
+            except tk.TclError:
+                # Widget may have been destroyed
+                pass
 
     def _check_date_click(self, event):
         """Check if click is outside the date entry and save if needed"""
