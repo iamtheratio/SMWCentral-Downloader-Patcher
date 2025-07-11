@@ -73,9 +73,12 @@ class HackHistoryPage:
     def hide(self):
         """Called when the page becomes hidden"""
         # Cancel any active editing
-        if self.edit_widget:
-            self._cancel_edit()
+        if hasattr(self, 'date_entry') and self.date_entry:
+            self._cancel_date_edit()
     
+        if hasattr(self, 'notes_entry') and self.notes_entry:
+            self._cancel_notes_edit()
+
     def _refresh_data_and_table(self):
         """Refresh data from file and update table"""
         # ADDED: Reload data from processed.json to pick up new downloads
@@ -277,7 +280,7 @@ class HackHistoryPage:
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
-        if item and column in ["#1", "#6"]:  # Completed and Date columns are clickable
+        if item and column in ["#1", "#6", "#7"]:  # Completed, Date, and Notes columns are clickable
             self.tree.config(cursor="hand2")
         else:
             self.tree.config(cursor="")
@@ -406,11 +409,17 @@ class HackHistoryPage:
 
     def _on_item_click(self, event):
         """Handle single clicks on table items"""
-        # First check if we need to save any active date edit
+        # First check if we need to save any active edit
         needs_refresh = False
         if hasattr(self, 'date_entry') and self.date_entry:
             # Save the current edit before starting a new one
             self._save_date_edit()
+            needs_refresh = True  # We'll need to refresh after saving
+    
+        # Also check for active notes edit
+        if hasattr(self, 'notes_entry') and self.notes_entry:
+            # Save the current edit before starting a new one
+            self._save_notes_edit()
             needs_refresh = True  # We'll need to refresh after saving
 
         # Now identify what was clicked
@@ -434,13 +443,20 @@ class HackHistoryPage:
             if tags:
                 hack_id = tags[0]
                 self._toggle_completed(hack_id)
-    
+
         # Handle completed date click
         elif column == "#6":  # Completed date column
             tags = self.tree.item(item)["tags"]
             if tags:
                 hack_id = tags[0]
                 self._edit_date_cell(hack_id, item, event)
+    
+        # Handle notes click
+        elif column == "#7":  # Notes column
+            tags = self.tree.item(item)["tags"]
+            if tags:
+                hack_id = tags[0]
+                self._edit_notes_cell(hack_id, item, event)
 
     def _edit_date_cell(self, hack_id, item, event):
         """Allow direct editing of date cell"""
@@ -556,11 +572,7 @@ class HackHistoryPage:
                 self.binding_id = None
             except:
                 pass
-        
-        # Prevent multiple validation attempts
-        if hasattr(self, '_validating_date') and self._validating_date:
-            return
-        
+    
         try:
             new_date = self.date_entry.get().strip()
         except tk.TclError:
@@ -568,30 +580,25 @@ class HackHistoryPage:
             return
         
         # Validate and normalize the date if not empty
+        normalized_date = ""
         if new_date:
             normalized_date = self._normalize_date(new_date)
             if not normalized_date:
-                self._validating_date = True
+                # Show error but clear the invalid date
                 messagebox.showerror("Invalid Date", 
-                               "Please enter a valid date in YYYY-MM-DD format\n(e.g., 2025-01-15)")
-                self._validating_date = False
-                
-                if hasattr(self, 'date_entry') and self.date_entry:
-                    try:
-                        self.date_entry.focus()
-                        self.date_entry.select_range(0, tk.END)
-                    except tk.TclError:
-                        self._cleanup_date_edit()
-                return
-            new_date = normalized_date
-    
+                         "Invalid date format detected. The date field has been cleared.\n\n"
+                         "Valid format is YYYY-MM-DD (e.g., 2025-01-15)")
+                new_date = ""  # Clear the invalid date
+            else:
+                new_date = normalized_date
+
         # Find the hack data
         hack_data = None
         for hack in self.filtered_data:
             if hack.get("id") == self.editing_hack_id:
                 hack_data = hack
                 break
-    
+
         if hack_data:
             if self.data_manager.update_hack(self.editing_hack_id, "completed_date", new_date):
                 hack_data["completed_date"] = new_date
@@ -653,105 +660,319 @@ class HackHistoryPage:
             if hasattr(self, attr):
                 delattr(self, attr)
 
+    def _edit_notes_cell(self, hack_id, item, event):
+        """Allow direct editing of notes cell"""
+        # Clean up any existing notes entry
+        if hasattr(self, 'notes_entry') and self.notes_entry:
+            self._cleanup_notes_edit()
+
+        hack_id_str = str(hack_id)
+
+        # Find the hack data
+        hack_data = None
+        for hack in self.filtered_data:
+            if hack.get("id") == hack_id_str:
+                hack_data = hack
+                break
+
+        if not hack_data:
+            return
+
+        # Get the bounding box of the notes cell
+        bbox = self.tree.bbox(item, "#7")
+        if not bbox:
+            return
+
+        # Get current notes value
+        current_notes = hack_data.get("notes", "")
+
+        # Create inline entry widget
+        x, y, width, height = bbox
+
+        # Store references for saving/canceling
+        self.editing_notes_hack_id = hack_id_str
+        self.editing_notes_item = item
+        self.original_notes = current_notes
+
+        # Create entry widget positioned exactly over the cell
+        self.notes_entry = ttk.Entry(self.tree, font=("Segoe UI", 10))
+        self.notes_entry.place(x=x, y=y, width=width, height=height)
+        self.notes_entry.insert(0, current_notes)
+        
+        # Register a window-level binding that saves when clicking elsewhere
+        self.notes_binding_id = self.tree.winfo_toplevel().bind("<Button-1>", self._check_notes_click, add="+" )
+
+        # Bind events to the entry widget
+        self.notes_entry.bind("<Return>", lambda e: self._save_notes_edit())
+        self.notes_entry.bind("<Escape>", lambda e: self._cancel_notes_edit())
+        
+        # Use after method with stronger focus management
+        self.tree.after(50, lambda: self._ensure_notes_entry_focus())
+
+    def _ensure_notes_entry_focus(self):
+        """Ensure the notes entry widget has proper focus and selection"""
+        if hasattr(self, 'notes_entry') and self.notes_entry:
+            try:
+                # Grab all focus to this widget
+                self.notes_entry.focus_force()
+                
+                # Ensure the application window has focus
+                self.tree.winfo_toplevel().focus_force()
+                
+                # Then set focus back to our entry and select all text
+                self.notes_entry.focus_force()
+                self.notes_entry.select_range(0, tk.END)
+                
+                # Set insertion cursor at end just in case
+                self.notes_entry.icursor(tk.END)
+                
+                # Process all pending events to ensure focus is applied
+                self.tree.update_idletasks()
+            except tk.TclError:
+                # Widget may have been destroyed
+                pass
+
+    def _check_notes_click(self, event):
+        """Check if click is outside the notes entry and save if needed"""
+        if not hasattr(self, 'notes_entry') or not self.notes_entry:
+            return
+
+        # Get entry widget position
+        try:
+            x = self.notes_entry.winfo_rootx()
+            y = self.notes_entry.winfo_rooty()
+            w = self.notes_entry.winfo_width()
+            h = self.notes_entry.winfo_height()
+            
+            # If click is outside the entry, save the edit
+            if event.x_root < x or event.x_root > x+w or event.y_root < y or event.y_root > y+h:
+                self._save_notes_edit()
+        except tk.TclError:
+            # Widget may have been destroyed
+            pass
+
+    def _cancel_notes_edit(self, event=None):
+        """Cancel notes editing without saving"""
+        if hasattr(self, 'notes_binding_id') and self.notes_binding_id:
+            try:
+                self.tree.winfo_toplevel().unbind("<Button-1>", self.notes_binding_id)
+                self.notes_binding_id = None
+            except:
+                pass
+        self._cleanup_notes_edit()
+
+    def _save_notes_edit(self, event=None):
+        """Save the edited notes"""
+        if not hasattr(self, 'notes_entry') or not self.notes_entry:
+            return
+        
+        # Remove global binding first to prevent recursive calls
+        if hasattr(self, 'notes_binding_id') and self.notes_binding_id:
+            try:
+                self.tree.winfo_toplevel().unbind("<Button-1>", self.notes_binding_id)
+                self.notes_binding_id = None
+            except:
+                pass
+        
+        try:
+            new_notes = self.notes_entry.get().strip()
+            
+            # Limit notes to 280 characters
+            if len(new_notes) > 280:
+                new_notes = new_notes[:280]
+        except tk.TclError:
+            self._cleanup_notes_edit()
+            return
+
+        # Find the hack data
+        hack_data = None
+        for hack in self.filtered_data:
+            if hack.get("id") == self.editing_notes_hack_id:
+                hack_data = hack
+                break
+
+        if hack_data:
+            if self.data_manager.update_hack(self.editing_notes_hack_id, "notes", new_notes):
+                hack_data["notes"] = new_notes
+                print(f"SUCCESS: Notes updated for '{hack_data['title']}'")
+            else:
+                print(f"ERROR: Failed to update notes for hack {self.editing_notes_hack_id}")
+        
+        self._cleanup_notes_edit()
+        self._refresh_table()
+
+    def _cleanup_notes_edit(self):
+        """Clean up notes editing widgets and variables"""
+        # Remove window-level binding if it exists
+        if hasattr(self, 'notes_binding_id') and self.notes_binding_id:
+            try:
+                self.tree.winfo_toplevel().unbind("<Button-1>", self.notes_binding_id)
+                self.notes_binding_id = None
+            except:
+                pass
+        
+        # Destroy the entry widget if it exists
+        if hasattr(self, 'notes_entry') and self.notes_entry:
+            try:
+                self.notes_entry.destroy()
+            except tk.TclError:
+                pass
+            self.notes_entry = None
+    
+    def _apply_filters(self):
+        """Apply all filters and refresh the table"""
+        self._refresh_table()
+
     def _clear_filters(self):
-        """Clear all filter values"""
+        """Reset all filters to default values"""
         self.name_filter.set("")
         self.type_filter.set("All")
         self.difficulty_filter.set("All")
         self.completed_filter.set("All")
         self.rating_filter.set("All")
         self.hall_of_fame_filter.set("All")
-        self.sa1_filter.set("All")
+        self.sa1_filter.set("All") 
         self.collaboration_filter.set("All")
         self.demo_filter.set("All")
         self._apply_filters()
 
-    def _apply_filters(self):
-        """Apply current filter settings to the table"""
-        self._refresh_table()
-
     def _filter_hacks(self, hacks):
-        """Filter hacks based on current filter settings"""
-        filtered = []
+        """Apply all active filters to the list of hacks"""
+        filtered_hacks = []
         
         for hack in hacks:
-            # Name filter
-            if self.name_filter.get() and self.name_filter.get().lower() not in hack["title"].lower():
+            # Name filter (case insensitive substring match)
+            name_filter_text = self.name_filter.get().strip().lower()
+            if name_filter_text and name_filter_text not in hack.get("title", "").lower():
                 continue
-            
+                
             # Type filter
-            if self.type_filter.get() != "All" and hack["hack_type"].lower() != self.type_filter.get().lower():
+            type_filter_value = self.type_filter.get()
+            if type_filter_value != "All" and hack.get("hack_type", "").title() != type_filter_value:
                 continue
-            
+                
             # Difficulty filter
-            if self.difficulty_filter.get() != "All" and hack["difficulty"] != self.difficulty_filter.get():
+            difficulty_filter_value = self.difficulty_filter.get()
+            if difficulty_filter_value != "All" and hack.get("difficulty") != difficulty_filter_value:
                 continue
-            
+                
             # Completed filter
-            if self.completed_filter.get() != "All":
-                is_completed = hack.get("completed", False)
-                if self.completed_filter.get() == "Yes" and not is_completed:
-                    continue
-                if self.completed_filter.get() == "No" and is_completed:
-                    continue
-            
+            completed_filter_value = self.completed_filter.get()
+            if completed_filter_value == "Yes" and not hack.get("completed", False):
+                continue
+            elif completed_filter_value == "No" and hack.get("completed", False):
+                continue
+                
             # Rating filter
-            if self.rating_filter.get() != "All":
-                hack_rating = self._get_rating_display(hack.get("personal_rating", 0))
-                if hack_rating != self.rating_filter.get():
+            rating_filter_value = self.rating_filter.get()
+            if rating_filter_value != "All":
+                # Convert star display to numeric rating
+                stars_count = rating_filter_value.count("★")
+                if hack.get("personal_rating", 0) != stars_count:
                     continue
-            
-            # HoF filter
-            if self.hall_of_fame_filter.get() != "All":
-                is_hof = hack.get("hall_of_fame", False)
-                if self.hall_of_fame_filter.get() == "Yes" and not is_hof:
-                    continue
-                if self.hall_of_fame_filter.get() == "No" and is_hof:
-                    continue
-            
+                
+            # Hall of Fame filter
+            hof_filter_value = self.hall_of_fame_filter.get()
+            if hof_filter_value == "Yes" and not hack.get("hall_of_fame", False):
+                continue
+            elif hof_filter_value == "No" and hack.get("hall_of_fame", False):
+                continue
+                
             # SA-1 filter
-            if self.sa1_filter.get() != "All":
-                is_sa1 = hack.get("sa1_compatibility", False)
-                if self.sa1_filter.get() == "Yes" and not is_sa1:
-                    continue
-                if self.sa1_filter.get() == "No" and is_sa1:
-                    continue
-            
+            sa1_filter_value = self.sa1_filter.get()
+            if sa1_filter_value == "Yes" and not hack.get("sa1", False):
+                continue
+            elif sa1_filter_value == "No" and hack.get("sa1", False):
+                continue
+                
             # Collaboration filter
-            if self.collaboration_filter.get() != "All":
-                is_collab = hack.get("collaboration", False)
-                if self.collaboration_filter.get() == "Yes" and not is_collab:
-                    continue
-                if self.collaboration_filter.get() == "No" and is_collab:
-                    continue
-            
+            collab_filter_value = self.collaboration_filter.get()
+            if collab_filter_value == "Yes" and not hack.get("collab", False):
+                continue
+            elif collab_filter_value == "No" and hack.get("collab", False):
+                continue
+                
             # Demo filter
-            if self.demo_filter.get() != "All":
-                is_demo = hack.get("demo", False)
-                if self.demo_filter.get() == "Yes" and not is_demo:
-                    continue
-                if self.demo_filter.get() == "No" and is_demo:
-                    continue
+            demo_filter_value = self.demo_filter.get()
+            if demo_filter_value == "Yes" and not hack.get("demo", False):
+                continue
+            elif demo_filter_value == "No" and hack.get("demo", False):
+                continue
+                
+            # Hack passed all filters, add to results
+            filtered_hacks.append(hack)
             
-            filtered.append(hack)
-        
-        return filtered
+        return filtered_hacks
 
     def _get_rating_display(self, rating):
-        """Convert numeric rating to star display"""
-        if rating == 5:
-            return "★★★★★"
-        elif rating == 4:
-            return "★★★★☆"
-        elif rating == 3:
-            return "★★★☆☆"
-        elif rating == 2:
-            return "★★☆☆☆"
+        """Convert numeric rating (0-5) to star display"""
+        if rating == 0:
+            return "☆☆☆☆☆"  # Unrated
         elif rating == 1:
             return "★☆☆☆☆"
+        elif rating == 2:
+            return "★★☆☆☆" 
+        elif rating == 3:
+            return "★★★☆☆"
+        elif rating == 4:
+            return "★★★★☆"
+        elif rating == 5:
+            return "★★★★★"
         else:
-            return "☆☆☆☆☆"
-    
+            return "☆☆☆☆☆"  # Invalid rating
+
     def _on_item_double_click(self, event):
-        """Handle double clicks - placeholder for future functionality"""
-        pass
+        """Handle double click on a table item - open hack details"""
+        item = self.tree.identify("item", event.x, event.y)
+        if not item:
+            return
+            
+        # Get hack ID from item tags
+        tags = self.tree.item(item)["tags"]
+        if not tags:
+            return
+            
+        hack_id = tags[0]
+        
+        # Find the hack data
+        hack_data = None
+        for hack in self.filtered_data:
+            if str(hack.get("id")) == str(hack_id):
+                hack_data = hack
+                break
+                
+        if hack_data:
+            self._show_hack_details(hack_data)
+
+    def _show_hack_details(self, hack_data):
+        """Show detailed information for a hack"""
+        title = hack_data.get("title", "Unknown Hack")
+        details = f"Hack: {title}\n\n"
+        
+        # Basic info
+        details += f"Type: {hack_data.get('hack_type', 'Unknown').title()}\n"
+        details += f"Difficulty: {hack_data.get('difficulty', 'Unknown')}\n"
+        details += f"Rating: {self._get_rating_display(hack_data.get('personal_rating', 0))}\n"
+        
+        # Status
+        details += f"Completed: {'Yes' if hack_data.get('completed', False) else 'No'}\n"
+        if hack_data.get('completed_date'):
+            details += f"Completed on: {hack_data.get('completed_date')}\n"
+        
+        # Special flags
+        if hack_data.get('hall_of_fame', False):
+            details += "Hall of Fame: Yes\n"
+        if hack_data.get('sa1', False):
+            details += "Uses SA-1 chip: Yes\n"
+        if hack_data.get('collab', False):
+            details += "Collaboration project: Yes\n"
+        if hack_data.get('demo', False):
+            details += "Demo version: Yes\n"
+        
+        # Notes
+        if hack_data.get('notes'):
+            details += f"\nNotes:\n{hack_data.get('notes')}"
+        
+        # Display in a dialog
+        messagebox.showinfo(title, details)
+
