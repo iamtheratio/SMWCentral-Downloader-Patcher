@@ -28,6 +28,9 @@ def apply_theme_to_titlebar(root):
 def apply_font_settings(root, style):
     default_font = ("Segoe UI", 9)
     
+    # FIXED: Force disable sv_ttk font management to prevent conflicts
+    sv_ttk.USE_FONT_CONFIG = False
+    
     # Configure all widgets before updating
     style.configure(".", font=default_font)
     for widget in ["TLabel", "TButton", "TCheckbutton", "TRadiobutton", 
@@ -56,6 +59,9 @@ def toggle_theme_callback(root):
     
     # Toggle theme first
     sv_ttk.toggle_theme()
+    
+    # ADDED: Reapply font settings after theme change to ensure consistency
+    apply_font_settings(root, style)
     
     # Get new colors immediately
     from colors import get_colors
@@ -106,7 +112,8 @@ def main():
     
     # Initial setup
     style = ttk.Style()
-    sv_ttk.USE_FONT_CONFIG = True
+    # MOVED: Set USE_FONT_CONFIG to False BEFORE setting theme
+    sv_ttk.USE_FONT_CONFIG = False
     sv_ttk.set_theme("dark")
     
     # Configure fonts after theme
