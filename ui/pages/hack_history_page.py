@@ -277,72 +277,10 @@ class HackHistoryPage:
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
-        # Handle cursor changes for clickable columns
-        if item and column in ["#1", "#6", "#7"]:  # Completed, Date, and Notes columns are clickable
+        if item and column in ["#1", "#6"]:  # Completed and Date columns are clickable
             self.tree.config(cursor="hand2")
         else:
             self.tree.config(cursor="")
-        
-        # Handle tooltip for notes column - FIXED: Cell-based instead of pixel-based
-        if item and column == "#7":  # Notes column
-            # Check if we're already showing tooltip for this item
-            if hasattr(self, 'current_tooltip_item') and self.current_tooltip_item == item:
-                return  # Already showing tooltip for this cell
-            
-            # Get hack data for this item
-            tags = self.tree.item(item)["tags"]
-            if tags:
-                hack_id = tags[0]
-                # Find the hack data
-                for hack in self.filtered_data:
-                    if hack.get("id") == str(hack_id):
-                        full_notes = hack.get("notes", "").strip()
-                        if full_notes:  # Only show tooltip if there are notes
-                            self._show_tooltip(event, full_notes, item)
-                        else:
-                            self._hide_tooltip()
-                        break
-        else:
-            self._hide_tooltip()
-
-    def _show_tooltip(self, event, text, item):
-        """Show tooltip with notes text"""
-        # Remove existing tooltip
-        self._hide_tooltip()
-        
-        # Import colors
-        from colors import get_colors
-        colors = get_colors()
-        
-        # Create tooltip window
-        self.tooltip = tk.Toplevel(self.tree)
-        self.tooltip.wm_overrideredirect(True)
-        self.tooltip.wm_geometry(f"+{event.x_root + 10}+{event.y_root + 10}")
-        
-        # Create label with theme-appropriate colors
-        label = tk.Label(self.tooltip, text=text, 
-                        background=colors["tooltip_bg"], 
-                        foreground=colors["tooltip_fg"],
-                        relief="solid", borderwidth=1,
-                        highlightbackground=colors["tooltip_border"],
-                        font=("Segoe UI", 9), wraplength=300, justify="left")
-        label.pack()
-        
-        # Store which item we're showing tooltip for
-        self.current_tooltip_item = item
-
-    def _hide_tooltip(self):
-        """Hide tooltip"""
-        if hasattr(self, 'tooltip') and self.tooltip:
-            try:
-                self.tooltip.destroy()
-            except tk.TclError:
-                pass
-            self.tooltip = None
-        
-        # Clear current tooltip item
-        if hasattr(self, 'current_tooltip_item'):
-            self.current_tooltip_item = None
 
     def _refresh_table(self):
         """Refresh table data from data manager"""
@@ -471,8 +409,6 @@ class HackHistoryPage:
         # FIXED: Clean up any active date editing before processing new clicks
         if hasattr(self, 'date_entry') and self.date_entry:
             self._cleanup_date_edit()
-        if hasattr(self, 'notes_entry') and self.notes_entry:
-            self._cleanup_notes_edit()
 
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
@@ -487,97 +423,115 @@ class HackHistoryPage:
                 hack_id = tags[0]
                 self._toggle_completed(hack_id)
     
-        # FIXED: These elif statements need to be properly indented at the same level as the if above
+        # Handle completed date click - FIXED: This should be elif, not standalone
         elif column == "#6":  # Completed date column
             tags = self.tree.item(item)["tags"]
             if tags:
                 hack_id = tags[0]
                 self._edit_date_cell(hack_id, item, event)
-    
-        elif column == "#7":  # Notes column
-            tags = self.tree.item(item)["tags"]
-            if tags:
-                hack_id = tags[0]
-                self._edit_notes_cell(hack_id, item, event)
 
     def _edit_date_cell(self, hack_id, item, event):
         """Allow direct editing of date cell"""
-        # FIXED: Clean up any existing date entry before creating a new one
+        # Clean up any existing date entry
         if hasattr(self, 'date_entry') and self.date_entry:
             self._cleanup_date_edit()
-    
+
         hack_id_str = str(hack_id)
-    
+
         # Find the hack data
         hack_data = None
         for hack in self.filtered_data:
             if hack.get("id") == hack_id_str:
                 hack_data = hack
                 break
-    
+
         if not hack_data:
             return
-    
+
         # Get the bounding box of the date cell
         bbox = self.tree.bbox(item, "#6")
         if not bbox:
             return
-    
+
         # Get current date value
         current_date = hack_data.get("completed_date", "")
-    
+
         # Create inline entry widget
         x, y, width, height = bbox
-    
-        # Create entry widget positioned exactly over the cell
-        self.date_entry = ttk.Entry(self.tree, font=("Segoe UI", 10))
-        self.date_entry.place(x=x, y=y, width=width, height=height)
-    
-        # Set current value and select all text
-        self.date_entry.insert(0, current_date)
-        self.date_entry.select_range(0, tk.END)
-        self.date_entry.focus()
-    
+
         # Store references for saving/canceling
         self.editing_hack_id = hack_id_str
         self.editing_item = item
         self.original_date = current_date
-    
-        # Bind events
-        self.date_entry.bind("<Return>", self._save_date_edit)
-        self.date_entry.bind("<Escape>", self._cancel_date_edit)
-        self.date_entry.bind("<FocusOut>", self._on_date_focus_out)
 
-    def _on_date_focus_out(self, event=None):
-        """Handle focus out event for date entry"""
-        if hasattr(self, 'date_entry') and self.date_entry:
-            self.date_entry.after(10, self._check_and_save_date)
+        # Create entry widget positioned exactly over the cell
+        self.date_entry = ttk.Entry(self.tree, font=("Segoe UI", 10))
+        self.date_entry.place(x=x, y=y, width=width, height=height)
+        self.date_entry.insert(0, current_date)
+        self.date_entry.select_range(0, tk.END)
 
-    def _check_and_save_date(self):
-        """Check if we should save the date edit"""
-        if hasattr(self, 'date_entry') and self.date_entry:
+        # Register a window-level binding that saves when clicking elsewhere
+        self.binding_id = self.tree.winfo_toplevel().bind("<Button-1>", self._check_date_click, add="+")
+
+        # Bind events to the entry widget
+        self.date_entry.bind("<Return>", lambda e: self._save_date_edit())
+        self.date_entry.bind("<Escape>", lambda e: self._cancel_date_edit())
+        
+        # Focus the widget after all bindings are set
+        self.date_entry.focus_set()
+
+    def _check_date_click(self, event):
+        """Check if click is outside the date entry and save if needed"""
+        if not hasattr(self, 'date_entry') or not self.date_entry:
+            return
+
+        # Get entry widget position
+        try:
+            x = self.date_entry.winfo_rootx()
+            y = self.date_entry.winfo_rooty()
+            w = self.date_entry.winfo_width()
+            h = self.date_entry.winfo_height()
+            
+            # If click is outside the entry, save the edit
+            if event.x_root < x or event.x_root > x+w or event.y_root < y or event.y_root > y+h:
+                self._save_date_edit()
+        except tk.TclError:
+            # Widget may have been destroyed
+            pass
+
+    def _cancel_date_edit(self, event=None):
+        """Cancel date editing without saving"""
+        if hasattr(self, 'binding_id') and self.binding_id:
             try:
-                focused_widget = self.date_entry.focus_get()
-                if focused_widget != self.date_entry:
-                    self._save_date_edit()
-            except tk.TclError:
-                self._cleanup_date_edit()
+                self.tree.winfo_toplevel().unbind("<Button-1>", self.binding_id)
+                self.binding_id = None
+            except:
+                pass
+        self._cleanup_date_edit()
 
     def _save_date_edit(self, event=None):
         """Save the edited date after validation"""
         if not hasattr(self, 'date_entry') or not self.date_entry:
             return
-    
+        
+        # Remove global binding first to prevent recursive calls
+        if hasattr(self, 'binding_id') and self.binding_id:
+            try:
+                self.tree.winfo_toplevel().unbind("<Button-1>", self.binding_id)
+                self.binding_id = None
+            except:
+                pass
+        
         # Prevent multiple validation attempts
         if hasattr(self, '_validating_date') and self._validating_date:
             return
-    
+        
         try:
             new_date = self.date_entry.get().strip()
         except tk.TclError:
             self._cleanup_date_edit()
             return
-    
+        
         # Validate and normalize the date if not empty
         if new_date:
             normalized_date = self._normalize_date(new_date)
@@ -641,19 +595,25 @@ class HackHistoryPage:
         
         return None
 
-    def _cancel_date_edit(self, event=None):
-        """Cancel date editing without saving"""
-        self._cleanup_date_edit()
-
     def _cleanup_date_edit(self):
         """Clean up date editing widgets and variables"""
+        # Remove window-level binding if it exists
+        if hasattr(self, 'binding_id') and self.binding_id:
+            try:
+                self.tree.winfo_toplevel().unbind("<Button-1>", self.binding_id)
+                self.binding_id = None
+            except:
+                pass
+            
+        # Destroy the entry widget if it exists
         if hasattr(self, 'date_entry') and self.date_entry:
             try:
                 self.date_entry.destroy()
             except tk.TclError:
                 pass
             self.date_entry = None
-    
+        
+        # Remove all related attributes
         for attr in ['editing_hack_id', 'editing_item', 'original_date', '_validating_date']:
             if hasattr(self, attr):
                 delattr(self, attr)
@@ -760,89 +720,3 @@ class HackHistoryPage:
     def _on_item_double_click(self, event):
         """Handle double clicks - placeholder for future functionality"""
         pass
-
-    def _edit_notes_cell(self, hack_id, item, event):
-        """Allow direct editing of notes cell"""
-        if hasattr(self, 'notes_entry') and self.notes_entry:
-            self._cleanup_notes_edit()
-    
-        hack_id_str = str(hack_id)
-    
-        # Find the hack data
-        hack_data = None
-        for hack in self.filtered_data:
-            if hack.get("id") == hack_id_str:
-                hack_data = hack
-                break
-    
-        if not hack_data:
-            return
-    
-        # Get the bounding box of the notes cell
-        bbox = self.tree.bbox(item, "#7")
-        if not bbox:
-            return
-    
-        # Get current notes value
-        current_notes = hack_data.get("notes", "")
-    
-        # Create inline entry widget
-        x, y, width, height = bbox
-        self.notes_entry = ttk.Entry(self.tree, font=("Segoe UI", 10))
-        self.notes_entry.place(x=x, y=y, width=width, height=height)
-    
-        # Set current value and select all text
-        self.notes_entry.insert(0, current_notes)
-        self.notes_entry.select_range(0, tk.END)
-        self.notes_entry.focus()
-    
-        # Store references
-        self.editing_notes_hack_id = hack_id_str
-    
-        # Character limit validation
-        def limit_chars(event=None):
-            if len(self.notes_entry.get()) > 280:
-                self.notes_entry.delete(280, tk.END)
-    
-        # Bind events
-        self.notes_entry.bind("<Return>", self._save_notes_edit)
-        self.notes_entry.bind("<Escape>", self._cleanup_notes_edit)
-        self.notes_entry.bind("<FocusOut>", self._save_notes_edit)
-        self.notes_entry.bind("<KeyRelease>", limit_chars)
-
-    def _save_notes_edit(self, event=None):
-        """Save the edited notes"""
-        if not hasattr(self, 'notes_entry') or not self.notes_entry:
-            return
-    
-        try:
-            new_notes = self.notes_entry.get().strip()
-        except tk.TclError:
-            self._cleanup_notes_edit()
-            return
-    
-        # Find the hack data
-        hack_data = None
-        for hack in self.filtered_data:
-            if hack.get("id") == self.editing_notes_hack_id:
-                hack_data = hack
-                break
-    
-        if hack_data:
-            if self.data_manager.update_hack(self.editing_notes_hack_id, "notes", new_notes):
-                hack_data["notes"] = new_notes
-    
-        self._cleanup_notes_edit()
-        self._refresh_table()
-
-    def _cleanup_notes_edit(self, event=None):
-        """Clean up notes editing"""
-        if hasattr(self, 'notes_entry') and self.notes_entry:
-            try:
-                self.notes_entry.destroy()
-            except tk.TclError:
-                pass
-            self.notes_entry = None
-    
-        if hasattr(self, 'editing_notes_hack_id'):
-            delattr(self, 'editing_notes_hack_id')
