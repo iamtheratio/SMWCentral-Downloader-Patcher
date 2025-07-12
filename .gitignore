@@ -12,6 +12,9 @@ version.txt
 # Local configuration
 config.json
 processed.json
+processed.json.backup
+processed.json.pre-v*.backup*
+processed.json.*backup*
 
 # VS Code
 .vscode/
