@@ -283,7 +283,7 @@ class HackHistoryPage:
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
-        if item and column in ["#1", "#6", "#7"]:  # Completed, Date, and Notes columns are clickable
+        if item and column in ["#1", "#5", "#6", "#7"]:  # Completed, Rating, Date, and Notes columns are clickable
             self.tree.config(cursor="hand2")
         else:
             self.tree.config(cursor="")
@@ -418,7 +418,7 @@ class HackHistoryPage:
             # Save the current edit before starting a new one
             self._save_date_edit()
             needs_refresh = True  # We'll need to refresh after saving
-    
+
         # Also check for active notes edit
         if hasattr(self, 'notes_entry') and self.notes_entry:
             # Save the current edit before starting a new one
@@ -439,7 +439,7 @@ class HackHistoryPage:
             item = self.tree.identify("item", event.x, event.y)
             if not item:
                 return
-        
+
         # Handle completed checkbox toggle
         if column == "#1":  # First column is completed
             tags = self.tree.item(item)["tags"]
@@ -447,13 +447,20 @@ class HackHistoryPage:
                 hack_id = tags[0]
                 self._toggle_completed(hack_id)
 
+        # Handle rating click
+        elif column == "#5":  # Rating column
+            tags = self.tree.item(item)["tags"]
+            if tags:
+                hack_id = tags[0]
+                self._edit_rating(hack_id, item, event)
+
         # Handle completed date click
         elif column == "#6":  # Completed date column
             tags = self.tree.item(item)["tags"]
             if tags:
                 hack_id = tags[0]
                 self._edit_date_cell(hack_id, item, event)
-    
+
         # Handle notes click
         elif column == "#7":  # Notes column
             tags = self.tree.item(item)["tags"]
@@ -613,7 +620,7 @@ class HackHistoryPage:
                     hack_data["completed"] = False
                     self.data_manager.update_hack(self.editing_hack_id, "completed", False)
                 
-                print(f"SUCCESS: Date updated for '{hack_data['title']}' to {new_date or 'cleared'}")
+                print(f"SUCCESS: Date updated for '{hack_data['title']}' to {new_date}")
             else:
                 print(f"ERROR: Failed to update date for hack {self.editing_hack_id}")
         
@@ -988,4 +995,67 @@ class HackHistoryPage:
             scrollbar.grid(row=1, column=0, sticky="ew")
         else:
             scrollbar.grid_remove()
+
+    def _edit_rating(self, hack_id, item, event):
+        """Allow direct clicking on stars to set rating"""
+        hack_id_str = str(hack_id)
+
+        # Find the hack data
+        hack_data = None
+        for hack in self.filtered_data:
+            if hack.get("id") == hack_id_str:
+                hack_data = hack
+                break
+
+        if not hack_data:
+            return
+
+        # Get the bounding box of the rating cell
+        bbox = self.tree.bbox(item, "#5")
+        if not bbox:
+            return
+
+        # Get coordinates within the cell
+        cell_x = event.x - bbox[0]
+        cell_width = bbox[2]
+        
+        # Get the actual content of the cell
+        values = self.tree.item(item, 'values')
+        rating_value = values[4] if len(values) > 4 else "☆☆☆☆☆"
+        
+        # Detect which star was clicked using the EXISTING working logic
+        # We know there are 5 stars, so each takes up 1/5 of the cell width
+        # With padding on each side
+    
+        # Add 10% padding on the left and right (total 20%)
+        padding = cell_width * 0.1
+        star_area_width = cell_width - (padding * 2)
+        star_width = star_area_width / 5
+    
+        # Adjust x position to account for left padding
+        adjusted_x = cell_x - padding
+    
+        # If click is in the padding area, handle appropriately
+        if adjusted_x < 0:
+            star_position = 1  # Left padding area - first star
+        elif adjusted_x > star_area_width:
+            star_position = 5  # Right padding area - last star
+        else:
+            # Calculate which star was clicked (1-5)
+            star_position = int(adjusted_x / star_width) + 1
+            star_position = max(1, min(5, star_position))
+    
+        # Update the rating
+        current_rating = hack_data.get("personal_rating", 0)
+        
+        # If clicking the same rating, toggle it off (set to 0)
+        new_rating = 0 if current_rating == star_position else star_position
+        
+        # Save the new rating
+        if self.data_manager.update_hack(hack_id_str, "personal_rating", new_rating):
+            hack_data["personal_rating"] = new_rating
+            print(f"SUCCESS: Rating updated for '{hack_data['title']}' to {new_rating}")
+            self._refresh_table()
+        else:
+            print(f"ERROR: Failed to update rating for hack {hack_id_str}")
 
