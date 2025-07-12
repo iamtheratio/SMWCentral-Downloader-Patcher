@@ -3,6 +3,14 @@ import os
 import json
 import re
 import shutil
+import tkinter as tk
+
+def set_window_icon(window):
+    """Set the application icon for any window or dialog"""
+    try:
+        window.iconbitmap("assets/icon.ico")
+    except (tk.TclError, AttributeError):
+        pass  # Fallback silently if icon not found or not supported
 
 # Difficulty mappings
 DIFFICULTY_LOOKUP = {
@@ -106,6 +114,89 @@ def title_case(text):
             result.append(word.capitalize())
     
     return ' '.join(result)
+
+def clean_hack_title(title):
+    """Clean and properly format hack titles with proper capitalization and roman numerals"""
+    if not title:
+        return "Unknown"
+    
+    # First, apply title case to get basic capitalization
+    cleaned = title_case(title)
+    
+    # Define roman numeral patterns and their proper replacements
+    roman_numerals = {
+        r'\bI\b': 'I',
+        r'\bIi\b': 'II', 
+        r'\bIii\b': 'III',
+        r'\bIv\b': 'IV',
+        r'\bV\b': 'V',
+        r'\bVi\b': 'VI',
+        r'\bVii\b': 'VII',
+        r'\bViii\b': 'VIII',
+        r'\bIx\b': 'IX',
+        r'\bX\b': 'X',
+        r'\bXi\b': 'XI',
+        r'\bXii\b': 'XII',
+        r'\bXiii\b': 'XIII',
+        r'\bXiv\b': 'XIV',
+        r'\bXv\b': 'XV',
+        r'\bXvi\b': 'XVI',
+        r'\bXvii\b': 'XVII',
+        r'\bXviii\b': 'XVIII',
+        r'\bXix\b': 'XIX',
+        r'\bXx\b': 'XX'
+    }
+    
+    # Apply roman numeral corrections (case-insensitive)
+    for pattern, replacement in roman_numerals.items():
+        cleaned = re.sub(pattern, replacement, cleaned, flags=re.IGNORECASE)
+    
+    # Fix common abbreviations and acronyms
+    acronyms = {
+        r'\bSmw\b': 'SMW',
+        r'\bUsa\b': 'USA',
+        r'\bUk\b': 'UK',
+        r'\bRpg\b': 'RPG',
+        r'\bFps\b': 'FPS',
+        r'\bDx\b': 'DX',
+        r'\bEx\b': 'EX',
+        r'\bVs\b': 'VS',
+        r'\bA\.?i\.?\b': 'AI',
+        r'\bGba\b': 'GBA',
+        r'\bNes\b': 'NES',
+        r'\bSnes\b': 'SNES',
+        r'\bN64\b': 'N64',
+        r'\bDs\b': 'DS',
+        r'\b3d\b': '3D',
+        r'\b2d\b': '2D'
+    }
+    
+    for pattern, replacement in acronyms.items():
+        cleaned = re.sub(pattern, replacement, cleaned, flags=re.IGNORECASE)
+    
+    # Fix common words that should be lowercase (articles, prepositions, conjunctions)
+    # but only if they're not at the beginning or end
+    lowercase_words = r'\b(a|an|and|as|at|but|by|for|in|nor|of|on|or|so|the|to|up|yet)\b'
+    
+    def lowercase_middle_words(match):
+        word = match.group(0)
+        # Check if this word is at the beginning or end of the string
+        start_pos = match.start()
+        end_pos = match.end()
+        
+        # Don't lowercase if it's the first word or last word
+        if start_pos == 0 or end_pos == len(cleaned):
+            return word
+        
+        # Don't lowercase if it follows a colon or dash (subtitle)
+        if start_pos > 0 and cleaned[start_pos-1] in ':- ':
+            return word
+            
+        return word.lower()
+    
+    cleaned = re.sub(lowercase_words, lowercase_middle_words, cleaned, flags=re.IGNORECASE)
+    
+    return cleaned.strip()
 
 # Path helpers
 def get_sorted_folder_name(display_difficulty):

@@ -4,7 +4,7 @@ import sv_ttk
 
 DIFFICULTY_LIST = [
     "newcomer", "casual", "skilled",
-    "advanced", "expert", "master", "grandmaster", "no difficulty"  # ADDED: no difficulty
+    "advanced", "expert", "master", "grandmaster", "no difficulty"
 ]
 
 def setup_ui(root, run_pipeline_func, toggle_theme_callback, version=None):
@@ -21,7 +21,7 @@ def setup_ui(root, run_pipeline_func, toggle_theme_callback, version=None):
     filter_section = FilterSection(None)
     difficulty_section = DifficultySection(None, DIFFICULTY_LIST)
     
-    # Create main layout - pass version parameter
+    # Create main layout
     layout = MainLayout(
         root, 
         run_pipeline_func, 
@@ -30,14 +30,14 @@ def setup_ui(root, run_pipeline_func, toggle_theme_callback, version=None):
         filter_section, 
         difficulty_section,
         logger,
-        version  # Add version parameter
+        version
     )
     
     # Build UI
     layout.create()
     
     # Return the download button for external reference
-    return layout.download_button
+    return layout.get_download_button()
 
 def update_log_colors(log_text):
     """Update log colors based on current theme (used by main.py)"""

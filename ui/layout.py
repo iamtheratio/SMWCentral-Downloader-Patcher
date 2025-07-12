@@ -1,12 +1,13 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
-import threading
-from utils import TYPE_KEYMAP
-import sv_ttk
-from colors import get_colors
+from tkinter import ttk
+from .navigation import NavigationBar
+from .page_manager import PageManager
+from .theme_controls import ThemeControls
+from .version_display import VersionDisplay
+from .pages import BulkDownloadPage, HackHistoryPage
 
 class MainLayout:
-    """Main UI layout manager"""
+    """Main UI layout manager - now simplified and modular"""
     
     def __init__(self, root, run_pipeline_func, toggle_theme_callback, 
                  setup_section, filter_section, difficulty_section, logger, version=None):
@@ -18,257 +19,76 @@ class MainLayout:
         self.difficulty_section = difficulty_section
         self.logger = logger
         self.version = version
-        self.download_button = None
-        self.font = ("Segoe UI", 9)
+        
+        # UI Components
+        self.content_frame = None
+        self.page_manager = None
+        self.navigation = None
+        self.theme_controls = None
+        self.version_display = None
+        
+        # Pages
+        self.bulk_download_page = None
+        self.hack_history_page = None
     
     def create(self):
         """Create the main UI layout"""
-        # Create theme toggle frame for top right
-        self._create_theme_toggle()
+        # Create content frame first
+        self.content_frame = ttk.Frame(self.root)
         
-        # Main frame
-        main_frame = ttk.Frame(self.root, padding=25)
-        main_frame.pack(fill="both", expand=True)
-
-        # Title
-        ttk.Label(
-            main_frame,
-            text="SMWCentral Downloader & Patcher",
-            font=("Segoe UI", 20, "bold")
-        ).pack(pady=(0, 20))
-
-        # Configure styles
-        style = ttk.Style()
-        for widget in ("TCheckbutton", "TRadiobutton", "TButton", "TCombobox"):
-            style.configure(f"Custom.{widget}", font=self.font)
-
-        style.configure("Large.Accent.TButton", 
-                      font=("Segoe UI", 10, "bold"),
-                      padding=(20, 10))
-
-        # Difficulty selection
-        self.difficulty_section.parent = main_frame
-        difficulty_frame = self.difficulty_section.create(self.font)
-        difficulty_frame.pack(fill="x", pady=10)
-
-        # Setup & filters section
-        row_frame = ttk.Frame(main_frame)
-        row_frame.pack(fill="both", expand=True, pady=10)
-
-        # Configure grid for row_frame
-        row_frame.rowconfigure(0, weight=1)
-        for col in (0,1):
-            row_frame.columnconfigure(col, weight=1)
-
-        # Change the parent for these components to row_frame
-        self.setup_section.parent = row_frame
-        self.filter_section.parent = row_frame
-
-        # Create the frames with the correct parent
-        setup_frame = self.setup_section.create(self.font)
-        setup_frame.grid(row=0, column=0, sticky="nsew", padx=(0,10))
-
-        filter_frame = self.filter_section.create(self.font, ["Standard", "Kaizo", "Puzzle", "Tool-Assisted", "Pit"])
-        filter_frame.grid(row=0, column=1, sticky="nsew", padx=(10,0))
-
-        # Download & Patch button
-        self.download_button = ttk.Button(
-            main_frame, 
-            text="Download & Patch", 
-            command=self._run_pipeline_threaded,
-            style="Large.Accent.TButton"
-        )
-        self.download_button.pack(pady=(10, 15))
+        # Initialize page manager
+        self.page_manager = PageManager(self.content_frame)
         
-        # Log section with level dropdown and clear button
-        log_header_frame = ttk.Frame(main_frame)
-        log_header_frame.pack(fill="x", pady=(20, 5))
+        # Create navigation bar
+        self.navigation = NavigationBar(self.root, self.page_manager, self.toggle_theme_callback)
+        self.navigation.create()
         
-        # Log level dropdown (left side)
-        ttk.Label(log_header_frame, text="Log Level:", font=self.font).pack(side="left")
+        # Store navigation reference for theme updates
+        self.root.navigation = self.navigation
         
-        log_level_combo = ttk.Combobox(
-            log_header_frame,
-            values=["Debug", "Information", "Warning", "Error"],
-            state="readonly",
-            font=self.font,
-            width=12
-        )
-        log_level_combo.set("Information")
-        log_level_combo.pack(side="left", padx=(10, 0))
+        # Pack content frame after navigation
+        self.content_frame.pack(fill="both", expand=True)
         
-        # Clear button (right side)
-        ttk.Button(
-            log_header_frame,
-            text="Clear",
-            command=self.logger.clear_log
-        ).pack(side="right")
+        # Create pages
+        self._create_pages()
         
-        # Log text area (full width below)
-        log_text = self.logger.setup(main_frame)
-        log_text.pack(fill="both", expand=True, pady=(2, 5))
+        # Create version display
+        self.version_display = VersionDisplay(self.root, self.version)
+        self.version_display.create()
         
-        # Store reference for theme toggling
-        self.root.log_text = log_text
+        # Show default page
+        self.navigation.show_page("Bulk Download")
         
-        # Add version label in bottom right with 20px padding
-        if self.version:
-            version_label = ttk.Label(self.root, text=self.version, 
-                                    font=("Segoe UI", 8, "italic"))
-            # Use place geometry manager for absolute positioning - right aligned with padding
-            version_label.place(relx=1.0, rely=1.0, anchor="se", x=-26, y=-10)
-            
-            # Set initial color based on theme
-            colors = get_colors()
-            version_label.configure(foreground=colors["version_label"])
-            
-            # Store reference for theme updates
-            self.root.version_label = version_label
+        # Force refresh navigation
+        self.root.after(100, lambda: self.navigation.show_page("Bulk Download"))
         
-        return main_frame
+        return self.content_frame
     
-    def _create_theme_toggle(self):
-        """Create theme toggle switch"""
-        theme_frame = ttk.Frame(self.root)
-        theme_frame.pack(anchor="ne", padx=10, pady=5)
-        
-        # Add empty label for spacing
-        ttk.Label(
-            theme_frame, 
-            text="", 
-            width=1
-        ).pack(side="left", padx=(0, 5))
-        
-        # Add theme switch
-        theme_switch = ttk.Checkbutton(
-            theme_frame,
-            style="Switch.TCheckbutton",
-            command=lambda: self.toggle_theme_callback(self.root)
+    def _create_pages(self):
+        """Create and register all pages"""
+        # Create bulk download page
+        self.bulk_download_page = BulkDownloadPage(
+            self.content_frame,
+            self.run_pipeline_func,
+            self.setup_section,
+            self.filter_section,
+            self.difficulty_section,
+            self.logger
         )
-        theme_switch.pack(side="left")
-        theme_switch.state(['selected'])  # Start checked for dark mode
+        bulk_frame = self.bulk_download_page.create()
+        self.page_manager.add_page("Bulk Download", bulk_frame)
         
-        # Add moon icon
-        ttk.Label(
-            theme_frame, 
-            text="🌙",
-            font=("Segoe UI Emoji", 12),
-        ).pack(side="left", padx=(2, 5))
+        # Store log_text reference for theme toggling
+        if hasattr(self.bulk_download_page, 'frame') and hasattr(self.logger, 'log_text'):
+            self.root.log_text = self.logger.log_text
+        
+        # Create hack history page - PASS LOGGER for centralized logging
+        self.hack_history_page = HackHistoryPage(self.content_frame, self.logger)
+        history_frame = self.hack_history_page.create()
+        self.page_manager.add_page("Hack History", history_frame)
     
-    def _create_log_controls(self, parent):
-        """Create log level controls"""
-        log_frame = ttk.Frame(parent)
-        log_frame.pack(fill="x", pady=(5,0))
-        right = ttk.Frame(log_frame)
-        right.pack(side="right")
-        ttk.Label(right, text="Log Level:", font=self.font).pack(side="left", padx=(0,6))
-        
-        log_level_var = tk.StringVar(value="Information")
-        
-        def on_log_level_changed(*args):
-            try:
-                self.logger.set_log_level(log_level_var.get())
-            except Exception as e:
-                print(f"Error changing log level: {e}")
-        
-        log_level_var.trace_add("write", on_log_level_changed)
-        
-        log_level_combo = ttk.Combobox(
-            right, textvariable=log_level_var, 
-            values=["Information", "Debug", "Verbose", "Error"],
-            width=12, state="readonly"
-        )
-        log_level_combo.pack(side="right")
-        log_level_combo.current(0)
-    
-    def _generate_filter_payload(self):
-        """Build API filter payload from UI selections"""
-        filter_values = self.filter_section.get_filter_values()
-        selected_type_label = filter_values["type"]
-        selected_type = TYPE_KEYMAP.get(selected_type_label, "standard")
-        selected_difficulties = self.difficulty_section.get_selected_difficulties()
-
-        payload = {
-            "type": [selected_type],
-            "difficulties": selected_difficulties,
-            "waiting": filter_values["waiting"]  # Add waiting parameter
-        }
-
-        # Convert Yes/No to API flag
-        for key, var_value in [
-            ("demo", filter_values["demo"]), 
-            ("hof", filter_values["hof"]),
-            ("sa1", filter_values["sa1"]), 
-            ("collab", filter_values["collab"])
-        ]:
-            flag = {"Yes": "1", "No": "0"}.get(var_value)
-            if flag:
-                payload[key] = [flag]
-
-        return payload
-    
-    def _run_pipeline_threaded(self):
-        """Run the pipeline in a separate thread"""
-        # Validate required paths first
-        paths = self.setup_section.get_paths()
-        
-        # Check if any paths are empty - REMOVED flips_path check
-        missing_paths = []
-        if not paths["base_rom_path"]:
-            missing_paths.append("Base ROM Path")
-        if not paths["output_dir"]:
-            missing_paths.append("Output Directory")
-        
-        # If any paths are missing, show error and return
-        if missing_paths:
-            bullet_list = "• " + "\n• ".join(missing_paths)
-            messagebox.showerror(
-                "Missing Required Paths",
-                f"The following required paths are not set:\n\n{bullet_list}\n\nPlease set all required paths in the Setup section before continuing."
-            )
-            return
-        
-        # Get filter payload
-        payload = self._generate_filter_payload()
-        
-        # ADDED: Check if no difficulties selected
-        if not payload.get("difficulties"):
-            messagebox.showerror(
-                "Selection Required", 
-                "Please select at least one difficulty level to continue."
-            )
-            return
-        
-        # Check if no difficulties selected
-        if not payload.get("difficulties") and payload.get("type")[0] != "all":
-            if not messagebox.askyesno(
-                "No Difficulties Selected", 
-                "No difficulty filters selected. This will download ALL difficulties for the selected hack type. Continue?",
-                icon="warning"
-            ):
-                return  # User canceled
-        
-        # Disable button and show running state
-        self.download_button.configure(state="disabled", text="Running...")
-        
-        def pipeline_worker():
-            try:
-                self.run_pipeline_func(
-                    filter_payload=payload,
-                    base_rom_path=paths["base_rom_path"],
-                    output_dir=paths["output_dir"],
-                    log=self.logger.log
-                )
-                self.logger.log("✅ Done!", level="Information")
-            except Exception as e:
-                self.logger.log(f"❌ Error: {e}", level="Error")
-            finally:
-                # Re-enable button when done
-                self.root.after(0, lambda: self.download_button.configure(
-                    state="normal", 
-                    text="Download & Patch"
-                ))
-        
-        # Start pipeline in separate thread
-        thread = threading.Thread(target=pipeline_worker, daemon=True)
-        thread.start()
+    def get_download_button(self):
+        """Return the download button reference"""
+        if self.bulk_download_page:
+            return self.bulk_download_page.get_download_button()
+        return None
