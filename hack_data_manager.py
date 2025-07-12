@@ -52,7 +52,7 @@ class HackDataManager:
         """Get all hacks as a list of dictionaries"""
         hacks = []
         for hack_id, hack_data in self.data.items():
-            if isinstance(hack_data, dict) and "file_path" in hack_data:
+            if isinstance(hack_data, dict) and "title" in hack_data:
                 hack_info = {
                     "id": hack_id,
                     "title": hack_data.get("title", "Unknown"),
@@ -62,7 +62,7 @@ class HackDataManager:
                     "sa1_compatibility": hack_data.get("sa1_compatibility", False),
                     "collaboration": hack_data.get("collaboration", False),
                     "demo": hack_data.get("demo", False),
-                    "file_path": hack_data.get("file_path", ""),
+                    # Removed file_path for privacy - contains usernames
                     "completed": hack_data.get("completed", False),
                     "completed_date": hack_data.get("completed_date", ""),
                     "personal_rating": hack_data.get("personal_rating", 0),
@@ -106,11 +106,25 @@ class HackDataManager:
         return ["Kaizo", "Pit", "Puzzle", "Standard", "Tool-Assisted"]  # Fixed list in alphabetical order
 
     def get_unique_difficulties(self):
-        """Get list of unique difficulties"""
+        """Get list of unique difficulties in logical order"""
         difficulties = set()
         for hack_data in self.data.values():
             if isinstance(hack_data, dict):
                 diff = hack_data.get("current_difficulty", "Unknown")
                 if diff and diff != "Unknown":
                     difficulties.add(diff)
-        return sorted(list(difficulties))
+        
+        # Define the logical order from easiest to hardest
+        difficulty_order = ["Newcomer", "Casual", "Skilled", "Advanced", "Expert", "Master", "Grandmaster"]
+        
+        # Sort difficulties by their position in the defined order
+        ordered_difficulties = []
+        for difficulty in difficulty_order:
+            if difficulty in difficulties:
+                ordered_difficulties.append(difficulty)
+        
+        # Add any unknown difficulties at the end (alphabetically sorted)
+        remaining = sorted([d for d in difficulties if d not in difficulty_order])
+        ordered_difficulties.extend(remaining)
+        
+        return ordered_difficulties

@@ -377,7 +377,7 @@ def save_hack_to_processed_json(hack_data, file_path, hack_type):
         "title": clean_hack_title(hack_data.get("title", "Unknown")),  # CHANGED: Clean the title
         "current_difficulty": hack_data.get("difficulty", "Unknown"),
         "folder_name": get_sorted_folder_name(hack_data.get("difficulty", "Unknown")),
-        "file_path": file_path,
+        # Removed file_path for privacy - contains usernames
         "hack_type": hack_type.lower(),
         
         # CHANGED: Use actual API metadata as booleans

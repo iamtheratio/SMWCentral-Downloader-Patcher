@@ -3,6 +3,14 @@ import os
 import json
 import re
 import shutil
+import tkinter as tk
+
+def set_window_icon(window):
+    """Set the application icon for any window or dialog"""
+    try:
+        window.iconbitmap("assets/icon.ico")
+    except (tk.TclError, AttributeError):
+        pass  # Fallback silently if icon not found or not supported
 
 # Difficulty mappings
 DIFFICULTY_LOOKUP = {

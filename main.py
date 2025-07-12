@@ -136,14 +136,25 @@ def main():
     # Apply title bar theme immediately after dark theme is set
     apply_theme_to_titlebar(root)
     
-    # Setup UI and run - pass version to setup_ui
-    download_button = setup_ui(root, run_pipeline, toggle_theme_callback, VERSION)
+    # Check for migration before setting up UI
+    def setup_after_migration():
+        # Setup UI and run - pass version to setup_ui
+        download_button = setup_ui(root, run_pipeline, toggle_theme_callback, VERSION)
+        
+        # Store button reference for pipeline access
+        root.download_button = download_button
+        
+        # Add keyboard shortcut for clearing log
+        root.bind("<Control-l>", lambda e: clear_log_shortcut(root))
     
-    # Store button reference for pipeline access
-    root.download_button = download_button
-    
-    # Add keyboard shortcut for clearing log
-    root.bind("<Control-l>", lambda e: clear_log_shortcut(root))
+    # Import and run migration check
+    try:
+        from migration_manager import check_and_migrate
+        if not check_and_migrate(root, setup_after_migration):
+            return  # User cancelled migration, app should close
+    except ImportError:
+        # If migration manager doesn't exist, just setup normally
+        setup_after_migration()
     
     root.mainloop()
 
