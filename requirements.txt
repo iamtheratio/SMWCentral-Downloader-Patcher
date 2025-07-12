@@ -1,3 +1,4 @@
 requests
 patch
 pywinstyles>=1.0.0
+sv-ttk

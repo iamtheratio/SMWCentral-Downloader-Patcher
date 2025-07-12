@@ -6,8 +6,6 @@ __pycache__/
 # Distribution/packaging
 dist/
 build/
-*.spec
-version.txt
 
 # Local configuration
 config.json
