@@ -10,20 +10,26 @@ from ui.hack_history_components import InlineEditor, DateValidator, NotesValidat
 class HackHistoryPage:
     """Simplified hack history page with extracted components"""
     
-    def __init__(self, parent):
+    def __init__(self, parent, logger=None):
         self.parent = parent
         self.frame = None
         self.data_manager = HackDataManager()
+        self.logger = logger  # Add logger support
         
         # Initialize components - USE HackHistoryInlineEditor instead of InlineEditor
         self.filters = TableFilters(self._apply_filters)
-        self.date_editor = HackHistoryInlineEditor(None, self.data_manager, self)
-        self.notes_editor = HackHistoryInlineEditor(None, self.data_manager, self)
+        self.date_editor = HackHistoryInlineEditor(None, self.data_manager, self, logger)
+        self.notes_editor = HackHistoryInlineEditor(None, self.data_manager, self, logger)
         
         # Table and data
         self.tree = None
         self.filtered_data = []
         self.status_label = None
+    
+    def _log(self, message, level="Information"):
+        """Log a message if logger is available"""
+        if self.logger:
+            self.logger.log(message, level)
         
     def create(self):
         """Create the hack history page"""
@@ -55,6 +61,9 @@ class HackHistoryPage:
         """Called when the page becomes visible"""
         if self.frame:
             self._refresh_data_and_table()
+            total_hacks = len(self.data_manager.get_all_hacks())
+            completed_hacks = sum(1 for hack in self.data_manager.get_all_hacks() if hack.get("completed", False))
+            self._log(f"📊 Hack History page loaded - {total_hacks} total hacks, {completed_hacks} completed", "Information")
     
     def hide(self):
         """Called when the page becomes hidden"""
@@ -109,9 +118,16 @@ class HackHistoryPage:
     
     def _refresh_data_and_table(self):
         """Refresh data from file and update table"""
-        self.data_manager = HackDataManager()
-        self.filters.refresh_dropdown_values(self.data_manager)
-        self._refresh_table()
+        # FIXED: Don't create new data manager - just reload the existing one's data
+        try:
+            old_count = len(self.data_manager.get_all_hacks())
+            self.data_manager.data = self.data_manager._load_data()  # Reload from file
+            new_count = len(self.data_manager.get_all_hacks())
+            self.filters.refresh_dropdown_values(self.data_manager)
+            self._refresh_table()
+            self._log(f"🔄 Refreshed hack data from file - reloaded {new_count} hacks (was {old_count})", "Debug")
+        except Exception as e:
+            self._log(f"❌ Failed to refresh data: {str(e)}", "Error")
     
     def _refresh_table(self):
         """Refresh table data"""
@@ -289,13 +305,17 @@ class HackHistoryPage:
                 from datetime import datetime
                 today = datetime.now().strftime("%Y-%m-%d")
                 hack_data["completed_date"] = today
-                self.data_manager.update_hack(hack_id_str, "completed_date", today)
-                print(f"DEBUG: Auto-set completion date to {today} for hack {hack_id_str} (date field was empty)")
+                if self.data_manager.update_hack(hack_id_str, "completed_date", today):
+                    self._log(f"✅ Automatically set completion date to {today} for '{hack_data.get('title', 'Unknown')}' (hack #{hack_id_str})", "Debug")
+                else:
+                    self._log(f"❌ Failed to auto-set completion date for '{hack_data.get('title', 'Unknown')}' (hack #{hack_id_str})", "Error")
             elif not new_completed:
                 # Clear the date when unchecking completed
                 hack_data["completed_date"] = ""
-                self.data_manager.update_hack(hack_id_str, "completed_date", "")
-                print(f"DEBUG: Cleared completion date for hack {hack_id_str} (unchecked completed)")
+                if self.data_manager.update_hack(hack_id_str, "completed_date", ""):
+                    self._log(f"📅 Cleared completion date for '{hack_data.get('title', 'Unknown')}' (hack #{hack_id_str}) - marked as not completed", "Debug")
+                else:
+                    self._log(f"❌ Failed to clear completion date for '{hack_data.get('title', 'Unknown')}' (hack #{hack_id_str})", "Error")
             
             # Update the specific tree item directly (same as inline editing)
             for item in self.tree.get_children():
@@ -312,7 +332,8 @@ class HackHistoryPage:
                     
                     # Update the tree item
                     self.tree.item(item, values=current_values)
-                    print(f"DEBUG: Updated tree item for completed toggle - hack {hack_id_str}, completed={new_completed}, date={hack_data.get('completed_date', '')}")
+                    completion_status = "✅ completed" if new_completed else "❌ not completed"
+                    self._log(f"🔄 Updated completion status for '{hack_data.get('title', 'Unknown')}' (hack #{hack_id_str}) - now marked as {completion_status}", "Information")
                     break
     
     def _edit_rating(self, hack_id, item, event):
@@ -354,7 +375,7 @@ class HackHistoryPage:
         else:                        # 72-100% = star 5 (your click at 74.3% was star 5)
             star_position = 5
         
-        print(f"DEBUG: Rating click - cell_x={cell_x}, cell_width={cell_width}, relative_pos={relative_pos:.3f}, star_position={star_position}")
+        self._log(f"🌟 Rating click detected for '{hack_data.get('title', 'Unknown')}' (hack #{hack_id_str}) - position: {relative_pos:.1%}, targeting star {star_position}", "Debug")
         
         # Update rating - if clicking same rating, set to 0 (clear rating)
         current_rating = hack_data.get("personal_rating", 0)
@@ -375,8 +396,16 @@ class HackHistoryPage:
                     
                     # Update the tree item
                     self.tree.item(tree_item, values=current_values)
-                    print(f"DEBUG: Updated rating for hack {hack_id_str} to {new_rating} stars")
+                    
+                    # User-friendly logging
+                    if new_rating == 0:
+                        self._log(f"⭐ Cleared rating for '{hack_data.get('title', 'Unknown')}' (hack #{hack_id_str})", "Information")
+                    else:
+                        stars_text = "★" * new_rating + "☆" * (5 - new_rating)
+                        self._log(f"⭐ Rated '{hack_data.get('title', 'Unknown')}' (hack #{hack_id_str}) as {new_rating}/5 stars [{stars_text}]", "Information")
                     break
+        else:
+            self._log(f"❌ Failed to update rating for '{hack_data.get('title', 'Unknown')}' (hack #{hack_id_str}) - data manager update failed", "Error")
     
     def _find_hack_data(self, hack_id_str):
         """Find hack data by ID"""

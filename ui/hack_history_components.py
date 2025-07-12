@@ -319,7 +319,7 @@ class TableFilters:
         # HoF filter
         hof_frame = ttk.Frame(parent)
         hof_frame.pack(pady=(0, 8))
-        ttk.Label(hof_frame, text="HoF:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        ttk.Label(hof_frame, text="Hall of Fame:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         hof_radio_frame = ttk.Frame(hof_frame)
         hof_radio_frame.pack(pady=(2, 0))
         
@@ -471,9 +471,15 @@ class TableFilters:
 class HackHistoryInlineEditor(InlineEditor):
     """Extended inline editor that knows how to find hack data"""
     
-    def __init__(self, tree, data_manager, parent_page):
+    def __init__(self, tree, data_manager, parent_page, logger=None):
         super().__init__(tree, data_manager)
         self.parent_page = parent_page
+        self.logger = logger
+    
+    def _log(self, message, level="Information"):
+        """Log a message if logger is available"""
+        if self.logger:
+            self.logger.log(message, level)
         
     def _find_hack_data(self, hack_id_str):
         """Find hack data from parent page"""
@@ -509,18 +515,25 @@ class HackHistoryInlineEditor(InlineEditor):
             
         # Save to data manager
         if self.data_manager.update_hack(self.editing_hack_id, self.field_name, new_value):
-            print(f"SUCCESS: {self.field_name} updated for hack {self.editing_hack_id}")
+            hack_data = self.parent_page._find_hack_data(self.editing_hack_id)
+            hack_title = hack_data.get('title', 'Unknown') if hack_data else 'Unknown'
             
             # UPDATE LOCAL DATA IMMEDIATELY - this fixes the UI update issue
-            hack_data = self.parent_page._find_hack_data(self.editing_hack_id)
             if hack_data:
                 hack_data[self.field_name] = new_value
                 
-                # AUTO-SET COMPLETED STATUS when date is added
-                if self.field_name == "completed_date" and new_value and not hack_data.get("completed", False):
-                    hack_data["completed"] = True
-                    self.data_manager.update_hack(self.editing_hack_id, "completed", True)
-                    print(f"DEBUG: Auto-set completed=True for hack {self.editing_hack_id} because date was added")
+                # AUTO-SET/CLEAR COMPLETED STATUS when date is added/removed
+                if self.field_name == "completed_date":
+                    if new_value and not hack_data.get("completed", False):
+                        # Date added - set completed to True
+                        hack_data["completed"] = True
+                        self.data_manager.update_hack(self.editing_hack_id, "completed", True)
+                        self._log(f"✅ Automatically marked '{hack_title}' (hack #{self.editing_hack_id}) as completed when date was added", "Debug")
+                    elif not new_value and hack_data.get("completed", False):
+                        # Date removed - set completed to False
+                        hack_data["completed"] = False
+                        self.data_manager.update_hack(self.editing_hack_id, "completed", False)
+                        self._log(f"❌ Automatically marked '{hack_title}' (hack #{self.editing_hack_id}) as not completed when date was removed", "Debug")
             
             # Update the specific tree item directly without rebuilding entire table
             for item in self.parent_page.tree.get_children():
@@ -532,9 +545,9 @@ class HackHistoryInlineEditor(InlineEditor):
                     # Update the specific column
                     if self.field_name == "completed_date":
                         current_values[5] = new_value  # Column index 5 for completed_date
-                        # Also update completed checkbox if we auto-set it
-                        if new_value and hack_data and hack_data.get("completed", False):
-                            current_values[0] = "✓"  # Column index 0 for completed
+                        # Update completed checkbox based on whether we have a date and completed status
+                        if hack_data:
+                            current_values[0] = "✓" if hack_data.get("completed", False) else ""  # Column index 0 for completed
                     elif self.field_name == "notes":
                         # Truncate notes for display
                         display_notes = new_value[:30] + "..." if len(new_value) > 30 else new_value
@@ -542,10 +555,19 @@ class HackHistoryInlineEditor(InlineEditor):
                     
                     # Update the tree item
                     self.parent_page.tree.item(item, values=current_values)
-                    print(f"DEBUG: Updated tree item for hack {self.editing_hack_id} with new {self.field_name}: {new_value}")
+                    
+                    # User-friendly logging
+                    field_display = {"completed_date": "completion date", "notes": "notes"}.get(self.field_name, self.field_name)
+                    if new_value:
+                        self._log(f"📝 Updated {field_display} for '{hack_title}' (hack #{self.editing_hack_id})", "Information")
+                    else:
+                        self._log(f"🗑️ Cleared {field_display} for '{hack_title}' (hack #{self.editing_hack_id})", "Information")
                     break
             
         else:
-            print(f"ERROR: Failed to update {self.field_name} for hack {self.editing_hack_id}")
+            hack_data = self.parent_page._find_hack_data(self.editing_hack_id)
+            hack_title = hack_data.get('title', 'Unknown') if hack_data else 'Unknown'
+            field_display = {"completed_date": "completion date", "notes": "notes"}.get(self.field_name, self.field_name)
+            self._log(f"❌ Failed to update {field_display} for '{hack_title}' (hack #{self.editing_hack_id}) - data manager returned false", "Error")
             
         self.cleanup()

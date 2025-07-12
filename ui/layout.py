@@ -82,8 +82,8 @@ class MainLayout:
         if hasattr(self.bulk_download_page, 'frame') and hasattr(self.logger, 'log_text'):
             self.root.log_text = self.logger.log_text
         
-        # Create hack history page
-        self.hack_history_page = HackHistoryPage(self.content_frame)
+        # Create hack history page - PASS LOGGER for centralized logging
+        self.hack_history_page = HackHistoryPage(self.content_frame, self.logger)
         history_frame = self.hack_history_page.create()
         self.page_manager.add_page("Hack History", history_frame)
     

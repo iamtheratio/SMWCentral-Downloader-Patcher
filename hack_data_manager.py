@@ -1,5 +1,6 @@
 import json
 import os
+import shutil
 from datetime import datetime
 
 class HackDataManager:
@@ -26,12 +27,26 @@ class HackDataManager:
             return {}
     
     def save_data(self):
-        """Save data back to processed.json"""
+        """Save data back to processed.json with validation"""
         try:
+            # Validate we have data to save
+            if not self.data:
+                print("WARNING: Attempting to save empty data - operation cancelled")
+                return False
+                
+            # Create backup of current file before saving
+            import shutil
+            if os.path.exists(self.json_path):
+                backup_path = f"{self.json_path}.backup"
+                shutil.copy2(self.json_path, backup_path)
+            
             with open(self.json_path, "w", encoding="utf-8") as f:
                 json.dump(self.data, f, indent=2)
+            print(f"SUCCESS: Saved {len(self.data)} hack records to {self.json_path}")
+            return True
         except Exception as e:
-            print(f"Error saving hack data: {e}")
+            print(f"ERROR: Failed to save hack data: {e}")
+            return False
     
     def get_all_hacks(self):
         """Get all hacks as a list of dictionaries"""
@@ -57,16 +72,34 @@ class HackDataManager:
         return hacks
     
     def update_hack(self, hack_id, field, value):
-        """Update a specific field for a hack"""
-        if hack_id in self.data and isinstance(self.data[hack_id], dict):
+        """Update a specific field for a hack with validation"""
+        if hack_id not in self.data:
+            print(f"ERROR: Hack ID {hack_id} not found in data")
+            return False
+            
+        if not isinstance(self.data[hack_id], dict):
+            print(f"ERROR: Hack {hack_id} data is not a dictionary")
+            return False
+            
+        try:
             # Auto-set completed date when completed is checked
             if field == "completed" and value and not self.data[hack_id].get("completed_date"):
                 self.data[hack_id]["completed_date"] = datetime.now().strftime("%Y-%m-%d")
             
+            # Store old value for logging
+            old_value = self.data[hack_id].get(field, None)
             self.data[hack_id][field] = value
-            self.save_data()
-            return True
-        return False
+            
+            # Save and validate
+            if self.save_data():
+                print(f"SUCCESS: Updated {field} for hack {hack_id}: '{old_value}' → '{value}'")
+                return True
+            else:
+                print(f"ERROR: Failed to save data after updating {field} for hack {hack_id}")
+                return False
+        except Exception as e:
+            print(f"ERROR: Exception updating hack {hack_id} field {field}: {e}")
+            return False
     
     def get_unique_types(self):
         """Get list of unique hack types"""
