@@ -118,6 +118,12 @@ def main():
     root.title("SMWC Downloader & Patcher")
     root.geometry("1000x900")
     
+    # Set application icon
+    try:
+        root.iconbitmap("assets/icon.ico")
+    except tk.TclError:
+        print("Could not load application icon. Make sure the file exists.")
+    
     # Initial setup
     style = ttk.Style()
     # MOVED: Set USE_FONT_CONFIG to False BEFORE setting theme
