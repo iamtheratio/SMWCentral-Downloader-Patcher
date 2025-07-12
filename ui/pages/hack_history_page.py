@@ -219,8 +219,55 @@ class HackHistoryPage:
         
         if item and column in ["#1", "#5", "#6", "#7"]:
             self.tree.config(cursor="hand2")
+            
+            # ENHANCED: Show rating preview on hover
+            if column == "#5":  # Rating column
+                self._show_rating_preview(item, event)
         else:
             self.tree.config(cursor="")
+            
+    def _show_rating_preview(self, item, event):
+        """Show preview of which star would be selected"""
+        # Get hack data
+        tags = self.tree.item(item)["tags"]
+        if not tags:
+            return
+        hack_id = str(tags[0])
+        hack_data = self._find_hack_data(hack_id)
+        if not hack_data:
+            return
+            
+        # Calculate which star would be selected (same logic as _edit_rating)
+        bbox = self.tree.bbox(item, "#5")
+        if not bbox:
+            return
+            
+        cell_x = event.x - bbox[0]
+        cell_width = bbox[2]
+        
+        margin = cell_width * 0.02
+        usable_width = cell_width - (margin * 2)
+        star_zone_width = usable_width / 5
+        adjusted_x = cell_x - margin
+        
+        # Calculate relative position for star mapping
+        relative_pos = cell_x / cell_width
+        
+        # Custom zones based on actual user clicks
+        if relative_pos <= 0.30:     # 0-30% = star 1 (your click at 24.8% was star 1)
+            preview_rating = 1
+        elif relative_pos <= 0.45:   # 30-45% = star 2  
+            preview_rating = 2
+        elif relative_pos <= 0.60:   # 45-60% = star 3
+            preview_rating = 3
+        elif relative_pos <= 0.72:   # 60-72% = star 4
+            preview_rating = 4
+        else:                        # 72-100% = star 5 (your click at 74.3% was star 5)
+            preview_rating = 5
+        
+        # Optional: Update tooltip or status to show preview
+        # For now, just ensure the cursor indicates interactivity
+        self.tree.config(cursor="hand2")
     
     def _toggle_completed(self, hack_id):
         """Toggle completed status for a hack"""
@@ -269,13 +316,13 @@ class HackHistoryPage:
                     break
     
     def _edit_rating(self, hack_id, item, event):
-        """Handle rating clicks"""
+        """Handle rating clicks - improved star detection"""
         hack_id_str = str(hack_id)
         hack_data = self._find_hack_data(hack_id_str)
         if not hack_data:
             return
         
-        # Get cell position and calculate star position
+        # Get cell position
         bbox = self.tree.bbox(item, "#5")
         if not bbox:
             return
@@ -283,27 +330,53 @@ class HackHistoryPage:
         cell_x = event.x - bbox[0]
         cell_width = bbox[2]
         
-        # Calculate which star was clicked
-        padding = cell_width * 0.1
-        star_area_width = cell_width - (padding * 2)
-        star_width = star_area_width / 5
-        adjusted_x = cell_x - padding
+        # IMPROVED: Use character-based calculation
+        # Each star character is roughly equal width in monospace display
+        # Divide cell into 5 equal click zones with small margins
+        margin = cell_width * 0.02  # Reduced margin to 2%
+        usable_width = cell_width - (margin * 2)
+        star_zone_width = usable_width / 5
+        adjusted_x = cell_x - margin
         
-        if adjusted_x < 0:
+        # Determine which star zone was clicked
+        # Based on actual click testing - adjusted zones to match visual star positions
+        relative_pos = cell_x / cell_width
+        
+        # Custom zones based on actual user clicks
+        if relative_pos <= 0.30:     # 0-30% = star 1 (your click at 24.8% was star 1)
             star_position = 1
-        elif adjusted_x > star_area_width:
+        elif relative_pos <= 0.45:   # 30-45% = star 2  
+            star_position = 2
+        elif relative_pos <= 0.60:   # 45-60% = star 3
+            star_position = 3
+        elif relative_pos <= 0.72:   # 60-72% = star 4
+            star_position = 4
+        else:                        # 72-100% = star 5 (your click at 74.3% was star 5)
             star_position = 5
-        else:
-            star_position = int(adjusted_x / star_width) + 1
-            star_position = max(1, min(5, star_position))
         
-        # Update rating
+        print(f"DEBUG: Rating click - cell_x={cell_x}, cell_width={cell_width}, relative_pos={relative_pos:.3f}, star_position={star_position}")
+        
+        # Update rating - if clicking same rating, set to 0 (clear rating)
         current_rating = hack_data.get("personal_rating", 0)
         new_rating = 0 if current_rating == star_position else star_position
         
         if self.data_manager.update_hack(hack_id_str, "personal_rating", new_rating):
             hack_data["personal_rating"] = new_rating
-            self._refresh_table()
+            
+            # IMPROVED: Use optimized tree update instead of full refresh
+            for tree_item in self.tree.get_children():
+                item_tags = self.tree.item(tree_item)["tags"]
+                if item_tags and str(item_tags[0]) == str(hack_id_str):
+                    # Get current values
+                    current_values = list(self.tree.item(tree_item)["values"])
+                    
+                    # Update rating display
+                    current_values[4] = self._get_rating_display(new_rating)
+                    
+                    # Update the tree item
+                    self.tree.item(tree_item, values=current_values)
+                    print(f"DEBUG: Updated rating for hack {hack_id_str} to {new_rating} stars")
+                    break
     
     def _find_hack_data(self, hack_id_str):
         """Find hack data by ID"""
