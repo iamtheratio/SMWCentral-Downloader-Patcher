@@ -102,6 +102,15 @@ def toggle_theme_callback(root):
     if hasattr(root, 'log_text'):
         update_log_colors(root.log_text)
     
+    # Update dashboard if it exists
+    if hasattr(root, 'navigation') and hasattr(root.navigation, 'page_manager'):
+        current_page = root.navigation.page_manager.get_current_page()
+        if current_page == "Dashboard":
+            # Refresh the dashboard to apply new theme
+            dashboard_page = getattr(root.navigation.page_manager.pages.get("Dashboard"), '_dashboard_instance', None)
+            if dashboard_page and hasattr(dashboard_page, '_refresh_dashboard'):
+                dashboard_page._refresh_dashboard()
+    
     # Single update at the very end
     root.update_idletasks()
 

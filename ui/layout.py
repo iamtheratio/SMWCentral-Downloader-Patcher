@@ -4,7 +4,7 @@ from .navigation import NavigationBar
 from .page_manager import PageManager
 from .theme_controls import ThemeControls
 from .version_display import VersionDisplay
-from .pages import BulkDownloadPage, HackHistoryPage
+from .pages import DashboardPage, BulkDownloadPage, HackHistoryPage
 
 class MainLayout:
     """Main UI layout manager - now simplified and modular"""
@@ -28,6 +28,7 @@ class MainLayout:
         self.version_display = None
         
         # Pages
+        self.dashboard_page = None
         self.bulk_download_page = None
         self.hack_history_page = None
     
@@ -56,16 +57,21 @@ class MainLayout:
         self.version_display = VersionDisplay(self.root, self.version)
         self.version_display.create()
         
-        # Show default page
-        self.navigation.show_page("Bulk Download")
+        # Show default page - CHANGED to Dashboard
+        self.navigation.show_page("Dashboard")
         
         # Force refresh navigation
-        self.root.after(100, lambda: self.navigation.show_page("Bulk Download"))
+        self.root.after(100, lambda: self.navigation.show_page("Dashboard"))
         
         return self.content_frame
     
     def _create_pages(self):
         """Create and register all pages"""
+        # Create dashboard page - NEW DEFAULT PAGE
+        self.dashboard_page = DashboardPage(self.content_frame, self.logger)
+        dashboard_frame = self.dashboard_page.create()
+        self.page_manager.add_page("Dashboard", dashboard_frame)
+        
         # Create bulk download page
         self.bulk_download_page = BulkDownloadPage(
             self.content_frame,

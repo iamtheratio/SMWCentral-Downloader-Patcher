@@ -16,7 +16,7 @@ class NavigationBar:
         self.theme_frame = None
         self.moon_label = None
         self.moon_image = None  # ADDED: Store image reference
-        self.current_page = "Bulk Download"
+        self.current_page = "Dashboard"
         
     def create(self):
         """Create the navigation bar"""
@@ -33,7 +33,7 @@ class NavigationBar:
         self.nav_bar.pack(fill="x", side="top", pady=0)
         
         # Add tabs - CENTERED VERTICALLY, NO UNDERLINES
-        tabs = ["Bulk Download", "Hack History"]
+        tabs = ["Dashboard", "Bulk Download", "Hack History"]
         tab_width = 140
         
         for i, tab in enumerate(tabs):

@@ -2,3 +2,4 @@ requests
 patch
 pywinstyles>=1.0.0
 sv-ttk
+pillow>=8.0.0
