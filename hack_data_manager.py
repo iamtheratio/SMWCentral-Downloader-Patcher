@@ -15,13 +15,18 @@ class HackDataManager:
         try:
             with open(self.json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                # Ensure all entries have the new fields
+                # Ensure all entries have the v3.0 and v3.1 fields
                 for hack_id, hack_data in data.items():
                     if isinstance(hack_data, dict):
+                        # v3.0 fields
                         hack_data.setdefault("completed", False)
                         hack_data.setdefault("completed_date", "")
                         hack_data.setdefault("personal_rating", 0)
                         hack_data.setdefault("notes", "")
+                        # v3.1 NEW fields
+                        hack_data.setdefault("time_to_beat", 0)
+                        hack_data.setdefault("exits", 0)
+                        hack_data.setdefault("authors", [])
                 return data
         except (FileNotFoundError, json.JSONDecodeError):
             return {}

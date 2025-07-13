@@ -20,6 +20,7 @@ class HackHistoryPage:
         self.filters = TableFilters(self._apply_filters)
         self.date_editor = HackHistoryInlineEditor(None, self.data_manager, self, logger)
         self.notes_editor = HackHistoryInlineEditor(None, self.data_manager, self, logger)
+        self.time_editor = HackHistoryInlineEditor(None, self.data_manager, self, logger)  # v3.1 NEW
         
         # Table and data
         self.tree = None
@@ -69,6 +70,7 @@ class HackHistoryPage:
         """Called when the page becomes hidden"""
         self.date_editor.cleanup()
         self.notes_editor.cleanup()
+        self.time_editor.cleanup()  # v3.1 NEW
     
     def _create_table(self):
         """Create the main data table"""
@@ -76,14 +78,14 @@ class HackHistoryPage:
         table_frame.pack(fill="both", expand=True)
         
         # Create treeview
-        columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "notes")
+        columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15)
         
         # Configure headers and columns
-        headers = ["✓", "Title", "Type", "Difficulty", "Rating", "Completed Date", "Notes"]
-        widths = [45, 220, 90, 100, 90, 110, 170]
-        min_widths = [35, 170, 70, 80, 70, 90, 120]
-        anchors = ["center", "w", "center", "center", "center", "center", "w"]
+        headers = ["✓", "Title", "Type", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
+        widths = [45, 220, 90, 100, 90, 110, 120, 150]
+        min_widths = [35, 170, 70, 80, 70, 90, 100, 120]
+        anchors = ["center", "w", "center", "center", "center", "center", "center", "w"]
         
         for i, (col, header, width, min_width, anchor) in enumerate(zip(columns, headers, widths, min_widths, anchors)):
             self.tree.heading(col, text=header)
@@ -105,6 +107,7 @@ class HackHistoryPage:
         # Configure editors with tree reference
         self.date_editor.tree = self.tree
         self.notes_editor.tree = self.tree
+        self.time_editor.tree = self.tree  # v3.1 NEW
         
         # Bind events
         self.tree.bind("<Button-1>", self._on_item_click)
@@ -155,6 +158,9 @@ class HackHistoryPage:
         if len(notes_display) > 30:
             notes_display = notes_display[:30] + "..."
         
+        # v3.1 NEW: Format time to beat display
+        time_to_beat_display = self._format_time_display(hack.get("time_to_beat", 0))
+        
         hack_id = hack.get("id")
         
         self.tree.insert("", "end", values=(
@@ -164,6 +170,7 @@ class HackHistoryPage:
             hack.get("difficulty", "Unknown"),
             rating_display,
             hack.get("completed_date", ""),
+            time_to_beat_display,  # v3.1 NEW
             notes_display
         ), tags=(hack_id,))
     
@@ -188,6 +195,10 @@ class HackHistoryPage:
         if self.notes_editor.entry:
             self.notes_editor.save()
         
+        # v3.1 NEW: Save time editor if active
+        if self.time_editor.entry:
+            self.time_editor.save()
+        
         # Identify clicked item and column
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
@@ -208,8 +219,10 @@ class HackHistoryPage:
             self._edit_rating(hack_id, item, event)
         elif column == "#6":  # Completed date
             self.date_editor.start_edit(hack_id, item, event, "completed_date", "#6", DateValidator.validate)
-        elif column == "#7":  # Notes
-            self.notes_editor.start_edit(hack_id, item, event, "notes", "#7", NotesValidator.validate)
+        elif column == "#7":  # Time to Beat (v3.1 NEW)
+            self.time_editor.start_edit(hack_id, item, event, "time_to_beat", "#7", self._validate_time_input)
+        elif column == "#8":  # Notes (was #7)
+            self.notes_editor.start_edit(hack_id, item, event, "notes", "#8", NotesValidator.validate)
     
     def _on_item_double_click(self, event):
         """Handle double click - show hack details"""
@@ -461,6 +474,76 @@ class HackHistoryPage:
             return "★★★★★"
         else:
             return "☆☆☆☆☆"
+    
+    def _format_time_display(self, seconds):
+        """Convert seconds to readable time format (HH:MM:SS or MM:SS)"""
+        if seconds == 0:
+            return ""  # Empty if not set
+        
+        hours = seconds // 3600
+        minutes = (seconds % 3600) // 60
+        secs = seconds % 60
+        
+        if hours > 0:
+            return f"{hours:02d}:{minutes:02d}:{secs:02d}"
+        else:
+            return f"{minutes:02d}:{secs:02d}"
+    
+    def _parse_time_input(self, time_str):
+        """Parse user time input and convert to seconds"""
+        if not time_str or time_str.strip() == "":
+            return 0
+        
+        time_str = time_str.strip()
+        
+        # Support flexible input formats
+        # HH:MM:SS, MM:SS, MM, "2h 30m", "90m", "150 minutes", etc.
+        
+        import re
+        
+        # Pattern for "2h 30m 15s" or "2h 30m" or "90m" etc. - must have letter suffix
+        pattern_units = re.match(r'(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s\s*)?$', time_str.lower())
+        if pattern_units and any(pattern_units.groups()) and re.search(r'[hms]', time_str.lower()):
+            hours = int(pattern_units.group(1) or 0)
+            minutes = int(pattern_units.group(2) or 0) 
+            seconds = int(pattern_units.group(3) or 0)
+            return hours * 3600 + minutes * 60 + seconds
+        
+        # Pattern for "150 minutes" or "90 mins"
+        pattern_minutes = re.match(r'(\d+)\s*(?:minutes?|mins?)$', time_str.lower())
+        if pattern_minutes:
+            return int(pattern_minutes.group(1)) * 60
+        
+        # Pattern for "HH:MM:SS" or "MM:SS"
+        if ':' in time_str:
+            parts = time_str.split(':')
+            try:
+                if len(parts) == 3:  # HH:MM:SS
+                    hours, minutes, seconds = map(int, parts)
+                    return hours * 3600 + minutes * 60 + seconds
+                elif len(parts) == 2:  # MM:SS
+                    minutes, seconds = map(int, parts)
+                    return minutes * 60 + seconds
+            except ValueError:
+                pass
+        
+        # Just a number - assume minutes
+        if time_str.isdigit():
+            return int(time_str) * 60
+        
+        raise ValueError(f"Invalid time format: {time_str}")
+    
+    def _validate_time_input(self, time_str, hack_id):
+        """Validate and convert time input to seconds for storage"""
+        try:
+            seconds = self._parse_time_input(time_str)
+            if seconds < 0:
+                raise ValueError("Time cannot be negative")
+            if seconds > 999 * 3600:  # 999 hours max
+                raise ValueError("Time cannot exceed 999 hours")
+            return seconds
+        except ValueError as e:
+            raise ValueError(f"Invalid time format: {e}")
     
     def _toggle_h_scrollbar(self, scrollbar):
         """Show/hide horizontal scrollbar based on content"""

@@ -1,4 +1,4 @@
-# SMWC Downloader & Patcher v3.0
+# SMWC Downloader & Patcher v3.1
 
 A comprehensive Python GUI tool that automates downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). Features built-in IPS/BPS patching, intelligent filtering, and a powerful hack history management system.
 
@@ -28,19 +28,20 @@ A comprehensive Python GUI tool that automates downloading, patching, and organi
 >
 > The application is open-source, and the code can be inspected on GitHub.
 
-## 🆕 v3.0 Migration Guide
+## 🆕 v3.1 Migration Guide
 
 ### For Existing Users
 
-If you've used a previous version, **v3.0 will automatically upgrade your database** when you first open the app. Here's what to expect:
+If you've used a previous version, **v3.1 will automatically upgrade your database** when you first open the app. Here's what to expect:
 
 #### Migration Process
 
 1. **Automatic Detection**: The app detects your old format and shows a migration dialog
-2. **Backup Creation**: Your existing data is backed up to `processed.json.pre-v3.0.backup`
+2. **Backup Creation**: Your existing data is backed up to `processed.json.pre-v3.1.backup`
 3. **API Enhancement**: Fetches real metadata from SMWC (Hall of Fame, SA-1, Collaboration, Demo status)
-4. **Progress Dialog**: Shows real-time progress with detailed logging
-5. **Privacy Cleanup**: Removes file paths from your data for privacy
+4. **New Features**: Adds Time to Beat tracking, Authors, and Exit count data
+5. **Progress Dialog**: Shows real-time progress with detailed logging
+6. **Privacy Cleanup**: Removes file paths from your data for privacy
 
 #### What Changes
 
@@ -84,7 +85,7 @@ If you've used a previous version, **v3.0 will automatically upgrade your databa
 #### If Migration Fails
 
 - Your original data is safely backed up
-- You can restore from `processed.json.pre-v3.0.backup`
+- You can restore from `processed.json.pre-v3.1.backup`
 - Contact support with error details
 
 ## ✨ Key Features
@@ -201,7 +202,7 @@ The app saves settings in `config.json`:
 - Clean Super Mario World ROM file
 - Internet connection for SMWC API
 
-## 🆕 What's New in v3.0
+## 🆕 What's New in v3.1
 
 ### 🎯 Major Features
 - **📚 Hack History Page**: Complete hack management system with tracking, ratings, notes, and advanced filtering
@@ -240,7 +241,7 @@ The app saves settings in `config.json`:
 
 **File Formats**: Supports .smc/.sfc ROMs and .ips/.bps patches with automatic header detection.
 
-**Database Migration**: v3.0 automatically detects older formats and upgrades them with real SMWC metadata. Process is fully automated and includes backup creation.
+**Database Migration**: v3.1 automatically detects older formats and upgrades them with enhanced metadata including Time to Beat tracking. Process is fully automated and includes backup creation.
 
 **Difficulty Ordering**: Logical progression from Newcomer → Casual → Skilled → Advanced → Expert → Master → Grandmaster.
 
@@ -258,7 +259,7 @@ python main.py
 <details>
 <summary>Click to expand version history</summary>
 
-### v3.0.0 - Hack History & Database Revolution
+### v3.1.0 - Enhanced Hack History & Time Tracking
 - **NEW: Hack History Page** - Complete hack management system
   - Interactive table with click-to-edit functionality
   - Personal ratings (1-5 stars), completion tracking, and notes

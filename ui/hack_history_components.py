@@ -59,11 +59,7 @@ class InlineEditor:
         
         # Focus the entry
         self.tree.after(50, self._focus_entry)
-        
-    def _find_hack_data(self, hack_id_str):
-        """Find hack data from filtered data - to be overridden by subclass"""
-        raise NotImplementedError("Subclass must implement _find_hack_data")
-        
+    
     def _focus_entry(self):
         """Focus and select all text in entry"""
         if self.entry:
@@ -76,7 +72,7 @@ class InlineEditor:
                 self.tree.update_idletasks()
             except tk.TclError:
                 pass
-                
+    
     def _check_outside_click(self, event):
         """Check if click is outside entry and save if needed"""
         if not self.entry:
@@ -92,7 +88,7 @@ class InlineEditor:
                 self.save()
         except tk.TclError:
             pass
-            
+    
     def save(self):
         """Save the edited value"""
         if not self.entry:
@@ -131,16 +127,10 @@ class InlineEditor:
         
     def cancel(self):
         """Cancel editing without saving"""
-        if self.binding_id:
-            try:
-                self.tree.winfo_toplevel().unbind("<Button-1>", self.binding_id)
-                self.binding_id = None
-            except:
-                pass
         self.cleanup()
-        
+    
     def cleanup(self):
-        """Clean up editing widgets and variables"""
+        """Clean up entry widget and bindings"""
         if self.binding_id:
             try:
                 self.tree.winfo_toplevel().unbind("<Button-1>", self.binding_id)
@@ -149,13 +139,10 @@ class InlineEditor:
                 pass
                 
         if self.entry:
-            try:
-                self.entry.destroy()
-            except tk.TclError:
-                pass
+            self.entry.destroy()
             self.entry = None
             
-        # Clear editing state
+        # Reset state
         self.editing_hack_id = None
         self.editing_item = None
         self.original_value = None
@@ -484,7 +471,98 @@ class HackHistoryInlineEditor(InlineEditor):
     def _find_hack_data(self, hack_id_str):
         """Find hack data from parent page"""
         return self.parent_page._find_hack_data(hack_id_str)
+    
+    def start_edit(self, hack_id, item, event, field_name, column, validator=None):
+        """Override start_edit to handle field-specific display formatting"""
+        # Clean up any existing edit
+        self.cleanup()
         
+        hack_id_str = str(hack_id)
+        
+        # Get the bounding box of the cell
+        bbox = self.tree.bbox(item, column)
+        if not bbox:
+            return
+            
+        # Store editing info
+        self.editing_hack_id = hack_id_str
+        self.editing_item = item
+        self.field_name = field_name
+        self.column = column
+        self.validator = validator
+        
+        # Get current value from data
+        hack_data = self._find_hack_data(hack_id_str)
+        if not hack_data:
+            return
+            
+        current_value = hack_data.get(field_name, "")
+        self.original_value = current_value
+        
+        # Format value for editing display (v3.1 NEW)
+        if field_name == "time_to_beat":
+            # Convert to int first, handling string values
+            try:
+                time_value = int(current_value) if current_value else 0
+            except (ValueError, TypeError):
+                time_value = 0
+            
+            if time_value > 0:
+                # Show time in user-friendly format for editing
+                if hasattr(self.parent_page, '_format_time_display'):
+                    display_value = self.parent_page._format_time_display(time_value)
+                else:
+                    display_value = str(time_value)
+            else:
+                display_value = ""
+        else:
+            display_value = str(current_value) if current_value else ""
+        
+        # Create entry widget
+        x, y, width, height = bbox
+        self.entry = ttk.Entry(self.tree, font=("Segoe UI", 10))
+        self.entry.place(x=x, y=y, width=width, height=height)
+        self.entry.insert(0, display_value)
+        
+        # Bind events
+        self.entry.bind("<Return>", lambda e: self.save())
+        self.entry.bind("<Escape>", lambda e: self.cancel())
+        
+        # Global click binding
+        self.binding_id = self.tree.winfo_toplevel().bind("<Button-1>", self._check_outside_click, add="+")
+        
+        # Focus the entry
+        self.tree.after(50, self._focus_entry)
+    
+    def _focus_entry(self):
+        """Focus and select all text in entry"""
+        if self.entry:
+            try:
+                self.entry.focus_force()
+                self.entry.select_range(0, tk.END)
+                self.tree.winfo_toplevel().focus_force()
+                self.entry.focus_force()
+                self.entry.icursor(tk.END)
+                self.tree.update_idletasks()
+            except tk.TclError:
+                pass
+    
+    def _check_outside_click(self, event):
+        """Check if click is outside entry and save if needed"""
+        if not self.entry:
+            return
+            
+        try:
+            x = self.entry.winfo_rootx()
+            y = self.entry.winfo_rooty()
+            w = self.entry.winfo_width()
+            h = self.entry.winfo_height()
+            
+            if event.x_root < x or event.x_root > x+w or event.y_root < y or event.y_root > y+h:
+                self.save()
+        except tk.TclError:
+            pass
+    
     def save(self):
         """Override save to refresh table after saving"""
         if not self.entry:
@@ -548,16 +626,23 @@ class HackHistoryInlineEditor(InlineEditor):
                         # Update completed checkbox based on whether we have a date and completed status
                         if hack_data:
                             current_values[0] = "✓" if hack_data.get("completed", False) else ""  # Column index 0 for completed
+                    elif self.field_name == "time_to_beat":  # v3.1 NEW
+                        # Format time for display (convert seconds back to readable format)
+                        if hasattr(self.parent_page, '_format_time_display'):
+                            display_time = self.parent_page._format_time_display(new_value)
+                        else:
+                            display_time = str(new_value) if new_value else ""
+                        current_values[6] = display_time  # Column index 6 for time_to_beat
                     elif self.field_name == "notes":
                         # Truncate notes for display
                         display_notes = new_value[:30] + "..." if len(new_value) > 30 else new_value
-                        current_values[6] = display_notes  # Column index 6 for notes
+                        current_values[7] = display_notes  # Column index 7 for notes (was 6)
                     
                     # Update the tree item
                     self.parent_page.tree.item(item, values=current_values)
                     
                     # User-friendly logging
-                    field_display = {"completed_date": "completion date", "notes": "notes"}.get(self.field_name, self.field_name)
+                    field_display = {"completed_date": "completion date", "notes": "notes", "time_to_beat": "time to beat"}.get(self.field_name, self.field_name)
                     if new_value:
                         self._log(f"📝 Updated {field_display} for '{hack_title}' (hack #{self.editing_hack_id})", "Information")
                     else:
@@ -567,7 +652,7 @@ class HackHistoryInlineEditor(InlineEditor):
         else:
             hack_data = self.parent_page._find_hack_data(self.editing_hack_id)
             hack_title = hack_data.get('title', 'Unknown') if hack_data else 'Unknown'
-            field_display = {"completed_date": "completion date", "notes": "notes"}.get(self.field_name, self.field_name)
+            field_display = {"completed_date": "completion date", "notes": "notes", "time_to_beat": "time to beat"}.get(self.field_name, self.field_name)
             self._log(f"❌ Failed to update {field_display} for '{hack_title}' (hack #{self.editing_hack_id}) - data manager returned false", "Error")
             
         self.cleanup()

@@ -76,7 +76,18 @@ def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
 def fetch_file_metadata(file_id, log=None):
     params = {"a": "getfile", "v": "2", "id": file_id}
     response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
-    return response.json()
+    
+    if response:
+        try:
+            # The API returns data directly, not nested under "data"
+            data = response.json()
+            # Wrap in "data" key for backward compatibility with existing code
+            return {"data": data}
+        except Exception as e:
+            if log:
+                log(f"Error parsing file metadata JSON: {e}", "Error")
+            return None
+    return None
 
 def extract_patches_from_zip(zip_path, extract_to, hack_name=""):
     """Extract zip and find patch files (IPS or BPS)"""
@@ -337,6 +348,37 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
             if log:
                 log(f"✅ Patched: {title_clean}")
 
+            # Check if hack exists and compare metadata for sync (v3.1 feature)
+            existing_hack = processed.get(hack_id, {})
+            metadata_changes = []
+            
+            # v3.1 NEW: Prepare new metadata from API
+            new_metadata = {
+                "hall_of_fame": bool(hack.get("raw_fields", {}).get("hof", 0)),
+                "sa1_compatibility": bool(hack.get("raw_fields", {}).get("sa1", 0)),
+                "collaboration": bool(hack.get("raw_fields", {}).get("collab", 0)),
+                "demo": bool(hack.get("raw_fields", {}).get("demo", 0)),
+                "exits": file_meta.get("length", 0) if file_meta else 0,  # v3.1 NEW
+                "authors": []  # v3.1 NEW - will be populated below
+            }
+            
+            # v3.1 NEW: Process authors array from API
+            if file_meta and "authors" in file_meta and isinstance(file_meta["authors"], list):
+                authors_list = []
+                for author in file_meta["authors"]:
+                    if isinstance(author, dict) and "name" in author:
+                        authors_list.append(author["name"])
+                new_metadata["authors"] = authors_list
+            
+            # v3.1 NEW: Check for metadata changes and log them
+            if existing_hack:
+                for key, new_value in new_metadata.items():
+                    old_value = existing_hack.get(key)
+                    if old_value != new_value:
+                        metadata_changes.append(f"{key}: {old_value} → {new_value}")
+                        if log:
+                            log(f"Updated: {title_clean} attribute {key} updated from {old_value} → {new_value}", "Information")
+            
             # Update processed data
             processed[hack_id] = {
                 "title": clean_hack_title(raw_title),  # CHANGED: Clean the title
@@ -344,17 +386,14 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 "folder_name": folder_name,
                 "file_path": output_path,
                 "hack_type": normalized_type,
-                # REMOVED: redundant "difficulty" field
-                # CHANGED: Use actual hack metadata from API response
-                "hall_of_fame": bool(hack.get("raw_fields", {}).get("hof", 0)),
-                "sa1_compatibility": bool(hack.get("raw_fields", {}).get("sa1", 0)),
-                "collaboration": bool(hack.get("raw_fields", {}).get("collab", 0)),
-                "demo": bool(hack.get("raw_fields", {}).get("demo", 0)),
-                # ADDED: History tracking fields
-                "completed": False,
-                "completed_date": "",
-                "personal_rating": 0,
-                "notes": ""
+                # CHANGED: Use actual hack metadata from API response with v3.1 fields
+                **new_metadata,  # v3.1 NEW: Include all new metadata
+                # ADDED: History tracking fields - preserve existing values
+                "completed": existing_hack.get("completed", False),
+                "completed_date": existing_hack.get("completed_date", ""),
+                "personal_rating": existing_hack.get("personal_rating", 0),
+                "notes": existing_hack.get("notes", ""),
+                "time_to_beat": existing_hack.get("time_to_beat", 0)  # v3.1 NEW: preserve existing time
             }
             save_processed(processed)
 
@@ -386,11 +425,16 @@ def save_hack_to_processed_json(hack_data, file_path, hack_type):
         "collaboration": bool(hack_data.get("collaboration", False)), 
         "demo": bool(hack_data.get("demo", False)),
         
+        # v3.1 NEW: Additional metadata fields
+        "exits": hack_data.get("length", 0),  # API length becomes exits
+        "authors": hack_data.get("authors", []),  # Authors array
+        
         # History tracking fields
         "completed": False,
         "completed_date": "",
         "personal_rating": 0,
-        "notes": ""
+        "notes": "",
+        "time_to_beat": 0  # v3.1 NEW: Time to beat in seconds
     }
     
     # Save to processed.json

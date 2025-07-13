@@ -11,14 +11,14 @@ from api_pipeline import fetch_file_metadata
 from utils import set_window_icon
 
 class MigrationManager:
-    """Handles migration from pre-v3.0 to v3.0 processed.json format"""
+    """Handles migration from pre-v3.1 to v3.1 processed.json format"""
     
     def __init__(self, json_path="processed.json"):
         self.json_path = json_path
-        self.backup_path = f"{json_path}.pre-v3.0.backup"
+        self.backup_path = f"{json_path}.pre-v3.1.backup"
         
     def needs_migration(self):
-        """Check if processed.json needs migration to v3.0 format"""
+        """Check if processed.json needs migration to v3.1 format"""
         if not os.path.exists(self.json_path):
             return False
             
@@ -26,7 +26,7 @@ class MigrationManager:
             with open(self.json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
             
-            # Check if any hack is missing v3.0 fields
+            # Check if any hack is missing v3.0 or v3.1 fields
             for hack_id, hack_data in data.items():
                 if isinstance(hack_data, dict):
                     # Check for very old format (only title, current_difficulty, type)
@@ -43,11 +43,22 @@ class MigrationManager:
                         if field not in hack_data:
                             missing_v3_fields += 1
                     
-                    # If missing most v3.0 fields, we need migration
+                    # If missing most v3.1 fields, we need migration
                     if missing_v3_fields >= 7:  # Missing most v3.0 fields
                         return True
+                    
+                    # Check for missing v3.1 fields (new structure and fields)
+                    v3_1_fields = ["time_to_beat", "exits", "authors"]
+                    missing_v3_1_fields = 0
+                    for field in v3_1_fields:
+                        if field not in hack_data:
+                            missing_v3_1_fields += 1
+                    
+                    # If missing any v3.1 fields, we need migration
+                    if missing_v3_1_fields > 0:
+                        return True
                         
-            return False  # All hacks have v3.0 format
+            return False  # All hacks have v3.1 format
             
         except (json.JSONDecodeError, Exception):
             return False  # Invalid file, let normal loading handle it
@@ -55,11 +66,14 @@ class MigrationManager:
     def show_migration_dialog(self, root):
         """Show migration dialog to user"""
         result = messagebox.askyesno(
-            "Database Upgrade Required - v3.0",
-            "SMWC Downloader & Patcher v3.0 includes a new Hack History feature with enhanced filtering and tracking capabilities.\n\n"
+            "Database Upgrade Required - v3.1",
+            "SMWC Downloader & Patcher v3.1 includes enhanced Hack History features:\n\n"
+            "🕒 Time to Beat tracking for completed hacks\n"
+            "🧠 Additional metadata (Authors, Exit count)\n"
+            "🔄 Improved metadata synchronization\n\n"
             "To enable these features, your hack database needs to be upgraded with additional information from the SMWC API.\n\n"
             "This is a ONE-TIME process that will:\n"
-            "• Preserve all your existing hack files\n"
+            "• Preserve all your existing hack files and data\n"
             "• Keep any completion status and notes you've added\n"
             "• Download missing metadata for better filtering\n"
             "• Create a backup of your current database\n\n"
@@ -98,7 +112,7 @@ class MigrationManager:
         progress_window.geometry(f"+{x}+{y}")
         
         # Progress widgets
-        ttk.Label(progress_window, text="Upgrading hack database to v3.0 format...", 
+        ttk.Label(progress_window, text="Upgrading hack database to v3.1 format...", 
                  font=("Segoe UI", 10, "bold")).pack(pady=20)
         
         progress_var = tk.StringVar(value="Preparing upgrade...")
@@ -143,9 +157,9 @@ class MigrationManager:
                     progress_window.destroy(),
                     messagebox.showinfo(
                         "Upgrade Complete!", 
-                        "Your hack database has been successfully upgraded to v3.0!\n\n"
-                        "You can now use the new Hack History tab to track, filter, and rate your hacks.\n\n"
-                        "A backup of your original database was saved as 'processed.json.pre-v3.0.backup'."
+                        "Your hack database has been successfully upgraded to v3.1!\n\n"
+                        "You can now use the enhanced Hack History features including Time to Beat tracking.\n\n"
+                        "A backup of your original database was saved as 'processed.json.pre-v3.1.backup'."
                     ),
                     callback() if callback else None
                 ])
@@ -226,7 +240,9 @@ class MigrationManager:
                         "hall_of_fame": bool(raw_fields.get("hof", 0)),
                         "sa1_compatibility": bool(raw_fields.get("sa1", 0)),
                         "collaboration": bool(raw_fields.get("collab", 0)),
-                        "demo": bool(raw_fields.get("demo", 0))
+                        "demo": bool(raw_fields.get("demo", 0)),
+                        # v3.1 NEW: Add basic info, detailed metadata will be fetched below
+                        "basic_fetched": True
                     }
                     total_fetched += 1
                     page_matches += 1
@@ -244,6 +260,52 @@ class MigrationManager:
             time.sleep(0.5)  # Small delay between pages
         
         add_log(f"🎯 Fetched metadata for {total_fetched} hacks from API")
+        
+        # v3.1 NEW: Fetch detailed file metadata for exits and authors
+        progress_var.set("Fetching detailed file metadata...")
+        add_log("📋 Fetching detailed file metadata for exits and authors...")
+        progress_window.update()
+        
+        from api_pipeline import fetch_file_metadata
+        detailed_fetched = 0
+        max_detailed_fetch = min(len(api_metadata), 20)  # Limit to 20 hacks for performance
+        
+        for i, hack_id in enumerate(list(api_metadata.keys())[:max_detailed_fetch]):
+            try:
+                progress_var.set(f"Fetching detailed metadata {i+1}/{max_detailed_fetch}...")
+                progress_window.update()
+                
+                file_meta = fetch_file_metadata(hack_id)
+                if file_meta and "data" in file_meta:
+                    file_data = file_meta["data"]
+                    
+                    # Add detailed metadata - get from correct API fields
+                    # Length/exits is in raw_fields.length
+                    raw_fields = file_data.get("raw_fields", {})
+                    api_metadata[hack_id]["length"] = raw_fields.get("length", 0)
+                    
+                    # Authors is directly in the response
+                    api_metadata[hack_id]["authors"] = file_data.get("authors", [])
+                    detailed_fetched += 1
+                    
+                    # Log progress for first few
+                    if detailed_fetched <= 5:
+                        title = file_data.get("name", hack_id)[:20]  # API uses "name" not "title"
+                        raw_fields = file_data.get("raw_fields", {})
+                        exits = raw_fields.get("length", 0)
+                        authors = file_data.get("authors", [])
+                        authors_count = len(authors)
+                        add_log(f"📄 {title}: {exits} exits, {authors_count} authors")
+                
+                # Small delay to respect rate limits
+                time.sleep(0.8)
+                
+            except Exception as e:
+                # Continue on error, use defaults
+                add_log(f"⚠️ Skipping detailed metadata for {hack_id}: {str(e)[:30]}")
+                continue
+        
+        add_log(f"✨ Enhanced {detailed_fetched}/{max_detailed_fetch} hacks with detailed metadata")
         
         # Now migrate each hack with API data
         progress_bar['maximum'] = total_hacks + 50  # Reset for hack migration
@@ -281,7 +343,7 @@ class MigrationManager:
         progress_window.update()
     
     def migrate_single_hack(self, hack_data, hack_id, progress_var=None, progress_window=None):
-        """Migrate a single hack entry to v3.0 format with API metadata lookup"""
+        """Migrate a single hack entry to v3.1 format with API metadata lookup"""
         
         # Handle very old format (only title, current_difficulty, type)
         if "type" in hack_data and len(hack_data) <= 3:
@@ -349,7 +411,7 @@ class MigrationManager:
                 hack_data[field] = False
     
     def migrate_single_hack_with_api_data(self, hack_data, hack_id, api_metadata):
-        """Migrate a single hack entry to v3.0 format using pre-fetched API metadata"""
+        """Migrate a single hack entry to v3.1 format using pre-fetched API metadata"""
         
         # Handle very old format (only title, current_difficulty, type)
         if "type" in hack_data:
@@ -374,7 +436,7 @@ class MigrationManager:
             # Remove old "type" field
             del hack_data["type"]
         
-        # Add missing v3.0 fields
+        # Add missing v3.1 fields
         hack_data.setdefault("hack_type", "standard")
         hack_data.setdefault("current_difficulty", hack_data.get("difficulty", "Unknown"))
         
@@ -384,17 +446,39 @@ class MigrationManager:
             hack_data.setdefault("sa1_compatibility", api_metadata.get("sa1_compatibility", False))
             hack_data.setdefault("collaboration", api_metadata.get("collaboration", False))
             hack_data.setdefault("demo", api_metadata.get("demo", False))
+            
+            # v3.1 NEW: Add exits field from API length
+            if "length" in api_metadata:
+                hack_data["exits"] = api_metadata["length"]
+            else:
+                hack_data.setdefault("exits", 0)
+            
+            # v3.1 NEW: Add authors field from API authors array
+            if "authors" in api_metadata and isinstance(api_metadata["authors"], list):
+                # Convert authors array from [{id: 46333, name: "Lush_50"}] to ["Lush_50"]
+                authors_list = []
+                for author in api_metadata["authors"]:
+                    if isinstance(author, dict) and "name" in author:
+                        authors_list.append(author["name"])
+                hack_data["authors"] = authors_list
+            else:
+                hack_data.setdefault("authors", [])
         else:
             # Fallback to defaults
             hack_data.setdefault("hall_of_fame", False)
             hack_data.setdefault("sa1_compatibility", False)
             hack_data.setdefault("collaboration", False)
             hack_data.setdefault("demo", False)
+            hack_data.setdefault("exits", 0)  # v3.1 NEW
+            hack_data.setdefault("authors", [])  # v3.1 NEW
         
         hack_data.setdefault("completed", False)
         hack_data.setdefault("completed_date", "")
         hack_data.setdefault("personal_rating", 0)
         hack_data.setdefault("notes", "")
+        
+        # v3.1 NEW: Add time_to_beat field (stored as total seconds, 0 = not set)
+        hack_data.setdefault("time_to_beat", 0)
         
         # Clean up old redundant fields
         if "difficulty" in hack_data and "current_difficulty" in hack_data:
@@ -405,7 +489,7 @@ class MigrationManager:
             del hack_data["file_path"]
 
     def migrate_single_hack_fast(self, hack_data, hack_id):
-        """Migrate a single hack entry to v3.0 format without API calls (fast mode)"""
+        """Migrate a single hack entry to v3.1 format without API calls (fast mode)"""
         
         # Handle very old format (only title, current_difficulty, type)
         if "type" in hack_data:
@@ -430,7 +514,7 @@ class MigrationManager:
             # Remove old "type" field
             del hack_data["type"]
         
-        # Add missing v3.0 fields with defaults (no API calls)
+        # Add missing v3.1 fields with defaults (no API calls)
         hack_data.setdefault("hack_type", "standard")
         hack_data.setdefault("current_difficulty", hack_data.get("difficulty", "Unknown"))
         hack_data.setdefault("hall_of_fame", False)
@@ -441,6 +525,11 @@ class MigrationManager:
         hack_data.setdefault("completed_date", "")
         hack_data.setdefault("personal_rating", 0)
         hack_data.setdefault("notes", "")
+        
+        # v3.1 NEW: Add new fields with defaults (no API calls in fast mode)
+        hack_data.setdefault("time_to_beat", 0)  # 0 = not set
+        hack_data.setdefault("exits", 0)  # 0 = unknown
+        hack_data.setdefault("authors", [])  # empty array = unknown
         
         # Clean up old redundant fields
         if "difficulty" in hack_data and "current_difficulty" in hack_data:
