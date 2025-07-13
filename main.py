@@ -106,10 +106,12 @@ def toggle_theme_callback(root):
     if hasattr(root, 'navigation') and hasattr(root.navigation, 'page_manager'):
         current_page = root.navigation.page_manager.get_current_page()
         if current_page == "Dashboard":
-            # Refresh the dashboard to apply new theme
-            dashboard_page = getattr(root.navigation.page_manager.pages.get("Dashboard"), '_dashboard_instance', None)
-            if dashboard_page and hasattr(dashboard_page, '_refresh_dashboard'):
-                dashboard_page._refresh_dashboard()
+            # Refresh the dashboard to apply new theme using the stored reference
+            if hasattr(root, 'dashboard_page') and hasattr(root.dashboard_page, '_refresh_dashboard'):
+                try:
+                    root.dashboard_page._refresh_dashboard()
+                except Exception as e:
+                    print(f"Error refreshing dashboard during theme toggle: {e}")
     
     # Single update at the very end
     root.update_idletasks()

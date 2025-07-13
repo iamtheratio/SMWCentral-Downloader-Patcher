@@ -53,7 +53,8 @@ def get_colors():
             "debug": "#0E8A50",
             "filter_info": "#888888",
             "applying": "#000000",
-            
+            "app_bg": "#f8f9fa",
+
             # UI element colors
             "api_delay": "#0078d4",
             "version_label": "#666666",
@@ -66,14 +67,14 @@ def get_colors():
             
             # Dashboard card colors
             "card_bg": "#f8f9fa",     # Light card background
-            "card_border": "#e9ecef", # Card border color
+            "card_border": "#f8f9fa", # Card border color
             "text": "#212529",       # Dark text
             "text_secondary": "#6c757d", # Secondary text
             "accent": "#0078d4",      # Accent color for values
             "success": "#198754",     # Success/completed color
             "warning": "#fd7e14",     # Warning color
             "info": "#0dcaf0",        # Info color
-            "chart_bg": "#ffffff",    # Chart background
+            "chart_bg": "#f8f9fa",    # Chart background
             "progress_bg": "#e9ecef", # Progress bar background
             "progress_fill": "#0078d4", # Progress bar fill
             

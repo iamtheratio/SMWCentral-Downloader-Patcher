@@ -72,6 +72,9 @@ class MainLayout:
         dashboard_frame = self.dashboard_page.create()
         self.page_manager.add_page("Dashboard", dashboard_frame)
         
+        # Store dashboard instance reference in root for theme toggling
+        self.root.dashboard_page = self.dashboard_page
+        
         # Create bulk download page
         self.bulk_download_page = BulkDownloadPage(
             self.content_frame,

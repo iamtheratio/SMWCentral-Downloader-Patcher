@@ -531,8 +531,8 @@ class DashboardPage:
             circle_frame,
             text="COMPLETION RATE",
             font=("Segoe UI", 14, "bold"),
-            fg=colors.get("text_primary"),
-            bg=circle_frame.cget("app_bg")
+            fg=colors.get("text"),
+            bg=colors.get("app_bg")
         )
         title_label.pack(anchor="w", pady=(0, 10))
         
@@ -610,12 +610,8 @@ class DashboardPage:
         completion_decimal = completion_rate / 100
         
         # Set canvas background to match theme
-        if sv_ttk.get_theme() == "dark":
-            canvas.configure(bg="#1c1c1c")
-            inner_fill = "#1c1c1c"
-        else:
-            canvas.configure(bg="white")
-            inner_fill = "white"
+        canvas.configure(bg=colors.get("chart_bg"))
+        inner_fill = colors.get("chart_bg")
         
         # Background circle
         canvas.create_oval(
@@ -770,6 +766,8 @@ class DashboardPage:
     
     def _create_news_item(self, news_item):
         """Create a single news item widget"""
+        colors = get_colors()
+        
         item_frame = ttk.Frame(self.news_container)
         item_frame.pack(fill="x", pady=5)
         
@@ -795,7 +793,7 @@ class DashboardPage:
                 item_frame,
                 text=f"📅 {news_item['date']}",
                 font=("Segoe UI", 8),
-                foreground="gray"
+                foreground=colors.get("text_secondary")
             )
             date_label.pack(anchor="w")
     
