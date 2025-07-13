@@ -104,20 +104,27 @@ class InlineEditor:
                 
         try:
             new_value = self.entry.get().strip()
+            print(f"[DEBUG] Raw input: '{new_value}'")
             
             # Apply validator if provided
             if self.validator:
+                print(f"[DEBUG] Applying validator: {self.validator}")
                 validated_value = self.validator(new_value)
+                print(f"[DEBUG] Validation result: {validated_value}")
                 if validated_value is None:  # Validation failed
+                    print(f"[DEBUG] Validation failed, aborting save")
                     self.cleanup()
                     return
                 new_value = validated_value
+                print(f"[DEBUG] Using validated value: {new_value}")
                 
         except tk.TclError:
+            print(f"[DEBUG] TclError occurred")
             self.cleanup()
             return
             
         # Save to data manager
+        print(f"[DEBUG] Saving to data manager: hack_id={self.editing_hack_id}, field={self.field_name}, value={new_value} (type: {type(new_value)})")
         if self.data_manager.update_hack(self.editing_hack_id, self.field_name, new_value):
             print(f"SUCCESS: {self.field_name} updated for hack {self.editing_hack_id}")
         else:

@@ -533,17 +533,30 @@ class HackHistoryPage:
         
         raise ValueError(f"Invalid time format: {time_str}")
     
-    def _validate_time_input(self, time_str, hack_id):
+    def _validate_time_input(self, time_str):
         """Validate and convert time input to seconds for storage"""
         try:
             seconds = self._parse_time_input(time_str)
             if seconds < 0:
-                raise ValueError("Time cannot be negative")
+                from tkinter import messagebox
+                messagebox.showerror("Invalid Time", "Time cannot be negative")
+                return None
             if seconds > 999 * 3600:  # 999 hours max
-                raise ValueError("Time cannot exceed 999 hours")
+                from tkinter import messagebox
+                messagebox.showerror("Invalid Time", "Time cannot exceed 999 hours")
+                return None
             return seconds
         except ValueError as e:
-            raise ValueError(f"Invalid time format: {e}")
+            from tkinter import messagebox
+            messagebox.showerror("Invalid Time", 
+                               f"Invalid time format.\n\n"
+                               f"Valid formats include:\n"
+                               f"• HH:MM:SS (e.g., 1:30:45)\n"
+                               f"• MM:SS (e.g., 90:30)\n"
+                               f"• 2h 30m (e.g., 1h 30m 15s)\n"
+                               f"• 90m or 90 minutes\n"
+                               f"• 90 (assumes minutes)")
+            return None
     
     def _toggle_h_scrollbar(self, scrollbar):
         """Show/hide horizontal scrollbar based on content"""
