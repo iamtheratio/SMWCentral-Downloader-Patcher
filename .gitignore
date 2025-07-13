@@ -20,6 +20,7 @@ PADDING_GUIDE.md
 *.code-workspace
 
 # Virtual Environment
+.venv/
 venv/
 env/
 ENV/
