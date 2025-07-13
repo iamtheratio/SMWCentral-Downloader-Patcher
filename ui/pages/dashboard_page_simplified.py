@@ -28,8 +28,7 @@ class DashboardPage:
     
     def _refresh_dashboard(self):
         """Refresh dashboard - compatibility method"""
-        if hasattr(self.modular_dashboard, '_refresh_dashboard'):
-            self.modular_dashboard._refresh_dashboard()
+        self.modular_dashboard._refresh_dashboard()
     
     def cleanup(self):
         """Cleanup when switching pages"""

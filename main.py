@@ -157,6 +157,19 @@ def main():
         
         # Add keyboard shortcut for clearing log
         root.bind("<Control-l>", lambda e: clear_log_shortcut(root))
+        
+        # Add cleanup handler for when app closes
+        def on_closing():
+            # Force save any pending changes in hack history
+            if hasattr(root, 'navigation') and hasattr(root.navigation, 'page_manager'):
+                pages = root.navigation.page_manager.pages
+                if 'Hack History' in pages:
+                    hack_history_page = pages['Hack History']
+                    if hasattr(hack_history_page, 'cleanup'):
+                        hack_history_page.cleanup()
+            root.destroy()
+        
+        root.protocol("WM_DELETE_WINDOW", on_closing)
     
     # Import and run migration check
     try:

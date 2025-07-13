@@ -13,6 +13,7 @@ processed.json
 processed.json.backup
 processed.json.pre-v*.backup*
 processed.json.*backup*
+PADDING_GUIDE.md
 
 # VS Code
 .vscode/

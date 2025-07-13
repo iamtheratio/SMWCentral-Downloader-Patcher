@@ -1,6 +1,13 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
+import sys
+import os
+
+# Add path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+from ui_constants import get_labelframe_padding
 
 class InlineEditor:
     """Generic inline editor for table cells"""
@@ -104,27 +111,20 @@ class InlineEditor:
                 
         try:
             new_value = self.entry.get().strip()
-            print(f"[DEBUG] Raw input: '{new_value}'")
             
             # Apply validator if provided
             if self.validator:
-                print(f"[DEBUG] Applying validator: {self.validator}")
                 validated_value = self.validator(new_value)
-                print(f"[DEBUG] Validation result: {validated_value}")
                 if validated_value is None:  # Validation failed
-                    print(f"[DEBUG] Validation failed, aborting save")
                     self.cleanup()
                     return
                 new_value = validated_value
-                print(f"[DEBUG] Using validated value: {new_value}")
                 
         except tk.TclError:
-            print(f"[DEBUG] TclError occurred")
             self.cleanup()
             return
             
         # Save to data manager
-        print(f"[DEBUG] Saving to data manager: hack_id={self.editing_hack_id}, field={self.field_name}, value={new_value} (type: {type(new_value)})")
         if self.data_manager.update_hack(self.editing_hack_id, self.field_name, new_value):
             print(f"SUCCESS: {self.field_name} updated for hack {self.editing_hack_id}")
         else:
@@ -217,7 +217,7 @@ class TableFilters:
         
     def create_filter_ui(self, parent, data_manager):
         """Create filter UI elements"""
-        filter_frame = ttk.LabelFrame(parent, text="Filters", padding=15)
+        filter_frame = ttk.LabelFrame(parent, text="Filters", padding=get_labelframe_padding())
         
         # Create main grid container
         grid_container = ttk.Frame(filter_frame)

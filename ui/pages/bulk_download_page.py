@@ -1,7 +1,14 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
+import sys
+import os
+
+# Add path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
 from utils import TYPE_KEYMAP
+from ui_constants import get_page_padding, get_section_padding
 
 class BulkDownloadPage:
     """Bulk download page implementation"""
@@ -21,7 +28,7 @@ class BulkDownloadPage:
     
     def create(self):
         """Create the bulk download page"""
-        self.frame = ttk.Frame(self.parent, padding=25)
+        self.frame = ttk.Frame(self.parent, padding=get_page_padding())
         
         # Configure styles
         style = ttk.Style()
@@ -33,13 +40,14 @@ class BulkDownloadPage:
                       padding=(20, 10))
 
         # Difficulty selection
+        _, section_padding_y = get_section_padding()
         self.difficulty_section.parent = self.frame
         difficulty_frame = self.difficulty_section.create(self.font)
-        difficulty_frame.pack(fill="x", pady=10)
+        difficulty_frame.pack(fill="x", pady=section_padding_y)
 
         # Setup & filters section
         row_frame = ttk.Frame(self.frame)
-        row_frame.pack(fill="both", expand=True, pady=10)
+        row_frame.pack(fill="both", expand=True, pady=section_padding_y)
 
         # Configure grid for row_frame
         row_frame.rowconfigure(0, weight=1)

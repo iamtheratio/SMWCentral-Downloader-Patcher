@@ -6,6 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from hack_data_manager import HackDataManager
 from ui.hack_history_components import InlineEditor, DateValidator, NotesValidator, TableFilters, HackHistoryInlineEditor
+from ui_constants import get_page_padding, get_section_padding
 
 class HackHistoryPage:
     """Simplified hack history page with extracted components"""
@@ -15,6 +16,15 @@ class HackHistoryPage:
         self.frame = None
         self.data_manager = HackDataManager()
         self.logger = logger  # Add logger support
+        
+        # v3.1 NEW: Pagination state
+        self.current_page = 1
+        self.page_size = 50  # Default page size
+        self.total_pages = 1
+        
+        # Sorting state
+        self.sort_column = None
+        self.sort_reverse = False
         
         # Initialize components - USE HackHistoryInlineEditor instead of InlineEditor
         self.filters = TableFilters(self._apply_filters)
@@ -34,11 +44,12 @@ class HackHistoryPage:
         
     def create(self):
         """Create the hack history page"""
-        self.frame = ttk.Frame(self.parent, padding=10)
+        self.frame = ttk.Frame(self.parent, padding=get_page_padding())
         
         # Create filter section
+        _, section_padding_y = get_section_padding()
         filter_frame = self.filters.create_filter_ui(self.frame, self.data_manager)
-        filter_frame.pack(fill="x", pady=(0, 10))
+        filter_frame.pack(fill="x", pady=(0, section_padding_y))
         
         # Connect refresh button
         # (This is a bit hacky but keeps the component simple)
@@ -49,6 +60,9 @@ class HackHistoryPage:
                         for grandchild in child.winfo_children():
                             if isinstance(grandchild, ttk.Button) and "Refresh" in grandchild.cget("text"):
                                 grandchild.configure(command=self._refresh_data_and_table)
+        
+        # v3.1 NEW: Create pagination controls
+        self._create_pagination_controls()
         
         # Create table section
         self._create_table()
@@ -72,6 +86,11 @@ class HackHistoryPage:
         self.notes_editor.cleanup()
         self.time_editor.cleanup()  # v3.1 NEW
     
+    def cleanup(self):
+        """Clean up resources and ensure data is saved"""
+        # Force save any pending changes
+        self.data_manager.force_save()
+    
     def _create_table(self):
         """Create the main data table"""
         table_frame = ttk.Frame(self.frame)
@@ -88,7 +107,7 @@ class HackHistoryPage:
         anchors = ["center", "w", "center", "center", "center", "center", "center", "w"]
         
         for i, (col, header, width, min_width, anchor) in enumerate(zip(columns, headers, widths, min_widths, anchors)):
-            self.tree.heading(col, text=header)
+            self.tree.heading(col, text=header, command=lambda c=col: self._sort_by_column(c))
             self.tree.column(col, width=width, minwidth=min_width, anchor=anchor)
         
         # Scrollbars
@@ -133,7 +152,7 @@ class HackHistoryPage:
             self._log(f"❌ Failed to refresh data: {str(e)}", "Error")
     
     def _refresh_table(self):
-        """Refresh table data"""
+        """Refresh table data with pagination and sorting"""
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -142,12 +161,38 @@ class HackHistoryPage:
         all_hacks = self.data_manager.get_all_hacks()
         self.filtered_data = self.filters.apply_filters(all_hacks)
         
-        # Populate table
-        for hack in self.filtered_data:
+        # Apply sorting
+        self._sort_filtered_data()
+        
+        # Calculate pagination
+        total_hacks = len(self.filtered_data)
+        self.total_pages = max(1, (total_hacks + self.page_size - 1) // self.page_size)
+        
+        # Ensure current page is valid
+        if self.current_page > self.total_pages:
+            self.current_page = self.total_pages
+            self.page_var.set(str(self.current_page))
+        
+        # Calculate page slice
+        start_index = (self.current_page - 1) * self.page_size
+        end_index = min(start_index + self.page_size, total_hacks)
+        page_data = self.filtered_data[start_index:end_index]
+        
+        # Populate table with page data
+        for hack in page_data:
             self._insert_hack_row(hack)
         
-        # Update status
-        self._update_status_label(len(all_hacks), len(self.filtered_data))
+        # Update status with pagination info
+        if total_hacks > self.page_size:
+            sort_info = f" (sorted by {self.sort_column})" if self.sort_column else ""
+            status_text = f"Showing {len(page_data)} of {total_hacks} hack(s) (Page {self.current_page} of {self.total_pages}){sort_info}"
+        else:
+            sort_info = f" (sorted by {self.sort_column})" if self.sort_column else ""
+            status_text = f"Displaying {total_hacks} hack(s){sort_info}"
+        self._update_status_label(len(all_hacks), total_hacks, status_text)
+        
+        # Update pagination controls
+        self._update_pagination_controls()
     
     def _insert_hack_row(self, hack):
         """Insert a single hack row into the table"""
@@ -174,12 +219,17 @@ class HackHistoryPage:
             notes_display
         ), tags=(hack_id,))
     
-    def _update_status_label(self, total_count, filtered_count):
+    def _update_status_label(self, total_count, filtered_count, custom_text=None):
         """Update the status label"""
-        completed_count = sum(1 for hack in self.filtered_data if hack.get("completed", False))
-        status_text = f"Showing {filtered_count} of {total_count} hacks"
-        if filtered_count > 0:
-            status_text += f" • {completed_count} completed"
+        if custom_text:
+            # Use custom text when provided (for pagination)
+            status_text = custom_text
+        else:
+            # Use default format
+            completed_count = sum(1 for hack in self.filtered_data if hack.get("completed", False))
+            status_text = f"Showing {filtered_count} of {total_count} hacks"
+            if filtered_count > 0:
+                status_text += f" • {completed_count} completed"
         self.status_label.config(text=status_text)
     
     def _apply_filters(self):
@@ -567,6 +617,192 @@ class HackHistoryPage:
             scrollbar.grid(row=1, column=0, sticky="ew")
         else:
             scrollbar.grid_remove()
+    
+    def _create_pagination_controls(self):
+        """Create pagination controls"""
+        pagination_frame = ttk.Frame(self.frame)
+        pagination_frame.pack(fill="x", pady=(0, 10))
+        
+        # Left side - Page size selector
+        left_frame = ttk.Frame(pagination_frame)
+        left_frame.pack(side="left")
+        
+        ttk.Label(left_frame, text="Show:").pack(side="left", padx=(0, 5))
+        
+        self.page_size_var = tk.StringVar(value="50")
+        page_size_combo = ttk.Combobox(left_frame, textvariable=self.page_size_var, 
+                                      values=["25", "50", "100", "200"], width=8, state="readonly")
+        page_size_combo.pack(side="left", padx=(0, 5))
+        page_size_combo.bind("<<ComboboxSelected>>", self._on_page_size_change)
+        
+        ttk.Label(left_frame, text="per page").pack(side="left")
+        
+        # Center - Page info
+        center_frame = ttk.Frame(pagination_frame)
+        center_frame.pack(side="left", expand=True)
+        
+        self.page_info_label = ttk.Label(center_frame, text="Page 1 of 1")
+        self.page_info_label.pack()
+        
+        # Right side - Navigation buttons
+        right_frame = ttk.Frame(pagination_frame)
+        right_frame.pack(side="right")
+        
+        self.first_btn = ttk.Button(right_frame, text="⏮", width=3, command=self._go_to_first_page)
+        self.first_btn.pack(side="left", padx=(0, 2))
+        
+        self.prev_btn = ttk.Button(right_frame, text="◀", width=3, command=self._go_to_prev_page)
+        self.prev_btn.pack(side="left", padx=(0, 2))
+        
+        # Page input
+        self.page_var = tk.StringVar(value="1")
+        self.page_entry = ttk.Entry(right_frame, textvariable=self.page_var, width=5, justify="center")
+        self.page_entry.pack(side="left", padx=(0, 2))
+        self.page_entry.bind("<Return>", self._on_page_entry_change)
+        self.page_entry.bind("<FocusOut>", self._on_page_entry_change)
+        
+        self.next_btn = ttk.Button(right_frame, text="▶", width=3, command=self._go_to_next_page)
+        self.next_btn.pack(side="left", padx=(0, 2))
+        
+        self.last_btn = ttk.Button(right_frame, text="⏭", width=3, command=self._go_to_last_page)
+        self.last_btn.pack(side="left")
+    
+    def _on_page_size_change(self, event=None):
+        """Handle page size change"""
+        try:
+            new_size = int(self.page_size_var.get())
+            if new_size != self.page_size:
+                self.page_size = new_size
+                self.current_page = 1  # Reset to first page
+                self._refresh_table()
+        except ValueError:
+            pass
+    
+    def _on_page_entry_change(self, event=None):
+        """Handle manual page entry"""
+        try:
+            new_page = int(self.page_var.get())
+            if 1 <= new_page <= self.total_pages and new_page != self.current_page:
+                self.current_page = new_page
+                self._refresh_table()
+            else:
+                # Reset to current page if invalid
+                self.page_var.set(str(self.current_page))
+        except ValueError:
+            self.page_var.set(str(self.current_page))
+    
+    def _go_to_first_page(self):
+        """Go to first page"""
+        if self.current_page != 1:
+            self.current_page = 1
+            self.page_var.set("1")
+            self._refresh_table()
+    
+    def _go_to_prev_page(self):
+        """Go to previous page"""
+        if self.current_page > 1:
+            self.current_page -= 1
+            self.page_var.set(str(self.current_page))
+            self._refresh_table()
+    
+    def _go_to_next_page(self):
+        """Go to next page"""
+        if self.current_page < self.total_pages:
+            self.current_page += 1
+            self.page_var.set(str(self.current_page))
+            self._refresh_table()
+    
+    def _go_to_last_page(self):
+        """Go to last page"""
+        if self.current_page != self.total_pages:
+            self.current_page = self.total_pages
+            self.page_var.set(str(self.total_pages))
+            self._refresh_table()
+    
+    def _update_pagination_controls(self):
+        """Update pagination control states"""
+        # Update page info
+        self.page_info_label.configure(text=f"Page {self.current_page} of {self.total_pages}")
+        
+        # Update button states
+        first_page = self.current_page == 1
+        last_page = self.current_page == self.total_pages
+        
+        self.first_btn.configure(state="disabled" if first_page else "normal")
+        self.prev_btn.configure(state="disabled" if first_page else "normal")
+        self.next_btn.configure(state="disabled" if last_page else "normal")
+        self.last_btn.configure(state="disabled" if last_page else "normal")
+    
+    def _sort_by_column(self, column):
+        """Sort the data by the specified column"""
+        # Toggle sort direction if clicking the same column
+        if self.sort_column == column:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column = column
+            self.sort_reverse = False
+        
+        # Update header to show sort direction
+        self._update_column_headers()
+        
+        # Apply sort and refresh table
+        self._refresh_table()
+    
+    def _update_column_headers(self):
+        """Update column headers to show sort indicators"""
+        headers = ["✓", "Title", "Type", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
+        columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
+        
+        for i, (col, base_header) in enumerate(zip(columns, headers)):
+            if col == self.sort_column:
+                # Add sort indicator
+                indicator = " ▼" if self.sort_reverse else " ▲"
+                header_text = base_header + indicator
+            else:
+                header_text = base_header
+            
+            self.tree.heading(col, text=header_text, command=lambda c=col: self._sort_by_column(c))
+    
+    def _sort_filtered_data(self):
+        """Sort the filtered data based on current sort settings"""
+        if not self.sort_column or not self.filtered_data:
+            return
+        
+        def get_sort_key(hack):
+            value = hack.get(self.sort_column, "")
+            
+            # Handle different data types for proper sorting
+            if self.sort_column == "completed":
+                # Sort completed status: completed items first, then uncompleted
+                return (not hack.get("completed", False), hack.get("title", "").lower())
+            elif self.sort_column in ["rating"]:
+                # Numeric sorting for rating
+                try:
+                    return float(value) if value else 0
+                except (ValueError, TypeError):
+                    return 0
+            elif self.sort_column == "completed_date":
+                # Date sorting - handle empty dates
+                if not value:
+                    return "0000-00-00"  # Empty dates sort first
+                return value
+            elif self.sort_column == "time_to_beat":
+                # Time sorting - convert to numeric for proper ordering
+                if not value:
+                    return 0
+                try:
+                    # If it's already numeric (seconds), use it
+                    if isinstance(value, (int, float)):
+                        return value
+                    # If it's a string, try to parse it
+                    return float(value)
+                except (ValueError, TypeError):
+                    return 0
+            else:
+                # String sorting (case-insensitive)
+                return str(value).lower()
+        
+        self.filtered_data.sort(key=get_sort_key, reverse=self.sort_reverse)
 
 
 

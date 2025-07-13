@@ -32,7 +32,7 @@ class NavigationBar:
         )
         self.nav_bar.pack(fill="x", side="top", pady=0)
         
-        # Add tabs - CENTERED VERTICALLY, NO UNDERLINES
+        # Add tabs - CENTERED VERTICALLY AND HORIZONTALLY
         tabs = ["Dashboard", "Bulk Download", "Hack History"]
         tab_width = 140
         
@@ -40,12 +40,12 @@ class NavigationBar:
             x_pos = 20 + (i * tab_width)
             
             tab_id = self.nav_bar.create_text(
-                x_pos + 10,
+                x_pos + (tab_width // 2),  # Center text horizontally within tab space
                 nav_height // 2,
                 text=tab,
                 font=("Segoe UI", 11, "bold" if tab == self.current_page else "normal"),
                 fill=colors["nav_text"],
-                anchor="w"
+                anchor="center"  # Center anchor for better alignment
             )
             
             self.tab_refs.append({

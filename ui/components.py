@@ -1,6 +1,13 @@
 import tkinter as tk
 from tkinter import ttk, filedialog
 from colors import get_colors
+import sys
+import os
+
+# Add path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+from ui_constants import get_labelframe_padding
 
 class SetupSection:
     """Setup section with path controls"""
@@ -20,7 +27,7 @@ class SetupSection:
     
     def create(self, font):
         """Create the setup section"""
-        self.frame = ttk.LabelFrame(self.parent, text="Setup", padding=15)
+        self.frame = ttk.LabelFrame(self.parent, text="Setup", padding=get_labelframe_padding())
         
         # Base ROM section
         ttk.Label(self.frame, text="Base ROM: *", font=font).grid(row=0, column=0, sticky="w", pady=(0, 5))
@@ -138,7 +145,7 @@ class FilterSection:
     
     def create(self, font, hack_types):
         """Create the filter section"""
-        self.frame = ttk.LabelFrame(self.parent, text="Filters", padding=15)
+        self.frame = ttk.LabelFrame(self.parent, text="Filters", padding=get_labelframe_padding())
         
         # Hack Type section - DROPDOWN WITH KAIZO DEFAULT
         ttk.Label(self.frame, text="Hack Type:", font=font).grid(row=0, column=0, sticky="w", pady=(0, 10))
@@ -212,7 +219,7 @@ class DifficultySection:
     
     def create(self, font):
         """Create the difficulty section - SINGLE ROW FORMAT"""
-        self.frame = ttk.LabelFrame(self.parent, text="Difficulty Selection", padding=15)
+        self.frame = ttk.LabelFrame(self.parent, text="Difficulty Selection", padding=get_labelframe_padding())
         
         # Difficulty checkboxes in single horizontal row
         diff_frame = ttk.Frame(self.frame)
