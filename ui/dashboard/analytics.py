@@ -96,11 +96,12 @@ class DashboardAnalytics:
                     self.analytics_data['completed_hacks'] += 1
                     
                     # Collect ratings
-                    rating = hack_data.get('rating')
+                    rating = hack_data.get('personal_rating')  # Changed from 'rating' to 'personal_rating'
                     if rating and rating != 'Not Rated':
                         try:
                             rating_val = int(rating)
-                            all_ratings.append(rating_val)
+                            if 1 <= rating_val <= 5:  # Only accept valid ratings 1-5
+                                all_ratings.append(rating_val)
                         except (ValueError, TypeError):
                             pass
                     
@@ -143,9 +144,9 @@ class DashboardAnalytics:
         
         for hack_id, hack_data in self.data_manager.data.items():
             difficulty = hack_data.get('current_difficulty', 'Unknown')
-            hack_type = hack_data.get('type', 'Unknown')
+            hack_type = hack_data.get('hack_type', 'Unknown')  # Changed from 'type' to 'hack_type'
             completed = hack_data.get('completed', False)
-            rating = hack_data.get('rating')
+            rating = hack_data.get('personal_rating')  # Changed from 'rating' to 'personal_rating'
             
             # Always count total, but only count completed if it passes the filter
             difficulty_stats[difficulty]['total'] += 1
@@ -159,7 +160,8 @@ class DashboardAnalytics:
                 if rating and rating != 'Not Rated':
                     try:
                         rating_val = int(rating)
-                        rating_counts[rating_val] += 1
+                        if 1 <= rating_val <= 5:  # Only accept valid ratings 1-5
+                            rating_counts[rating_val] += 1
                     except (ValueError, TypeError):
                         pass
         

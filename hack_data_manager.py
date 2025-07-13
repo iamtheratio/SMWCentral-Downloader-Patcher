@@ -77,7 +77,9 @@ class HackDataManager:
                     "completed": hack_data.get("completed", False),
                     "completed_date": hack_data.get("completed_date", ""),
                     "personal_rating": hack_data.get("personal_rating", 0),
-                    "notes": hack_data.get("notes", "")
+                    "notes": hack_data.get("notes", ""),
+                    "time_to_beat": hack_data.get("time_to_beat", 0),  # v3.1 NEW: Add time_to_beat field
+                    "exits": hack_data.get("exits", 0)  # v3.1 NEW: Add exits field for analytics
                 }
                 hacks.append(hack_info)
         return hacks

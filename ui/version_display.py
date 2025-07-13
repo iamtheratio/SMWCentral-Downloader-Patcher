@@ -33,3 +33,13 @@ class VersionDisplay:
         if self.version_label:
             colors = get_colors()
             self.version_label.configure(foreground=colors["version_label"])
+    
+    def hide(self):
+        """Hide the version label"""
+        if self.version_label:
+            self.version_label.place_forget()
+    
+    def show(self):
+        """Show the version label"""
+        if self.version_label:
+            self.version_label.place(relx=1.0, rely=1.0, anchor="se", x=-26, y=-10)

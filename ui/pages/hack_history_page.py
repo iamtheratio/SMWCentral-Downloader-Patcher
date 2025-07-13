@@ -8,6 +8,12 @@ from hack_data_manager import HackDataManager
 from ui.hack_history_components import InlineEditor, DateValidator, NotesValidator, TableFilters, HackHistoryInlineEditor
 from ui_constants import get_page_padding, get_section_padding
 
+# Import VERSION from main module
+try:
+    from main import VERSION
+except ImportError:
+    VERSION = "v3.1"  # Fallback if import fails
+
 class HackHistoryPage:
     """Simplified hack history page with extracted components"""
     
@@ -79,12 +85,24 @@ class HackHistoryPage:
             total_hacks = len(self.data_manager.get_all_hacks())
             completed_hacks = sum(1 for hack in self.data_manager.get_all_hacks() if hack.get("completed", False))
             self._log(f"📊 Hack History page loaded - {total_hacks} total hacks, {completed_hacks} completed", "Information")
+            
+            # Hide global version display since we have our own in the footer
+            # Access through the root window
+            root = self.frame.winfo_toplevel()
+            if hasattr(root, 'version_label') and root.version_label:
+                root.version_label.place_forget()
     
     def hide(self):
         """Called when the page becomes hidden"""
         self.date_editor.cleanup()
         self.notes_editor.cleanup()
         self.time_editor.cleanup()  # v3.1 NEW
+        
+        # Show global version display when leaving hack history page
+        # Access through the root window
+        root = self.frame.winfo_toplevel() if self.frame else None
+        if root and hasattr(root, 'version_label') and root.version_label:
+            root.version_label.place(relx=1.0, rely=1.0, anchor="se", x=-26, y=-10)
     
     def cleanup(self):
         """Clean up resources and ensure data is saved"""
@@ -134,9 +152,24 @@ class HackHistoryPage:
         self.tree.bind("<Motion>", self._on_mouse_motion)
         self.tree.bind("<Configure>", lambda e: self._toggle_h_scrollbar(h_scrollbar))
         
-        # Status label
-        self.status_label = ttk.Label(self.frame, text="", font=("Segoe UI", 9))
-        self.status_label.pack(pady=(5, 0))
+        # Combined footer frame with status (center) and version (right)
+        footer_frame = ttk.Frame(self.frame)
+        footer_frame.pack(fill="x", pady=(15, 0))
+        
+        # Status label - centered
+        self.status_label = ttk.Label(footer_frame, text="", font=("Segoe UI", 9))
+        self.status_label.pack(side="left", expand=True)
+        
+        # Version label - right aligned  
+        from colors import get_colors
+        colors = get_colors()
+        version_label = ttk.Label(
+            footer_frame, 
+            text=VERSION, 
+            font=("Segoe UI", 8, "italic"),
+            foreground=colors.get("version_label", "#888888")
+        )
+        version_label.pack(side="right", padx=(0, 10))
     
     def _refresh_data_and_table(self):
         """Refresh data from file and update table"""
@@ -526,18 +559,30 @@ class HackHistoryPage:
             return "☆☆☆☆☆"
     
     def _format_time_display(self, seconds):
-        """Convert seconds to readable time format (HH:MM:SS or MM:SS)"""
+        """Convert seconds to readable time format (Xd Xh Xm Xs)"""
         if seconds == 0:
             return ""  # Empty if not set
         
-        hours = seconds // 3600
-        minutes = (seconds % 3600) // 60
-        secs = seconds % 60
+        # Convert to days, hours, minutes, seconds
+        days = seconds // 86400  # 86400 seconds in a day
+        remaining = seconds % 86400
+        hours = remaining // 3600
+        remaining = remaining % 3600
+        minutes = remaining // 60
+        secs = remaining % 60
         
+        # Build the display string
+        parts = []
+        if days > 0:
+            parts.append(f"{days}d")
         if hours > 0:
-            return f"{hours:02d}:{minutes:02d}:{secs:02d}"
-        else:
-            return f"{minutes:02d}:{secs:02d}"
+            parts.append(f"{hours}h")
+        if minutes > 0:
+            parts.append(f"{minutes}m")
+        if secs > 0 or not parts:  # Always show seconds if no other parts, or if seconds > 0
+            parts.append(f"{secs}s")
+        
+        return " ".join(parts)
     
     def _parse_time_input(self, time_str):
         """Parse user time input and convert to seconds"""
@@ -776,9 +821,10 @@ class HackHistoryPage:
                 # Sort completed status: completed items first, then uncompleted
                 return (not hack.get("completed", False), hack.get("title", "").lower())
             elif self.sort_column in ["rating"]:
-                # Numeric sorting for rating
+                # Numeric sorting for rating - use actual numeric value from data, not display value
+                rating = hack.get("personal_rating", 0)
                 try:
-                    return float(value) if value else 0
+                    return float(rating) if rating else 0
                 except (ValueError, TypeError):
                     return 0
             elif self.sort_column == "completed_date":

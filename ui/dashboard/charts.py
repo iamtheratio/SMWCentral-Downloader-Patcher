@@ -25,39 +25,27 @@ class DashboardCharts:
         charts_frame = ttk.LabelFrame(self.parent, text="Detailed Analytics", padding=get_labelframe_padding())
         charts_frame.pack(fill="x", padx=content_padding_x, pady=(SECTION_PADDING_Y, 15))
         
-        # Two column layout
+        # Two column layout - only showing Type and Difficulty charts
         charts_container = ttk.Frame(charts_frame)
         charts_container.pack(fill="x", expand=True)
         
         charts_container.columnconfigure(0, weight=1)
         charts_container.columnconfigure(1, weight=1)
         
-        # Column frames
-        col1_frame = ttk.Frame(charts_container)
-        col1_frame.grid(row=0, column=0, sticky="nsew", padx=(0, 5))
+        # Configure frame for charts
+        charts_container.rowconfigure(0, weight=1)
         
-        col2_frame = ttk.Frame(charts_container)
-        col2_frame.grid(row=0, column=1, sticky="nsew", padx=(5, 0))
-        
-        # Configure row weights
-        col1_frame.rowconfigure(0, weight=1)
-        col1_frame.rowconfigure(1, weight=1)
-        col2_frame.rowconfigure(0, weight=1)
-        col2_frame.rowconfigure(1, weight=1)
-        
-        # Create charts
-        self._create_type_chart(col1_frame, 0, 0)
-        self._create_difficulty_chart(col1_frame, 1, 0)
-        self._create_special_chart(col2_frame, 0, 0)
-        self._create_rating_chart(col2_frame, 1, 0)
+        # Create only Type and Difficulty charts (removed Special and Rating as requested)
+        self._create_type_chart(charts_container, 0, 0)
+        self._create_difficulty_chart(charts_container, 0, 1)
         
         return charts_frame
     
     def _create_type_chart(self, parent, row, col):
         """Create completion by type chart"""
         colors = get_colors()
-        chart_frame = ttk.LabelFrame(parent, text="🎮 Completion by Type", padding=8)
-        chart_frame.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
+        chart_frame = ttk.LabelFrame(parent, text="🎮 Completion by Type", padding=get_labelframe_padding())
+        chart_frame.grid(row=row, column=col, padx=(0, 5), pady=2, sticky="nsew")
         
         parent.rowconfigure(row, weight=1)
         parent.columnconfigure(col, weight=1)
@@ -68,15 +56,17 @@ class DashboardCharts:
             ttk.Label(chart_frame, text="No data available").pack()
             return
         
+        # Capitalize hack type names for display
         for hack_type, data in sorted(completion_data.items()):
             if data['total'] > 0:
-                self._create_progress_bar(chart_frame, hack_type.title(), data, colors)
+                display_name = hack_type.title() if hack_type != 'kaizo' else 'Kaizo'
+                self._create_progress_bar(chart_frame, display_name, data, colors)
     
     def _create_difficulty_chart(self, parent, row, col):
         """Create completion by difficulty chart"""
         colors = get_colors()
-        chart_frame = ttk.LabelFrame(parent, text="📊 Completion by Difficulty", padding=8)
-        chart_frame.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
+        chart_frame = ttk.LabelFrame(parent, text="📊 Completion by Difficulty", padding=get_labelframe_padding())
+        chart_frame.grid(row=row, column=col, padx=(5, 0), pady=2, sticky="nsew")
         
         parent.rowconfigure(row, weight=1)
         parent.columnconfigure(col, weight=1)
@@ -87,9 +77,12 @@ class DashboardCharts:
             ttk.Label(chart_frame, text="No data available").pack()
             return
         
-        # Sort by difficulty order
-        difficulty_order = ['Easy', 'Normal', 'Hard', 'Very Hard', 'Expert', 'Kaizo Light', 'Kaizo', 'Grandmaster']
+        # Sort by difficulty order (easiest to hardest)
+        difficulty_order = ['Newcomer', 'Casual', 'Skilled', 'Advanced', 'Expert', 'Master', 'Grandmaster']
         sorted_difficulties = [d for d in difficulty_order if d in completion_data]
+        # Add any remaining difficulties not in the standard order
+        remaining = [d for d in completion_data.keys() if d not in difficulty_order]
+        sorted_difficulties.extend(remaining)
         
         for difficulty in sorted_difficulties:
             data = completion_data[difficulty]
@@ -97,41 +90,14 @@ class DashboardCharts:
                 self._create_progress_bar(chart_frame, difficulty, data, colors)
     
     def _create_special_chart(self, parent, row, col):
-        """Create special completions chart"""
-        colors = get_colors()
-        chart_frame = ttk.LabelFrame(parent, text="🏆 Special Completions", padding=8)
-        chart_frame.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
-        
-        parent.rowconfigure(row, weight=1)
-        parent.columnconfigure(col, weight=1)
-        
-        # Simple placeholder for special categories
-        special_categories = ['Hall of Fame: 0', 'SA-1: 0', 'Collaboration: 0', 'Demo: 0']
-        
-        for category in special_categories:
-            label = tk.Label(
-                chart_frame,
-                text=category,
-                font=("Segoe UI", 10),
-                fg=colors.get("text"),
-                anchor="w"
-            )
-            label.pack(fill="x", pady=3)
+        """Create special completions chart - Removing as requested"""
+        # User requested to remove this widget as it's not working accurately
+        return
     
     def _create_rating_chart(self, parent, row, col):
-        """Create rating distribution chart"""
-        colors = get_colors()
-        chart_frame = ttk.LabelFrame(parent, text="⭐ Rating Distribution", padding=8)
-        chart_frame.grid(row=row, column=col, padx=2, pady=2, sticky="nsew")
-        
-        parent.rowconfigure(row, weight=1)
-        parent.columnconfigure(col, weight=1)
-        
-        rating_data = self.analytics_data.get('rating_distribution', {})
-        
-        if not rating_data:
-            ttk.Label(chart_frame, text="No ratings given yet").pack()
-            return
+        """Create rating distribution chart - Removing as requested"""
+        # User requested to remove this widget as it's not working accurately
+        return
         
         total_ratings = sum(rating_data.values())
         

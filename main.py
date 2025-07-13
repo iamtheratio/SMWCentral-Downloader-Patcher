@@ -127,7 +127,7 @@ def clear_log_shortcut(root):
 def main():
     root = tk.Tk()
     root.title("SMWC Downloader & Patcher")
-    root.geometry("1000x900")
+    root.geometry("1050x900")
     
     # Set application icon
     try:

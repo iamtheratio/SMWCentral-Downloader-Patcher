@@ -116,8 +116,10 @@ class DashboardPage:
     
     def _create_dashboard_content(self):
         """Create all dashboard content sections"""
-        # Initialize component classes with dashboard reference
+        # Initialize component classes with dashboard reference and current filter
         metrics = DashboardMetrics(self.scrollable_frame, self.analytics_data, self)
+        # Set the current filter on the metrics instance
+        metrics.current_filter = self.date_filter
         charts = DashboardCharts(self.scrollable_frame, self.analytics_data)
         
         # Create sections with proper spacing

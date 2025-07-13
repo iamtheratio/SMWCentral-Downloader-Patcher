@@ -18,6 +18,8 @@ class DashboardMetrics:
         self.parent = parent
         self.analytics_data = analytics_data
         self.dashboard_ref = dashboard_ref  # Reference to main dashboard for refresh/filter
+        self.filter_buttons = {}  # Track filter buttons for highlighting
+        self.current_filter = "all_time"  # Track current filter
         
     def create_filter_section(self):
         """Create time period filter controls"""
@@ -50,8 +52,14 @@ class DashboardMetrics:
             )
             btn.pack(side="left", padx=2)
             
-            if value == "all_time":
+            # Store button reference for highlighting
+            self.filter_buttons[value] = btn
+            
+            # Set highlight based on current filter (not just "all_time")
+            if value == self.current_filter:
                 btn.configure(style="Accent.TButton")
+            else:
+                btn.configure(style="TButton")
         
         refresh_btn = ttk.Button(
             main_container,
@@ -266,7 +274,16 @@ class DashboardMetrics:
         )
     
     def _apply_filter(self, filter_value):
-        """Apply date filter"""
+        """Apply date filter and update button highlighting"""
+        # Update button highlighting
+        for btn_value, btn in self.filter_buttons.items():
+            if btn_value == filter_value:
+                btn.configure(style="Accent.TButton")
+            else:
+                btn.configure(style="TButton")
+        
+        self.current_filter = filter_value
+        
         if self.dashboard_ref and hasattr(self.dashboard_ref, '_apply_date_filter'):
             self.dashboard_ref._apply_date_filter(filter_value)
     
