@@ -42,13 +42,15 @@ class DashboardAnalytics:
             'perfectionist_score': 0,
             'longest_streak': 0,
             'current_streak': 0,
-            'completion_streak': 0
+            'completion_streak': 0,
+            'time_progression': {}  # NEW: Time progression data for charts
         }
         
         self._calculate_basic_stats()
         self._calculate_completion_data()
         self._calculate_time_metrics()
         self._calculate_streaks()
+        self._calculate_time_progression()  # NEW: Calculate time progression data
         
         return self.analytics_data
     
@@ -283,3 +285,78 @@ class DashboardAnalytics:
         self.analytics_data['longest_streak'] = longest_streak
         self.analytics_data['current_streak'] = streak_from_today
         self.analytics_data['completion_streak'] = streak_from_today if streak_from_today > 0 else longest_streak
+
+    def _calculate_time_progression(self):
+        """Calculate average completion time by difficulty per month for the last 6 months"""
+        from collections import defaultdict
+        import calendar
+        
+        # Calculate rolling 6 months from current date
+        now = datetime.now()
+        six_months_ago = now - timedelta(days=180)  # Approximate 6 months
+        
+        # Group completions by month and difficulty/type
+        monthly_data = defaultdict(lambda: defaultdict(list))  # month -> difficulty -> [times]
+        
+        for hack_id, hack_data in self.data_manager.data.items():
+            if not hack_data.get('completed', False):
+                continue
+                
+            completed_date = hack_data.get('completed_date')
+            if not completed_date:
+                continue
+                
+            try:
+                date_obj = datetime.strptime(completed_date, '%Y-%m-%d')
+                if date_obj < six_months_ago:
+                    continue
+                    
+                # Get month key (YYYY-MM format)
+                month_key = date_obj.strftime('%Y-%m')
+                
+                difficulty = hack_data.get('current_difficulty', 'Unknown')
+                hack_type = hack_data.get('hack_type', 'standard')
+                time_to_beat = hack_data.get('time_to_beat', 0)
+                
+                if time_to_beat > 0:
+                    # Convert to hours
+                    time_hours = time_to_beat / 3600
+                    monthly_data[month_key][difficulty].append({
+                        'time': time_hours,
+                        'type': hack_type
+                    })
+                    
+            except ValueError:
+                continue
+        
+        # Generate all months in the 6-month range
+        progression_data = {}
+        current_date = six_months_ago.replace(day=1)  # Start of month
+        
+        while current_date <= now:
+            month_key = current_date.strftime('%Y-%m')
+            month_name = current_date.strftime('%b %Y')  # e.g., "Jan 2025"
+            
+            progression_data[month_key] = {
+                'month_name': month_name,
+                'difficulties': {}
+            }
+            
+            # Calculate average time per difficulty for this month
+            if month_key in monthly_data:
+                for difficulty, completions in monthly_data[month_key].items():
+                    if completions:
+                        avg_time = sum(c['time'] for c in completions) / len(completions)
+                        progression_data[month_key]['difficulties'][difficulty] = {
+                            'avg_time': avg_time,
+                            'count': len(completions),
+                            'types': list(set(c['type'] for c in completions))
+                        }
+            
+            # Move to next month
+            if current_date.month == 12:
+                current_date = current_date.replace(year=current_date.year + 1, month=1)
+            else:
+                current_date = current_date.replace(month=current_date.month + 1)
+        
+        self.analytics_data['time_progression'] = progression_data

@@ -46,6 +46,9 @@ class DashboardPage:
         self._load_analytics_data()
         self._create_dashboard_content()
         
+        # Ensure we start at the top after everything is loaded
+        self.frame.after(100, lambda: self.canvas.yview_moveto(0))
+        
         return self.frame
     
     def _create_scrollable_container(self):
@@ -57,14 +60,19 @@ class DashboardPage:
         # Create scrollable frame
         self.scrollable_frame = ttk.Frame(self.canvas)
         
-        # Configure scrolling
-        def configure_scrollable_frame(event):
-            # Update scroll region and ensure proper bounds
+        # Configure scrolling - simplified and working
+        def on_frame_configure(event):
+            # Update scroll region when frame contents change
             self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-            # Prevent scrolling above content
-            self.canvas.yview_moveto(0)
         
-        self.scrollable_frame.bind("<Configure>", configure_scrollable_frame)
+        def on_canvas_configure(event):
+            # Update the scrollable frame width to match canvas width
+            canvas_width = event.width
+            self.canvas.itemconfig(self.canvas_window, width=canvas_width)
+        
+        # Bind events
+        self.scrollable_frame.bind("<Configure>", on_frame_configure)
+        self.canvas.bind("<Configure>", on_canvas_configure)
         
         # Create window in canvas
         self.canvas_window = self.canvas.create_window((0, 0), window=self.scrollable_frame, anchor="nw")
@@ -72,40 +80,34 @@ class DashboardPage:
         # Configure canvas scrolling
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
-        # Bind canvas width to scrollable frame width
-        def configure_canvas_width(event):
-            canvas_width = event.width
-            self.canvas.itemconfig(self.canvas_window, width=canvas_width)
-            # Also update scroll region when canvas resizes
-            self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        
-        self.canvas.bind('<Configure>', configure_canvas_width)
-        
-        # Mouse wheel scrolling with bounds checking
+        # Mouse wheel scrolling - robust recursive approach
         def _on_mousewheel(event):
-            # Check if we can scroll in the requested direction
-            if event.delta > 0:  # Scrolling up
-                # Don't allow scrolling above the top
-                if self.canvas.canvasy(0) <= 0:
-                    return
             self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         
-        def bind_mousewheel(event):
-            self.canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        def bind_to_mousewheel(widget):
+            """Recursively bind mouse wheel to widget and all its children"""
+            widget.bind("<MouseWheel>", _on_mousewheel)
+            for child in widget.winfo_children():
+                bind_to_mousewheel(child)
         
-        def unbind_mousewheel(event):
-            self.canvas.unbind_all("<MouseWheel>")
+        def bind_mousewheel_recursive():
+            """Bind mouse wheel to all widgets in the scrollable frame"""
+            self.canvas.bind("<MouseWheel>", _on_mousewheel)
+            self.frame.bind("<MouseWheel>", _on_mousewheel)
+            bind_to_mousewheel(self.scrollable_frame)
         
-        self.canvas.bind('<Enter>', bind_mousewheel)
-        self.canvas.bind('<Leave>', unbind_mousewheel)
+        # Bind initially
+        bind_mousewheel_recursive()
+        
+        # Store the function to re-bind after content updates
+        self._bind_mousewheel_recursive = bind_mousewheel_recursive
         
         # Pack canvas and scrollbar
         self.canvas.pack(side="left", fill="both", expand=True)
         self.scrollbar.pack(side="right", fill="y")
         
-        # Initialize scroll position to top
-        self.canvas.update_idletasks()
-        self.canvas.yview_moveto(0)
+        # Focus the frame so it can receive mouse wheel events
+        self.frame.focus_set()
     
     def _load_analytics_data(self):
         """Load analytics data using the analytics module"""
@@ -134,7 +136,10 @@ class DashboardPage:
         # Ensure scroll region is properly set after content creation
         self.scrollable_frame.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        self.canvas.yview_moveto(0)  # Ensure we start at the top
+        
+        # Re-bind mouse wheel to all new content
+        if hasattr(self, '_bind_mousewheel_recursive'):
+            self._bind_mousewheel_recursive()
     
     def _refresh_dashboard(self):
         """Refresh dashboard data and UI"""
@@ -152,10 +157,14 @@ class DashboardPage:
         
         self._create_dashboard_content()
         
-        # Reset scroll position to top and update scroll region
-        self.canvas.update_idletasks()
+        # Update scroll region and reset position
+        self.scrollable_frame.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         self.canvas.yview_moveto(0)
+        
+        # Re-bind mouse wheel to all new content
+        if hasattr(self, '_bind_mousewheel_recursive'):
+            self._bind_mousewheel_recursive()
         
         if self.logger:
             self.logger.log("Dashboard refreshed successfully!", level="info")
@@ -167,8 +176,21 @@ class DashboardPage:
     
     def cleanup(self):
         """Cleanup method for when switching pages"""
+        # Unbind mouse wheel from all widgets
+        def unbind_recursive(widget):
+            try:
+                widget.unbind("<MouseWheel>")
+                for child in widget.winfo_children():
+                    unbind_recursive(child)
+            except tk.TclError:
+                pass
+        
+        if self.frame:
+            unbind_recursive(self.frame)
         if self.canvas:
-            self.canvas.unbind_all("<MouseWheel>")
+            self.canvas.unbind("<MouseWheel>")
+        if self.scrollable_frame:
+            unbind_recursive(self.scrollable_frame)
 
 # Create a simple scrollable frame for testing
 def create_scrollable_frame(parent):
@@ -199,10 +221,10 @@ def create_scrollable_frame(parent):
         canvas.yview_scroll(int(-1*(event.delta/120)), "units")
     
     def bind_mousewheel(event):
-        canvas.bind_all("<MouseWheel>", _on_mousewheel)
+        canvas.bind("<MouseWheel>", _on_mousewheel)
     
     def unbind_mousewheel(event):
-        canvas.unbind_all("<MouseWheel>")
+        canvas.unbind("<MouseWheel>")
     
     canvas.bind('<Enter>', bind_mousewheel)
     canvas.bind('<Leave>', unbind_mousewheel)

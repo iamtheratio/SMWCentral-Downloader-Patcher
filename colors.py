@@ -42,6 +42,15 @@ def get_colors():
             "tooltip_bg": "#3c3c3c",  # Dark gray background
             "tooltip_fg": "#e0e0e0",  # Light gray text
             "tooltip_border": "#555555",  # Medium gray border
+            
+            # Difficulty line chart colors - NEW
+            "diff_newcomer": "#4FC3F7",     # Light Blue
+            "diff_casual": "#66BB6A",       # Light Green  
+            "diff_skilled": "#FFD54F",      # Light Yellow
+            "diff_advanced": "#FF8A65",     # Light Orange
+            "diff_expert": "#F06292",       # Light Pink
+            "diff_master": "#BA68C8",       # Light Purple
+            "diff_grandmaster": "#FF5252",  # Light Red
         }
     else:
         return {
@@ -82,4 +91,13 @@ def get_colors():
             "tooltip_bg": "#ffffe0",  # Light yellow background
             "tooltip_fg": "#000000",  # Black text
             "tooltip_border": "#888888",  # Gray border
+            
+            # Difficulty line chart colors - NEW
+            "diff_newcomer": "#1976D2",     # Blue
+            "diff_casual": "#388E3C",       # Green  
+            "diff_skilled": "#F57C00",      # Orange
+            "diff_advanced": "#E64A19",     # Deep Orange
+            "diff_expert": "#C2185B",       # Pink
+            "diff_master": "#7B1FA2",       # Purple
+            "diff_grandmaster": "#D32F2F",  # Red
         }

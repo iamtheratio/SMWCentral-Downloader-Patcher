@@ -19,27 +19,17 @@ class DashboardCharts:
         self.analytics_data = analytics_data
     
     def create_charts_section(self):
-        """Create the main charts section"""
+        """Create the main charts section with time progression chart"""
         content_padding_x, _ = get_dashboard_content_padding()
         
-        charts_frame = ttk.LabelFrame(self.parent, text="Detailed Analytics", padding=get_labelframe_padding())
-        charts_frame.pack(fill="x", padx=content_padding_x, pady=(SECTION_PADDING_Y, 15))
+        # Single column layout for the larger time progression chart
+        charts_container = ttk.Frame(self.parent)
+        charts_container.pack(fill="both", expand=True, padx=content_padding_x, pady=(SECTION_PADDING_Y, 15))
         
-        # Two column layout - only showing Type and Difficulty charts
-        charts_container = ttk.Frame(charts_frame)
-        charts_container.pack(fill="x", expand=True)
+        # Create time progression chart directly (no nested container)
+        self._create_time_progression_chart(charts_container)
         
-        charts_container.columnconfigure(0, weight=1)
-        charts_container.columnconfigure(1, weight=1)
-        
-        # Configure frame for charts
-        charts_container.rowconfigure(0, weight=1)
-        
-        # Create only Type and Difficulty charts (removed Special and Rating as requested)
-        self._create_type_chart(charts_container, 0, 0)
-        self._create_difficulty_chart(charts_container, 0, 1)
-        
-        return charts_frame
+        return charts_container
     
     def _create_type_chart(self, parent, row, col):
         """Create completion by type chart"""
@@ -167,3 +157,220 @@ class DashboardCharts:
                 height=20
             )
             progress_fill.place(x=0, y=0, relwidth=min(percentage/100, 1), relheight=1)
+    
+    def _create_time_progression_chart(self, parent):
+        """Create time progression line chart showing avg completion time by difficulty over 6 months"""
+        colors = get_colors()
+        
+        # Chart container
+        chart_frame = ttk.LabelFrame(parent, text="📈 Average Completion Time by Difficulty (Last 6 Months)", 
+                                   padding=get_labelframe_padding())
+        chart_frame.pack(fill="both", expand=True, pady=5)
+        
+        # Type filter dropdown
+        filter_frame = ttk.Frame(chart_frame)
+        filter_frame.pack(fill="x", pady=(0, 10))
+        
+        ttk.Label(filter_frame, text="Filter by Type:").pack(side="left", padx=(0, 5))
+        
+        # Get available types
+        all_types = set()
+        progression_data = self.analytics_data.get('time_progression', {})
+        for month_data in progression_data.values():
+            for diff_data in month_data.get('difficulties', {}).values():
+                all_types.update(diff_data.get('types', []))
+        
+        type_options = ['All Types'] + sorted(list(all_types))
+        type_var = tk.StringVar(value='All Types')
+        type_combo = ttk.Combobox(filter_frame, textvariable=type_var, values=type_options, 
+                                state="readonly", width=15)
+        type_combo.pack(side="left", padx=(0, 10))
+        
+        # Canvas for the line chart - increased height for legend
+        canvas_frame = ttk.Frame(chart_frame)
+        canvas_frame.pack(fill="both", expand=True)
+        
+        canvas = tk.Canvas(canvas_frame, height=520, bg=colors.get("chart_bg"))
+        canvas.pack(fill="both", expand=True, padx=10, pady=10)
+        
+        # Function to update chart based on filter
+        def update_chart():
+            canvas.delete("all")
+            selected_type = type_var.get()
+            # Ensure canvas is properly sized before drawing
+            canvas.update_idletasks()
+            self._draw_time_progression_lines(canvas, selected_type)
+        
+        # Bind filter change
+        type_combo.bind('<<ComboboxSelected>>', lambda e: update_chart())
+        
+        # Initial chart draw - delay to ensure proper canvas sizing
+        canvas.after(50, update_chart)
+        
+        return chart_frame
+    
+    def _draw_time_progression_lines(self, canvas, filter_type='All Types'):
+        """Draw the actual line chart on the canvas"""
+        colors = get_colors()
+        progression_data = self.analytics_data.get('time_progression', {})
+        
+        if not progression_data:
+            canvas.create_text(canvas.winfo_width()//2, canvas.winfo_height()//2, 
+                             text="No completion data available", 
+                             font=("Segoe UI", 12), fill=colors.get("text_secondary"))
+            return
+        
+        # Update canvas after it's been drawn
+        canvas.update_idletasks()
+        width = canvas.winfo_width()
+        height = canvas.winfo_height()
+        
+        if width <= 1 or height <= 1:
+            # Canvas not ready yet, try again with a longer delay
+            canvas.after(100, lambda: self._draw_time_progression_lines(canvas, filter_type))
+            return
+        
+        # Ensure minimum width for proper chart display
+        if width < 300:
+            width = 800  # Use a reasonable default width
+        
+        # Chart margins - reduced to give more space
+        margin_left = 70
+        margin_right = 30
+        margin_top = 30
+        margin_bottom = 130  # Increased from 120 to 130 for optimal legend space
+        chart_width = width - margin_left - margin_right
+        chart_height = height - margin_top - margin_bottom
+        
+        # Get sorted months
+        sorted_months = sorted(progression_data.keys())
+        if not sorted_months:
+            return
+        
+        # Define difficulty colors and order using theme colors
+        difficulty_colors = {
+            'Newcomer': colors.get('diff_newcomer'),
+            'Casual': colors.get('diff_casual'),        
+            'Skilled': colors.get('diff_skilled'),
+            'Advanced': colors.get('diff_advanced'),
+            'Expert': colors.get('diff_expert'),
+            'Master': colors.get('diff_master'),
+            'Grandmaster': colors.get('diff_grandmaster')
+        }
+        
+        difficulty_order = ['Newcomer', 'Casual', 'Skilled', 'Advanced', 'Expert', 'Master', 'Grandmaster']
+        
+        # Extract data for each difficulty
+        difficulty_lines = {}
+        max_time = 0
+        
+        for difficulty in difficulty_order:
+            times = []
+            for month in sorted_months:
+                month_data = progression_data[month]['difficulties'].get(difficulty)
+                if month_data:
+                    # Filter by type if needed
+                    if filter_type == 'All Types' or filter_type in month_data.get('types', []):
+                        avg_time = month_data['avg_time']
+                        times.append(avg_time)
+                        max_time = max(max_time, avg_time)
+                    else:
+                        times.append(None)  # No data for this filter
+                else:
+                    times.append(None)  # No data for this month
+            
+            if any(t is not None for t in times):
+                difficulty_lines[difficulty] = times
+        
+        if not difficulty_lines or max_time == 0:
+            canvas.create_text(width//2, height//2, 
+                             text=f"No data available for {filter_type}", 
+                             font=("Segoe UI", 12), fill=colors.get("text_secondary"))
+            return
+        
+        # Draw grid and axes
+        # Y-axis (time)
+        y_steps = 5
+        for i in range(y_steps + 1):
+            y_val = (max_time * i) / y_steps
+            y_pos = margin_top + chart_height - (i * chart_height / y_steps)
+            
+            # Grid line
+            canvas.create_line(margin_left, y_pos, margin_left + chart_width, y_pos,
+                             fill=colors.get("border"), width=1, dash=(2, 2))
+            
+            # Y-axis label
+            canvas.create_text(margin_left - 10, y_pos, text=f"{y_val:.1f}h",
+                             font=("Segoe UI", 9), fill=colors.get("text_secondary"), anchor="e")
+        
+        # X-axis (months)
+        x_step = chart_width / max(1, len(sorted_months) - 1) if len(sorted_months) > 1 else chart_width
+        for i, month in enumerate(sorted_months):
+            x_pos = margin_left + (i * x_step) if len(sorted_months) > 1 else margin_left + chart_width // 2
+            
+            # Grid line
+            canvas.create_line(x_pos, margin_top, x_pos, margin_top + chart_height,
+                             fill=colors.get("border"), width=1, dash=(2, 2))
+            
+            # X-axis label
+            month_name = progression_data[month]['month_name']
+            canvas.create_text(x_pos, margin_top + chart_height + 20, text=month_name,
+                             font=("Segoe UI", 9), fill=colors.get("text_secondary"), anchor="n")
+        
+        # Draw lines for each difficulty
+        for difficulty, times in difficulty_lines.items():
+            color = difficulty_colors.get(difficulty, colors.get("accent"))
+            points = []
+            
+            for i, time_val in enumerate(times):
+                if time_val is not None:
+                    x_pos = margin_left + (i * x_step) if len(sorted_months) > 1 else margin_left + chart_width // 2
+                    y_pos = margin_top + chart_height - (time_val * chart_height / max_time)
+                    points.append((x_pos, y_pos))
+            
+            # Draw line segments between valid points
+            if len(points) > 1:
+                for i in range(len(points) - 1):
+                    canvas.create_line(points[i][0], points[i][1], points[i+1][0], points[i+1][1],
+                                     fill=color, width=3)
+            
+            # Draw points
+            for x_pos, y_pos in points:
+                canvas.create_oval(x_pos-4, y_pos-4, x_pos+4, y_pos+4,
+                                 fill=color, outline=colors.get("chart_bg"), width=2)
+        
+        # Draw horizontal legend below the chart with extra padding
+        legend_y = margin_top + chart_height + 80  # Increased from 40 to 60 for better separation
+        legend_start_x = margin_left
+        
+        canvas.create_text(legend_start_x, legend_y, text="Difficulties:", 
+                         font=("Segoe UI", 10, "bold"), fill=colors.get("text"), anchor="w")
+        
+        # Calculate spacing for horizontal layout
+        available_width = chart_width
+        items_per_row = min(4, len(difficulty_lines))  # Max 4 per row
+        item_width = available_width // items_per_row if items_per_row > 0 else available_width
+        
+        for i, (difficulty, times) in enumerate(difficulty_lines.items()):
+            row = i // items_per_row
+            col = i % items_per_row
+            
+            x_offset = legend_start_x + (col * item_width)
+            y_offset = legend_y + 25 + (row * 25)
+            color = difficulty_colors.get(difficulty, colors.get("accent"))
+            
+            # Legend bullet point
+            canvas.create_text(x_offset, y_offset, text="●", 
+                             font=("Segoe UI", 12), fill=color, anchor="w")
+            
+            # Legend text  
+            canvas.create_text(x_offset + 15, y_offset, text=difficulty,
+                             font=("Segoe UI", 9), fill=colors.get("text"), anchor="w")
+        
+        # Chart title/labels
+        canvas.create_text(width//2, 15, text="Avg Hours per Hack per Month",
+                         font=("Segoe UI", 11, "bold"), fill=colors.get("text"))
+        
+        # Y-axis title
+        canvas.create_text(15, height//2, text="Avg Time (Hours)", 
+                         font=("Segoe UI", 10), fill=colors.get("text_secondary"), angle=90)
