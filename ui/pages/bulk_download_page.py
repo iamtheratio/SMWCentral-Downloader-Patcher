@@ -43,7 +43,7 @@ class BulkDownloadPage:
         _, section_padding_y = get_section_padding()
         self.difficulty_section.parent = self.frame
         difficulty_frame = self.difficulty_section.create(self.font)
-        difficulty_frame.pack(fill="x", pady=section_padding_y)
+        difficulty_frame.pack(fill="x", pady=0) #section_padding_y)
 
         # Setup & filters section
         row_frame = ttk.Frame(self.frame)

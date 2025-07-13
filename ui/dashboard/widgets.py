@@ -27,7 +27,7 @@ class DashboardMetrics:
         content_padding_x, content_padding_y = get_dashboard_content_padding()
         
         filter_frame = ttk.LabelFrame(self.parent, text="Time Period", padding=get_labelframe_padding())
-        filter_frame.pack(fill="x", padx=content_padding_x, pady=content_padding_y)
+        filter_frame.pack(fill="x", padx=0, pady=2) #content_padding_x, pady=content_padding_y)
         
         main_container = ttk.Frame(filter_frame)
         main_container.pack(fill="x")

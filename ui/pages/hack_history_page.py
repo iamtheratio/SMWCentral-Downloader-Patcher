@@ -142,7 +142,7 @@ class HackHistoryPage:
         
         # Status label - positioned in a footer frame after pagination
         footer_frame = ttk.Frame(self.frame)
-        footer_frame.pack(fill="x", pady=(20, 10))  # Increased top padding from 5 to 20
+        footer_frame.pack(fill="x", pady=(23, 0))  # Increased top padding from 5 to 20
         
         self.status_label = ttk.Label(footer_frame, text="", font=("Segoe UI", 9))
         self.status_label.pack(anchor="center")
