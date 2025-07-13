@@ -28,8 +28,8 @@ class HackHistoryPage:
         self.page_size = 50  # Default page size
         self.total_pages = 1
         
-        # Sorting state
-        self.sort_column = None
+        # Sorting state - Default to title ascending
+        self.sort_column = "title"
         self.sort_reverse = False
         
         # Initialize components - USE HackHistoryInlineEditor instead of InlineEditor
@@ -85,24 +85,12 @@ class HackHistoryPage:
             total_hacks = len(self.data_manager.get_all_hacks())
             completed_hacks = sum(1 for hack in self.data_manager.get_all_hacks() if hack.get("completed", False))
             self._log(f"📊 Hack History page loaded - {total_hacks} total hacks, {completed_hacks} completed", "Information")
-            
-            # Hide global version display since we have our own in the footer
-            # Access through the root window
-            root = self.frame.winfo_toplevel()
-            if hasattr(root, 'version_label') and root.version_label:
-                root.version_label.place_forget()
     
     def hide(self):
         """Called when the page becomes hidden"""
         self.date_editor.cleanup()
         self.notes_editor.cleanup()
         self.time_editor.cleanup()  # v3.1 NEW
-        
-        # Show global version display when leaving hack history page
-        # Access through the root window
-        root = self.frame.winfo_toplevel() if self.frame else None
-        if root and hasattr(root, 'version_label') and root.version_label:
-            root.version_label.place(relx=1.0, rely=1.0, anchor="se", x=-26, y=-10)
     
     def cleanup(self):
         """Clean up resources and ensure data is saved"""
@@ -152,24 +140,12 @@ class HackHistoryPage:
         self.tree.bind("<Motion>", self._on_mouse_motion)
         self.tree.bind("<Configure>", lambda e: self._toggle_h_scrollbar(h_scrollbar))
         
-        # Combined footer frame with status (center) and version (right)
+        # Status label - positioned in a footer frame after pagination
         footer_frame = ttk.Frame(self.frame)
-        footer_frame.pack(fill="x", pady=(15, 0))
+        footer_frame.pack(fill="x", pady=(20, 10))  # Increased top padding from 5 to 20
         
-        # Status label - centered
         self.status_label = ttk.Label(footer_frame, text="", font=("Segoe UI", 9))
-        self.status_label.pack(side="left", expand=True)
-        
-        # Version label - right aligned  
-        from colors import get_colors
-        colors = get_colors()
-        version_label = ttk.Label(
-            footer_frame, 
-            text=VERSION, 
-            font=("Segoe UI", 8, "italic"),
-            foreground=colors.get("version_label", "#888888")
-        )
-        version_label.pack(side="right", padx=(0, 10))
+        self.status_label.pack(anchor="center")
     
     def _refresh_data_and_table(self):
         """Refresh data from file and update table"""
@@ -196,6 +172,9 @@ class HackHistoryPage:
         
         # Apply sorting
         self._sort_filtered_data()
+        
+        # Update column headers to show sort indicators
+        self._update_column_headers()
         
         # Calculate pagination
         total_hacks = len(self.filtered_data)
