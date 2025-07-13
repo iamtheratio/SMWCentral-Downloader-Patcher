@@ -186,6 +186,10 @@ class DashboardAnalytics:
         total_exits = 0
         completed_count = 0
         
+        # Separate tracking for exit calculations
+        exit_based_total_time = 0
+        exit_based_total_exits = 0
+        
         for hack_id, hack_data in self.data_manager.data.items():
             if not hack_data.get('completed', False):
                 continue
@@ -214,15 +218,18 @@ class DashboardAnalytics:
                 total_time += time_to_beat
                 completed_count += 1
                 
+                # FIXED: Only include in exit calculations if hack has BOTH time and exit data
                 if exits > 0:
-                    total_exits += exits
+                    exit_based_total_time += time_to_beat
+                    exit_based_total_exits += exits
         
         # Calculate averages (convert to hours)
         if completed_count > 0:
             self.analytics_data['avg_time_per_hack'] = (total_time / completed_count) / 3600
             
-            if total_exits > 0:
-                self.analytics_data['avg_time_per_exit'] = (total_time / total_exits) / 3600
+            # FIXED: Use only time and exits from hacks that have both pieces of data
+            if exit_based_total_exits > 0:
+                self.analytics_data['avg_time_per_exit'] = (exit_based_total_time / exit_based_total_exits) / 3600
     
     def _calculate_streaks(self):
         """Calculate completion streaks"""

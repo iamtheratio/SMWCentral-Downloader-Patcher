@@ -572,8 +572,28 @@ class HackHistoryPage:
         
         # Support flexible input formats
         # HH:MM:SS, MM:SS, MM, "2h 30m", "90m", "150 minutes", etc.
+        # NEW: Support shortened formats like "14d 10", "14d 10h 2", "14d 10h 2m 1"
         
         import re
+        
+        # NEW: Pattern for flexible shortened formats with days
+        # "14d 10" -> 14 days, 10 hours, 0 minutes, 0 seconds
+        # "14d 10h 2" -> 14 days, 10 hours, 2 minutes, 0 seconds  
+        # "14d 10h 2m 1" -> 14 days, 10 hours, 2 minutes, 1 second
+        pattern_flexible = re.match(r'(?:(\d+)d\s*)?(?:(\d+)h?\s*)?(?:(\d+)m?\s*)?(?:(\d+)s?\s*)?$', time_str.lower())
+        if pattern_flexible and any(pattern_flexible.groups()):
+            days = int(pattern_flexible.group(1) or 0)
+            hours = int(pattern_flexible.group(2) or 0)
+            minutes = int(pattern_flexible.group(3) or 0) 
+            seconds = int(pattern_flexible.group(4) or 0)
+            
+            # If there's a 'd' in the input, treat it as the day format
+            if 'd' in time_str.lower():
+                return days * 86400 + hours * 3600 + minutes * 60 + seconds
+            
+            # If no 'd', check for standard letter suffixes
+            if re.search(r'[hms]', time_str.lower()):
+                return hours * 3600 + minutes * 60 + seconds
         
         # Pattern for "2h 30m 15s" or "2h 30m" or "90m" etc. - must have letter suffix
         pattern_units = re.match(r'(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s\s*)?$', time_str.lower())
@@ -629,7 +649,10 @@ class HackHistoryPage:
                                f"• MM:SS (e.g., 90:30)\n"
                                f"• 2h 30m (e.g., 1h 30m 15s)\n"
                                f"• 90m or 90 minutes\n"
-                               f"• 90 (assumes minutes)")
+                               f"• 90 (assumes minutes)\n"
+                               f"• 14d 10 (14 days, 10 hours)\n"
+                               f"• 14d 10h 2 (14 days, 10 hours, 2 minutes)\n"
+                               f"• 14d 10h 2m 1 (14 days, 10 hours, 2 minutes, 1 second)")
             return None
     
     def _toggle_h_scrollbar(self, scrollbar):
