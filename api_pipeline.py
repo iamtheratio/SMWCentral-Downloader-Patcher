@@ -374,6 +374,16 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                             log(f"Updated: {title_clean} attribute {key} updated from {old_value} → {new_value}", "Information")
                         processed[hack_id][key] = new_value
                 
+                # ADDED: Update title if it doesn't match the properly formatted version
+                # This ensures processed.json gets updated with proper title case formatting
+                # when running bulk download, even for hacks that already exist
+                current_title = existing_hack.get("title", "")
+                proper_title = clean_hack_title(raw_title)
+                if current_title != proper_title:
+                    if log:
+                        log(f"Updated: {title_clean} title formatting updated from '{current_title}' → '{proper_title}'", "Information")
+                    processed[hack_id]["title"] = proper_title
+                
                 # Update difficulty if it changed
                 if processed[hack_id].get("current_difficulty") != display_diff:
                     processed[hack_id]["current_difficulty"] = display_diff
@@ -430,6 +440,14 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                         metadata_changes.append(f"{key}: {old_value} → {new_value}")
                         if log:
                             log(f"Updated: {title_clean} attribute {key} updated from {old_value} → {new_value}", "Information")
+                
+                # ADDED: Check for title changes and log them
+                # This ensures we log when title formatting is updated during re-download
+                current_title = existing_hack.get("title", "")
+                proper_title = clean_hack_title(raw_title)
+                if current_title != proper_title:
+                    if log:
+                        log(f"Updated: {title_clean} title formatting updated from '{current_title}' → '{proper_title}'", "Information")
             
             # Update processed data
             processed[hack_id] = {
