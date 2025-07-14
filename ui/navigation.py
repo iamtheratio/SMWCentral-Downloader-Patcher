@@ -3,6 +3,7 @@ from tkinter import ttk
 from colors import get_colors
 import sv_ttk
 from PIL import Image, ImageTk  # ADDED: Import PIL for image handling
+from utils import resource_path  # ADDED: Import resource path utility
 
 class NavigationBar:
     """Handles the main navigation bar with tabs"""
@@ -81,7 +82,7 @@ class NavigationBar:
             # CHANGED: Load PNG image instead of emoji
             try:
                 # Load and resize the moon image
-                image = Image.open("assets/moon.png")  # Adjust path as needed
+                image = Image.open(resource_path("assets/moon.png"))  # Use resource_path for bundled executable
                 image = image.resize((20, 20), Image.Resampling.LANCZOS)  # Resize to 20x20 pixels
                 self.moon_image = ImageTk.PhotoImage(image)
                 

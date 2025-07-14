@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from api_pipeline import run_pipeline
 from ui import setup_ui, update_log_colors
+from utils import resource_path  # ADDED: Import resource path utility
 import sv_ttk
 import sys
 import platform
@@ -131,7 +132,7 @@ def main():
     
     # Set application icon
     try:
-        root.iconbitmap("assets/icon.ico")
+        root.iconbitmap(resource_path("assets/icon.ico"))
     except tk.TclError:
         print("Could not load application icon. Make sure the file exists.")
     

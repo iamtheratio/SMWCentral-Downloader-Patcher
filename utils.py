@@ -4,11 +4,22 @@ import json
 import re
 import shutil
 import tkinter as tk
+import sys
+
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    
+    return os.path.join(base_path, relative_path)
 
 def set_window_icon(window):
     """Set the application icon for any window or dialog"""
     try:
-        window.iconbitmap("assets/icon.ico")
+        window.iconbitmap(resource_path("assets/icon.ico"))
     except (tk.TclError, AttributeError):
         pass  # Fallback silently if icon not found or not supported
 
