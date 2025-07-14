@@ -252,7 +252,7 @@ class DashboardCharts:
         margin_left = 70
         margin_right = 30
         margin_top = 30
-        margin_bottom = 130  # Increased from 120 to 130 for optimal legend space
+        margin_bottom = 160  # Increased from 130 to 160 to accommodate multi-row legend
         chart_width = width - margin_left - margin_right
         chart_height = height - margin_top - margin_bottom
         
@@ -297,9 +297,12 @@ class DashboardCharts:
                 difficulty_lines[difficulty] = times
         
         if not difficulty_lines or max_time == 0:
-            canvas.create_text(width//2, height//2, 
+            canvas.create_text(width//2, height//2 - 10, 
                              text=f"No data available for {filter_type}", 
                              font=("Segoe UI", 12), fill=colors.get("text_secondary"))
+            canvas.create_text(width//2, height//2 + 15, 
+                             text="Enter your Time to Beat in Hack History to see stats appear here!", 
+                             font=("Segoe UI", 10), fill=colors.get("text_secondary"))
             return
         
         # Draw grid and axes

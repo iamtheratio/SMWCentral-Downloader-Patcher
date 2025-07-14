@@ -111,11 +111,13 @@ A comprehensive analytics dashboard providing insights into your hack completion
 - **📈 Time Progression Chart**: Visual analysis of completion times by difficulty over 6 months
 - **🎯 Efficiency Metrics**: Average time per hack and per exit for performance tracking
 - **🔥 Streak Tracking**: Current and longest completion streaks with velocity indicators
+- **💡 Smart Guidance**: Helpful messages guide users to enter time data for analytics
 
 #### Advanced Filtering
 - **📅 Date Filters**: Last week, month, 3 months, 6 months, or all-time data
 - **📊 Interactive Charts**: Line charts with type filtering and difficulty-based color coding
 - **🏆 Dynamic Updates**: Real-time recalculation based on selected time periods
+- **🎯 Reorganized Layout**: Logical grouping of hack-focused vs exit-focused metrics
 
 ### 🏠 Bulk Download Page
 - **Types**: Standard, Kaizo, Puzzle, Tool-Assisted, Pit
@@ -158,6 +160,7 @@ A complete hack management system for tracking your ROM hack journey:
 - **Real-time Updates**: Changes save immediately and update display
 - **Smart Validation**: Date format checking and note length limits
 - **Undo Protection**: All changes backed up automatically
+- **💾 Auto-Save Protection**: Refresh operations automatically save pending changes to prevent data loss
 
 ### Smart Processing
 - **Built-in Patching**: No external tools needed - handles IPS & BPS formats
@@ -248,6 +251,7 @@ The app saves settings in `config.json`:
 - **📊 Advanced Dashboard Analytics**: Time progression charts, completion analytics, and performance metrics
 - **⏱️ Time to Beat Tracking**: Record and analyze completion times for hacks
 - **🚀 Enhanced Download Pipeline**: Improved cancellation support and Unicode filename handling
+- **🛡️ Data Protection**: Auto-save system prevents data loss during operations
 
 ### 📊 Dashboard Analytics Features
 - **📈 Time Progression Charts**: Visual analysis of completion times by difficulty over 6 months
@@ -256,6 +260,8 @@ The app saves settings in `config.json`:
 - **🔥 Streak Tracking**: Current and longest completion streaks
 - **🏆 Advanced Filtering**: Last week, month, 3 months, 6 months, or all-time data
 - **📊 Interactive Charts**: Line charts with type filtering and difficulty-based color coding
+- **💡 User Guidance**: Clear instructions when no data is available for analytics
+- **📐 Improved Layout**: Reorganized metrics for better logical grouping
 
 ### 📚 Hack History Features
 - **Interactive Table**: Click to edit completion status, ratings, dates, and notes
@@ -265,6 +271,7 @@ The app saves settings in `config.json`:
 - **Star Ratings**: 5-star rating system with visual feedback
 - **Personal Notes**: Add detailed notes with character limit protection
 - **⏱️ Time Recording**: Track completion times for performance analysis
+- **🛡️ Data Safety**: Automatic save protection prevents loss during refresh operations
 
 ### 🛠️ Technical Improvements
 - **Database Migration**: Seamless upgrade from v2.x with 99.8% API success rate
@@ -275,6 +282,8 @@ The app saves settings in `config.json`:
 - **🔧 Download Cancellation**: Full cancellation support with proper cleanup
 - **🌍 Unicode Support**: Handles special characters and emojis in hack titles
 - **🎨 Theme-Aware UI**: Consistent styling across light and dark themes
+- **🛡️ Data Integrity**: Auto-save protection and improved error handling
+- **📊 Analytics Engine**: Optimized calculations for dashboard metrics
 
 ### 🎨 UI/UX Enhancements
 - **Navigation Tabs**: Clean tab system for switching between pages
@@ -340,11 +349,19 @@ python main.py
   - ⏱️ Time to beat recording and editing
   - 📊 Performance metrics integration
   - 🔄 Improved data synchronization
+  - 🛡️ Auto-save protection during refresh operations
+- **Dashboard Analytics Improvements** - Better user experience
+  - 📐 Reorganized layout with logical metric grouping
+  - 💡 Helpful guidance messages for empty charts
+  - 🎯 Fixed completion rate calculations
+  - 📊 Improved legend display and chart spacing
 - **Technical Improvements**
   - 🏗️ Modular dashboard architecture with analytics engine
   - 📊 Optimized data processing for large datasets
   - 🎨 Consistent theme handling across all components
   - 🔧 Enhanced error handling and validation
+  - 🛡️ Data protection with auto-save before refresh operations
+  - 📐 Improved chart layouts and legend spacing
 
 ### v2.5.0 - Waiting Hacks & UI Improvements
 - Added "Include Waiting" option for pending hacks

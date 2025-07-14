@@ -149,6 +149,15 @@ class HackHistoryPage:
     
     def _refresh_data_and_table(self):
         """Refresh data from file and update table"""
+        # CRITICAL: Force save any pending changes before refreshing to prevent data loss
+        if hasattr(self.data_manager, 'unsaved_changes') and self.data_manager.unsaved_changes:
+            self._log("💾 Saving pending changes before refresh to prevent data loss...", "Information")
+            if self.data_manager.force_save():
+                self._log("✅ Successfully saved pending changes before refresh", "Success")
+            else:
+                self._log("❌ Failed to save pending changes - refresh cancelled", "Error")
+                return
+        
         # FIXED: Don't create new data manager - just reload the existing one's data
         try:
             old_count = len(self.data_manager.get_all_hacks())

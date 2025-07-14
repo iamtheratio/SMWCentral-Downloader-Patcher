@@ -93,21 +93,23 @@ class DashboardAnalytics:
         
         # FIXED: Calculate total completed hacks regardless of date filter for completion rate
         total_completed_ever = 0
-        total_exits = 0  # Track total exits from all completed hacks
+        total_exits = 0  # Track total exits from ALL hacks (completed or not)
         
         for hack_id, hack_data in self.data_manager.data.items():
+            self.analytics_data['total_hacks'] += 1  # Count all hacks
+            
+            # Count exits from ALL hacks regardless of completion status
+            exits = hack_data.get('exits', 0)
+            if isinstance(exits, str):
+                try:
+                    exits = int(exits)
+                except (ValueError, TypeError):
+                    exits = 0
+            if exits > 0:
+                total_exits += exits
+            
             if hack_data.get('completed', False):
                 total_completed_ever += 1  # Count all completed hacks for completion rate
-                
-                # Count exits from all completed hacks (regardless of time filter)
-                exits = hack_data.get('exits', 0)
-                if isinstance(exits, str):
-                    try:
-                        exits = int(exits)
-                    except (ValueError, TypeError):
-                        exits = 0
-                if exits > 0:
-                    total_exits += exits
                 
                 # Check if this hack should be included based on date filter for other metrics
                 if self._should_include_hack(hack_data):
