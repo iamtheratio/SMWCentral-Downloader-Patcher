@@ -14,6 +14,24 @@ from utils import (
 from smwc_api_proxy import smwc_api_get, get_api_delay
 from patch_handler import PatchHandler
 
+# Global cancellation flag
+_cancel_operation = False
+
+def cancel_pipeline():
+    """Cancel the current pipeline operation"""
+    global _cancel_operation
+    _cancel_operation = True
+
+def reset_cancel_flag():
+    """Reset the cancellation flag"""
+    global _cancel_operation
+    _cancel_operation = False
+
+def is_cancelled():
+    """Check if operation was cancelled"""
+    global _cancel_operation
+    return _cancel_operation
+
 def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
     """Fetch hack list - separated for moderated vs waiting hacks"""
     params = {"a": "getsectionlist", "s": "smwhacks", "n": page, "u": "1" if waiting_mode else "0"}
@@ -76,7 +94,18 @@ def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
 def fetch_file_metadata(file_id, log=None):
     params = {"a": "getfile", "v": "2", "id": file_id}
     response = smwc_api_get("https://www.smwcentral.net/ajax.php", params=params, log=log)
-    return response.json()
+    
+    if response:
+        try:
+            # The API returns data directly, not nested under "data"
+            data = response.json()
+            # Wrap in "data" key for backward compatibility with existing code
+            return {"data": data}
+        except Exception as e:
+            if log:
+                log(f"Error parsing file metadata JSON: {e}", "Error")
+            return None
+    return None
 
 def extract_patches_from_zip(zip_path, extract_to, hack_name=""):
     """Extract zip and find patch files (IPS or BPS)"""
@@ -143,6 +172,9 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
     """
     Main pipeline function using unified patch handler
     """
+    # Reset cancellation flag at start
+    reset_cancel_flag()
+    
     processed = load_processed()
     all_hacks = []
     if log: log("🔎 Starting download...")
@@ -161,6 +193,11 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
     # PHASE 1: Fetch all moderated hacks (u=0)
     page = 1
     while True:
+        # Check for cancellation
+        if is_cancelled():
+            if log: log("❌ Operation cancelled by user", "warning")
+            return
+            
         page_result = fetch_hack_list(filter_payload, page=page, waiting_mode=False, log=log)
         
         hacks = page_result["data"]
@@ -186,6 +223,11 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
     if filter_payload.get("waiting", False):
         page = 1
         while True:
+            # Check for cancellation
+            if is_cancelled():
+                if log: log("❌ Operation cancelled by user", "warning")
+                return
+                
             page_result = fetch_hack_list(filter_payload, page=page, waiting_mode=True, log=log)
             
             waiting_hacks = page_result["data"]
@@ -263,6 +305,11 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
     normalized_type = raw_type.lower().replace("-", "_")
 
     for hack in all_hacks:
+        # Check for cancellation at the start of each hack processing
+        if is_cancelled():
+            if log: log("❌ Operation cancelled by user", "warning")
+            return
+            
         hack_id = str(hack["id"])
         raw_title = hack["name"]
         title_clean = title_case(safe_filename(raw_title))
@@ -274,6 +321,17 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
         
         display_diff = DIFFICULTY_LOOKUP.get(raw_diff, "No Difficulty")  # Changed default from "Unknown" to "No Difficulty"
         folder_name = get_sorted_folder_name(display_diff)
+
+        # OPTIMIZED: Extract only the metadata fields we want to track and update
+        raw_fields = hack.get("raw_fields", {})
+        page_metadata = {
+            "exits": raw_fields.get("length", hack.get("length", 0)) or 0,
+            "hall_of_fame": bool(raw_fields.get("hof", False)),
+            "sa1_compatibility": bool(raw_fields.get("sa1", False)), 
+            "collaboration": bool(raw_fields.get("collab", False)),
+            "demo": bool(raw_fields.get("demo", False)),
+            "authors": hack.get("authors", [])
+        }
 
         if hack_id in processed:
             actual_diff = processed[hack_id].get("current_difficulty", "")
@@ -301,14 +359,34 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                             log(f"❌ Failed to move: {title_clean} → {str(e)}", "Error")
                 else:
                     if log:
-                        log(f"⚠️ Expected to move {title_clean}, but source file not found: {actual_path}", "Error")
+                        log(f"⚠️ Source Not Found: Redownloading {title_clean}", "Warning")
+                    # Don't continue here - fall through to redownload the hack
             else:
                 if log:
                     log(f"✅ Skipped: {title_clean}")
-            continue
+                
+                # OPTIMIZED: Still update metadata from page data even when skipping download
+                existing_hack = processed.get(hack_id, {})
+                for key, new_value in page_metadata.items():
+                    old_value = existing_hack.get(key)
+                    if old_value != new_value:
+                        if log:
+                            log(f"Updated: {title_clean} attribute {key} updated from {old_value} → {new_value}", "Information")
+                        processed[hack_id][key] = new_value
+                
+                # Update difficulty if it changed
+                if processed[hack_id].get("current_difficulty") != display_diff:
+                    processed[hack_id]["current_difficulty"] = display_diff
+                
+                save_processed(processed)
+                continue
 
-        file_meta = fetch_file_metadata(hack_id, log=log)
-        download_url = file_meta.get("download_url")
+        # OPTIMIZED: Use download_url directly from page data (eliminates API call)
+        download_url = hack.get("download_url")
+        if not download_url:
+            if log:
+                log(f"❌ Error: No download URL found for {title_clean}", "Error")
+            continue
 
         temp_dir = tempfile.mkdtemp()
         try:
@@ -337,6 +415,22 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
             if log:
                 log(f"✅ Patched: {title_clean}")
 
+            # Check if hack exists and compare metadata for sync (v3.1 feature)
+            existing_hack = processed.get(hack_id, {})
+            metadata_changes = []
+            
+            # v3.1 OPTIMIZED: Use metadata from page data instead of individual API calls
+            new_metadata = page_metadata.copy()  # Use the metadata extracted from page data
+            
+            # v3.1 NEW: Check for metadata changes and log them
+            if existing_hack:
+                for key, new_value in new_metadata.items():
+                    old_value = existing_hack.get(key)
+                    if old_value != new_value:
+                        metadata_changes.append(f"{key}: {old_value} → {new_value}")
+                        if log:
+                            log(f"Updated: {title_clean} attribute {key} updated from {old_value} → {new_value}", "Information")
+            
             # Update processed data
             processed[hack_id] = {
                 "title": clean_hack_title(raw_title),  # CHANGED: Clean the title
@@ -344,17 +438,19 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 "folder_name": folder_name,
                 "file_path": output_path,
                 "hack_type": normalized_type,
-                # REMOVED: redundant "difficulty" field
-                # CHANGED: Use actual hack metadata from API response
-                "hall_of_fame": bool(hack.get("raw_fields", {}).get("hof", 0)),
-                "sa1_compatibility": bool(hack.get("raw_fields", {}).get("sa1", 0)),
-                "collaboration": bool(hack.get("raw_fields", {}).get("collab", 0)),
-                "demo": bool(hack.get("raw_fields", {}).get("demo", 0)),
-                # ADDED: History tracking fields
-                "completed": False,
-                "completed_date": "",
-                "personal_rating": 0,
-                "notes": ""
+                # Only include the specific metadata fields we want to track
+                "hall_of_fame": new_metadata.get("hall_of_fame", False),
+                "sa1_compatibility": new_metadata.get("sa1_compatibility", False),
+                "collaboration": new_metadata.get("collaboration", False),
+                "demo": new_metadata.get("demo", False),
+                "exits": new_metadata.get("exits", 0),
+                "authors": new_metadata.get("authors", []),
+                # ADDED: History tracking fields - preserve existing values
+                "completed": existing_hack.get("completed", False),
+                "completed_date": existing_hack.get("completed_date", ""),
+                "personal_rating": existing_hack.get("personal_rating", 0),
+                "notes": existing_hack.get("notes", ""),
+                "time_to_beat": existing_hack.get("time_to_beat", 0)  # v3.1 NEW: preserve existing time
             }
             save_processed(processed)
 
@@ -386,11 +482,16 @@ def save_hack_to_processed_json(hack_data, file_path, hack_type):
         "collaboration": bool(hack_data.get("collaboration", False)), 
         "demo": bool(hack_data.get("demo", False)),
         
+        # v3.1 NEW: Additional metadata fields
+        "exits": hack_data.get("length", 0),  # API length becomes exits
+        "authors": hack_data.get("authors", []),  # Authors array
+        
         # History tracking fields
         "completed": False,
         "completed_date": "",
         "personal_rating": 0,
-        "notes": ""
+        "notes": "",
+        "time_to_beat": 0  # v3.1 NEW: Time to beat in seconds
     }
     
     # Save to processed.json

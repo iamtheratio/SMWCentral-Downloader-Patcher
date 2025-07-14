@@ -6,6 +6,13 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from hack_data_manager import HackDataManager
 from ui.hack_history_components import InlineEditor, DateValidator, NotesValidator, TableFilters, HackHistoryInlineEditor
+from ui_constants import get_page_padding, get_section_padding
+
+# Import VERSION from main module
+try:
+    from main import VERSION
+except ImportError:
+    VERSION = "v3.1"  # Fallback if import fails
 
 class HackHistoryPage:
     """Simplified hack history page with extracted components"""
@@ -16,10 +23,20 @@ class HackHistoryPage:
         self.data_manager = HackDataManager()
         self.logger = logger  # Add logger support
         
+        # v3.1 NEW: Pagination state
+        self.current_page = 1
+        self.page_size = 50  # Default page size
+        self.total_pages = 1
+        
+        # Sorting state - Default to title ascending
+        self.sort_column = "title"
+        self.sort_reverse = False
+        
         # Initialize components - USE HackHistoryInlineEditor instead of InlineEditor
         self.filters = TableFilters(self._apply_filters)
         self.date_editor = HackHistoryInlineEditor(None, self.data_manager, self, logger)
         self.notes_editor = HackHistoryInlineEditor(None, self.data_manager, self, logger)
+        self.time_editor = HackHistoryInlineEditor(None, self.data_manager, self, logger)  # v3.1 NEW
         
         # Table and data
         self.tree = None
@@ -33,11 +50,12 @@ class HackHistoryPage:
         
     def create(self):
         """Create the hack history page"""
-        self.frame = ttk.Frame(self.parent, padding=10)
+        self.frame = ttk.Frame(self.parent, padding=get_page_padding())
         
         # Create filter section
+        _, section_padding_y = get_section_padding()
         filter_frame = self.filters.create_filter_ui(self.frame, self.data_manager)
-        filter_frame.pack(fill="x", pady=(0, 10))
+        filter_frame.pack(fill="x", pady=(0, section_padding_y))
         
         # Connect refresh button
         # (This is a bit hacky but keeps the component simple)
@@ -48,6 +66,9 @@ class HackHistoryPage:
                         for grandchild in child.winfo_children():
                             if isinstance(grandchild, ttk.Button) and "Refresh" in grandchild.cget("text"):
                                 grandchild.configure(command=self._refresh_data_and_table)
+        
+        # v3.1 NEW: Create pagination controls
+        self._create_pagination_controls()
         
         # Create table section
         self._create_table()
@@ -69,6 +90,12 @@ class HackHistoryPage:
         """Called when the page becomes hidden"""
         self.date_editor.cleanup()
         self.notes_editor.cleanup()
+        self.time_editor.cleanup()  # v3.1 NEW
+    
+    def cleanup(self):
+        """Clean up resources and ensure data is saved"""
+        # Force save any pending changes
+        self.data_manager.force_save()
     
     def _create_table(self):
         """Create the main data table"""
@@ -76,17 +103,17 @@ class HackHistoryPage:
         table_frame.pack(fill="both", expand=True)
         
         # Create treeview
-        columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "notes")
+        columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15)
         
         # Configure headers and columns
-        headers = ["✓", "Title", "Type", "Difficulty", "Rating", "Completed Date", "Notes"]
-        widths = [45, 220, 90, 100, 90, 110, 170]
-        min_widths = [35, 170, 70, 80, 70, 90, 120]
-        anchors = ["center", "w", "center", "center", "center", "center", "w"]
+        headers = ["✓", "Title", "Type", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
+        widths = [45, 220, 90, 100, 90, 110, 120, 150]
+        min_widths = [35, 170, 70, 80, 70, 90, 100, 120]
+        anchors = ["center", "w", "center", "center", "center", "center", "center", "w"]
         
         for i, (col, header, width, min_width, anchor) in enumerate(zip(columns, headers, widths, min_widths, anchors)):
-            self.tree.heading(col, text=header)
+            self.tree.heading(col, text=header, command=lambda c=col: self._sort_by_column(c))
             self.tree.column(col, width=width, minwidth=min_width, anchor=anchor)
         
         # Scrollbars
@@ -105,6 +132,7 @@ class HackHistoryPage:
         # Configure editors with tree reference
         self.date_editor.tree = self.tree
         self.notes_editor.tree = self.tree
+        self.time_editor.tree = self.tree  # v3.1 NEW
         
         # Bind events
         self.tree.bind("<Button-1>", self._on_item_click)
@@ -112,12 +140,24 @@ class HackHistoryPage:
         self.tree.bind("<Motion>", self._on_mouse_motion)
         self.tree.bind("<Configure>", lambda e: self._toggle_h_scrollbar(h_scrollbar))
         
-        # Status label
-        self.status_label = ttk.Label(self.frame, text="", font=("Segoe UI", 9))
-        self.status_label.pack(pady=(5, 0))
+        # Status label - positioned in a footer frame after pagination
+        footer_frame = ttk.Frame(self.frame)
+        footer_frame.pack(fill="x", pady=(23, 0))  # Increased top padding from 5 to 20
+        
+        self.status_label = ttk.Label(footer_frame, text="", font=("Segoe UI", 9))
+        self.status_label.pack(anchor="center")
     
     def _refresh_data_and_table(self):
         """Refresh data from file and update table"""
+        # CRITICAL: Force save any pending changes before refreshing to prevent data loss
+        if hasattr(self.data_manager, 'unsaved_changes') and self.data_manager.unsaved_changes:
+            self._log("💾 Saving pending changes before refresh to prevent data loss...", "Information")
+            if self.data_manager.force_save():
+                self._log("✅ Successfully saved pending changes before refresh", "Success")
+            else:
+                self._log("❌ Failed to save pending changes - refresh cancelled", "Error")
+                return
+        
         # FIXED: Don't create new data manager - just reload the existing one's data
         try:
             old_count = len(self.data_manager.get_all_hacks())
@@ -130,7 +170,7 @@ class HackHistoryPage:
             self._log(f"❌ Failed to refresh data: {str(e)}", "Error")
     
     def _refresh_table(self):
-        """Refresh table data"""
+        """Refresh table data with pagination and sorting"""
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -139,12 +179,41 @@ class HackHistoryPage:
         all_hacks = self.data_manager.get_all_hacks()
         self.filtered_data = self.filters.apply_filters(all_hacks)
         
-        # Populate table
-        for hack in self.filtered_data:
+        # Apply sorting
+        self._sort_filtered_data()
+        
+        # Update column headers to show sort indicators
+        self._update_column_headers()
+        
+        # Calculate pagination
+        total_hacks = len(self.filtered_data)
+        self.total_pages = max(1, (total_hacks + self.page_size - 1) // self.page_size)
+        
+        # Ensure current page is valid
+        if self.current_page > self.total_pages:
+            self.current_page = self.total_pages
+            self.page_var.set(str(self.current_page))
+        
+        # Calculate page slice
+        start_index = (self.current_page - 1) * self.page_size
+        end_index = min(start_index + self.page_size, total_hacks)
+        page_data = self.filtered_data[start_index:end_index]
+        
+        # Populate table with page data
+        for hack in page_data:
             self._insert_hack_row(hack)
         
-        # Update status
-        self._update_status_label(len(all_hacks), len(self.filtered_data))
+        # Update status with pagination info
+        if total_hacks > self.page_size:
+            sort_info = f" (sorted by {self.sort_column})" if self.sort_column else ""
+            status_text = f"Showing {len(page_data)} of {total_hacks} hack(s) (Page {self.current_page} of {self.total_pages}){sort_info}"
+        else:
+            sort_info = f" (sorted by {self.sort_column})" if self.sort_column else ""
+            status_text = f"Displaying {total_hacks} hack(s){sort_info}"
+        self._update_status_label(len(all_hacks), total_hacks, status_text)
+        
+        # Update pagination controls
+        self._update_pagination_controls()
     
     def _insert_hack_row(self, hack):
         """Insert a single hack row into the table"""
@@ -155,6 +224,9 @@ class HackHistoryPage:
         if len(notes_display) > 30:
             notes_display = notes_display[:30] + "..."
         
+        # v3.1 NEW: Format time to beat display
+        time_to_beat_display = self._format_time_display(hack.get("time_to_beat", 0))
+        
         hack_id = hack.get("id")
         
         self.tree.insert("", "end", values=(
@@ -164,15 +236,21 @@ class HackHistoryPage:
             hack.get("difficulty", "Unknown"),
             rating_display,
             hack.get("completed_date", ""),
+            time_to_beat_display,  # v3.1 NEW
             notes_display
         ), tags=(hack_id,))
     
-    def _update_status_label(self, total_count, filtered_count):
+    def _update_status_label(self, total_count, filtered_count, custom_text=None):
         """Update the status label"""
-        completed_count = sum(1 for hack in self.filtered_data if hack.get("completed", False))
-        status_text = f"Showing {filtered_count} of {total_count} hacks"
-        if filtered_count > 0:
-            status_text += f" • {completed_count} completed"
+        if custom_text:
+            # Use custom text when provided (for pagination)
+            status_text = custom_text
+        else:
+            # Use default format
+            completed_count = sum(1 for hack in self.filtered_data if hack.get("completed", False))
+            status_text = f"Showing {filtered_count} of {total_count} hacks"
+            if filtered_count > 0:
+                status_text += f" • {completed_count} completed"
         self.status_label.config(text=status_text)
     
     def _apply_filters(self):
@@ -187,6 +265,10 @@ class HackHistoryPage:
             
         if self.notes_editor.entry:
             self.notes_editor.save()
+        
+        # v3.1 NEW: Save time editor if active
+        if self.time_editor.entry:
+            self.time_editor.save()
         
         # Identify clicked item and column
         item = self.tree.identify("item", event.x, event.y)
@@ -208,8 +290,10 @@ class HackHistoryPage:
             self._edit_rating(hack_id, item, event)
         elif column == "#6":  # Completed date
             self.date_editor.start_edit(hack_id, item, event, "completed_date", "#6", DateValidator.validate)
-        elif column == "#7":  # Notes
-            self.notes_editor.start_edit(hack_id, item, event, "notes", "#7", NotesValidator.validate)
+        elif column == "#7":  # Time to Beat (v3.1 NEW)
+            self.time_editor.start_edit(hack_id, item, event, "time_to_beat", "#7", self._validate_time_input)
+        elif column == "#8":  # Notes (was #7)
+            self.notes_editor.start_edit(hack_id, item, event, "notes", "#8", NotesValidator.validate)
     
     def _on_item_double_click(self, event):
         """Handle double click - show hack details"""
@@ -462,6 +546,124 @@ class HackHistoryPage:
         else:
             return "☆☆☆☆☆"
     
+    def _format_time_display(self, seconds):
+        """Convert seconds to readable time format (Xd Xh Xm Xs)"""
+        if seconds == 0:
+            return ""  # Empty if not set
+        
+        # Convert to days, hours, minutes, seconds
+        days = seconds // 86400  # 86400 seconds in a day
+        remaining = seconds % 86400
+        hours = remaining // 3600
+        remaining = remaining % 3600
+        minutes = remaining // 60
+        secs = remaining % 60
+        
+        # Build the display string
+        parts = []
+        if days > 0:
+            parts.append(f"{days}d")
+        if hours > 0:
+            parts.append(f"{hours}h")
+        if minutes > 0:
+            parts.append(f"{minutes}m")
+        if secs > 0 or not parts:  # Always show seconds if no other parts, or if seconds > 0
+            parts.append(f"{secs}s")
+        
+        return " ".join(parts)
+    
+    def _parse_time_input(self, time_str):
+        """Parse user time input and convert to seconds"""
+        if not time_str or time_str.strip() == "":
+            return 0
+        
+        time_str = time_str.strip()
+        
+        # Support flexible input formats
+        # HH:MM:SS, MM:SS, MM, "2h 30m", "90m", "150 minutes", etc.
+        # NEW: Support shortened formats like "14d 10", "14d 10h 2", "14d 10h 2m 1"
+        
+        import re
+        
+        # NEW: Pattern for flexible shortened formats with days
+        # "14d 10" -> 14 days, 10 hours, 0 minutes, 0 seconds
+        # "14d 10h 2" -> 14 days, 10 hours, 2 minutes, 0 seconds  
+        # "14d 10h 2m 1" -> 14 days, 10 hours, 2 minutes, 1 second
+        pattern_flexible = re.match(r'(?:(\d+)d\s*)?(?:(\d+)h?\s*)?(?:(\d+)m?\s*)?(?:(\d+)s?\s*)?$', time_str.lower())
+        if pattern_flexible and any(pattern_flexible.groups()):
+            days = int(pattern_flexible.group(1) or 0)
+            hours = int(pattern_flexible.group(2) or 0)
+            minutes = int(pattern_flexible.group(3) or 0) 
+            seconds = int(pattern_flexible.group(4) or 0)
+            
+            # If there's a 'd' in the input, treat it as the day format
+            if 'd' in time_str.lower():
+                return days * 86400 + hours * 3600 + minutes * 60 + seconds
+            
+            # If no 'd', check for standard letter suffixes
+            if re.search(r'[hms]', time_str.lower()):
+                return hours * 3600 + minutes * 60 + seconds
+        
+        # Pattern for "2h 30m 15s" or "2h 30m" or "90m" etc. - must have letter suffix
+        pattern_units = re.match(r'(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s\s*)?$', time_str.lower())
+        if pattern_units and any(pattern_units.groups()) and re.search(r'[hms]', time_str.lower()):
+            hours = int(pattern_units.group(1) or 0)
+            minutes = int(pattern_units.group(2) or 0) 
+            seconds = int(pattern_units.group(3) or 0)
+            return hours * 3600 + minutes * 60 + seconds
+        
+        # Pattern for "150 minutes" or "90 mins"
+        pattern_minutes = re.match(r'(\d+)\s*(?:minutes?|mins?)$', time_str.lower())
+        if pattern_minutes:
+            return int(pattern_minutes.group(1)) * 60
+        
+        # Pattern for "HH:MM:SS" or "MM:SS"
+        if ':' in time_str:
+            parts = time_str.split(':')
+            try:
+                if len(parts) == 3:  # HH:MM:SS
+                    hours, minutes, seconds = map(int, parts)
+                    return hours * 3600 + minutes * 60 + seconds
+                elif len(parts) == 2:  # MM:SS
+                    minutes, seconds = map(int, parts)
+                    return minutes * 60 + seconds
+            except ValueError:
+                pass
+        
+        # Just a number - assume minutes
+        if time_str.isdigit():
+            return int(time_str) * 60
+        
+        raise ValueError(f"Invalid time format: {time_str}")
+    
+    def _validate_time_input(self, time_str):
+        """Validate and convert time input to seconds for storage"""
+        try:
+            seconds = self._parse_time_input(time_str)
+            if seconds < 0:
+                from tkinter import messagebox
+                messagebox.showerror("Invalid Time", "Time cannot be negative")
+                return None
+            if seconds > 999 * 3600:  # 999 hours max
+                from tkinter import messagebox
+                messagebox.showerror("Invalid Time", "Time cannot exceed 999 hours")
+                return None
+            return seconds
+        except ValueError as e:
+            from tkinter import messagebox
+            messagebox.showerror("Invalid Time", 
+                               f"Invalid time format.\n\n"
+                               f"Valid formats include:\n"
+                               f"• HH:MM:SS (e.g., 1:30:45)\n"
+                               f"• MM:SS (e.g., 90:30)\n"
+                               f"• 2h 30m (e.g., 1h 30m 15s)\n"
+                               f"• 90m or 90 minutes\n"
+                               f"• 90 (assumes minutes)\n"
+                               f"• 14d 10 (14 days, 10 hours)\n"
+                               f"• 14d 10h 2 (14 days, 10 hours, 2 minutes)\n"
+                               f"• 14d 10h 2m 1 (14 days, 10 hours, 2 minutes, 1 second)")
+            return None
+    
     def _toggle_h_scrollbar(self, scrollbar):
         """Show/hide horizontal scrollbar based on content"""
         tree_width = self.tree.winfo_width()
@@ -471,6 +673,193 @@ class HackHistoryPage:
             scrollbar.grid(row=1, column=0, sticky="ew")
         else:
             scrollbar.grid_remove()
+    
+    def _create_pagination_controls(self):
+        """Create pagination controls"""
+        pagination_frame = ttk.Frame(self.frame)
+        pagination_frame.pack(fill="x", pady=(0, 10))
+        
+        # Left side - Page size selector
+        left_frame = ttk.Frame(pagination_frame)
+        left_frame.pack(side="left")
+        
+        ttk.Label(left_frame, text="Show:").pack(side="left", padx=(0, 5))
+        
+        self.page_size_var = tk.StringVar(value="50")
+        page_size_combo = ttk.Combobox(left_frame, textvariable=self.page_size_var, 
+                                      values=["25", "50", "100", "200"], width=8, state="readonly")
+        page_size_combo.pack(side="left", padx=(0, 5))
+        page_size_combo.bind("<<ComboboxSelected>>", self._on_page_size_change)
+        
+        ttk.Label(left_frame, text="per page").pack(side="left")
+        
+        # Center - Page info
+        center_frame = ttk.Frame(pagination_frame)
+        center_frame.pack(side="left", expand=True)
+        
+        self.page_info_label = ttk.Label(center_frame, text="Page 1 of 1")
+        self.page_info_label.pack()
+        
+        # Right side - Navigation buttons
+        right_frame = ttk.Frame(pagination_frame)
+        right_frame.pack(side="right")
+        
+        self.first_btn = ttk.Button(right_frame, text="⏮", width=3, command=self._go_to_first_page)
+        self.first_btn.pack(side="left", padx=(0, 2))
+        
+        self.prev_btn = ttk.Button(right_frame, text="◀", width=3, command=self._go_to_prev_page)
+        self.prev_btn.pack(side="left", padx=(0, 2))
+        
+        # Page input
+        self.page_var = tk.StringVar(value="1")
+        self.page_entry = ttk.Entry(right_frame, textvariable=self.page_var, width=5, justify="center")
+        self.page_entry.pack(side="left", padx=(0, 2))
+        self.page_entry.bind("<Return>", self._on_page_entry_change)
+        self.page_entry.bind("<FocusOut>", self._on_page_entry_change)
+        
+        self.next_btn = ttk.Button(right_frame, text="▶", width=3, command=self._go_to_next_page)
+        self.next_btn.pack(side="left", padx=(0, 2))
+        
+        self.last_btn = ttk.Button(right_frame, text="⏭", width=3, command=self._go_to_last_page)
+        self.last_btn.pack(side="left")
+    
+    def _on_page_size_change(self, event=None):
+        """Handle page size change"""
+        try:
+            new_size = int(self.page_size_var.get())
+            if new_size != self.page_size:
+                self.page_size = new_size
+                self.current_page = 1  # Reset to first page
+                self._refresh_table()
+        except ValueError:
+            pass
+    
+    def _on_page_entry_change(self, event=None):
+        """Handle manual page entry"""
+        try:
+            new_page = int(self.page_var.get())
+            if 1 <= new_page <= self.total_pages and new_page != self.current_page:
+                self.current_page = new_page
+                self._refresh_table()
+            else:
+                # Reset to current page if invalid
+                self.page_var.set(str(self.current_page))
+        except ValueError:
+            self.page_var.set(str(self.current_page))
+    
+    def _go_to_first_page(self):
+        """Go to first page"""
+        if self.current_page != 1:
+            self.current_page = 1
+            self.page_var.set("1")
+            self._refresh_table()
+    
+    def _go_to_prev_page(self):
+        """Go to previous page"""
+        if self.current_page > 1:
+            self.current_page -= 1
+            self.page_var.set(str(self.current_page))
+            self._refresh_table()
+    
+    def _go_to_next_page(self):
+        """Go to next page"""
+        if self.current_page < self.total_pages:
+            self.current_page += 1
+            self.page_var.set(str(self.current_page))
+            self._refresh_table()
+    
+    def _go_to_last_page(self):
+        """Go to last page"""
+        if self.current_page != self.total_pages:
+            self.current_page = self.total_pages
+            self.page_var.set(str(self.total_pages))
+            self._refresh_table()
+    
+    def _update_pagination_controls(self):
+        """Update pagination control states"""
+        # Update page info
+        self.page_info_label.configure(text=f"Page {self.current_page} of {self.total_pages}")
+        
+        # Update button states
+        first_page = self.current_page == 1
+        last_page = self.current_page == self.total_pages
+        
+        self.first_btn.configure(state="disabled" if first_page else "normal")
+        self.prev_btn.configure(state="disabled" if first_page else "normal")
+        self.next_btn.configure(state="disabled" if last_page else "normal")
+        self.last_btn.configure(state="disabled" if last_page else "normal")
+    
+    def _sort_by_column(self, column):
+        """Sort the data by the specified column"""
+        # Toggle sort direction if clicking the same column
+        if self.sort_column == column:
+            self.sort_reverse = not self.sort_reverse
+        else:
+            self.sort_column = column
+            self.sort_reverse = False
+        
+        # Update header to show sort direction
+        self._update_column_headers()
+        
+        # Apply sort and refresh table
+        self._refresh_table()
+    
+    def _update_column_headers(self):
+        """Update column headers to show sort indicators"""
+        headers = ["✓", "Title", "Type", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
+        columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
+        
+        for i, (col, base_header) in enumerate(zip(columns, headers)):
+            if col == self.sort_column:
+                # Add sort indicator
+                indicator = " ▼" if self.sort_reverse else " ▲"
+                header_text = base_header + indicator
+            else:
+                header_text = base_header
+            
+            self.tree.heading(col, text=header_text, command=lambda c=col: self._sort_by_column(c))
+    
+    def _sort_filtered_data(self):
+        """Sort the filtered data based on current sort settings"""
+        if not self.sort_column or not self.filtered_data:
+            return
+        
+        def get_sort_key(hack):
+            value = hack.get(self.sort_column, "")
+            
+            # Handle different data types for proper sorting
+            if self.sort_column == "completed":
+                # Sort completed status: completed items first, then uncompleted
+                return (not hack.get("completed", False), hack.get("title", "").lower())
+            elif self.sort_column in ["rating"]:
+                # Numeric sorting for rating - use actual numeric value from data, not display value
+                rating = hack.get("personal_rating", 0)
+                try:
+                    return float(rating) if rating else 0
+                except (ValueError, TypeError):
+                    return 0
+            elif self.sort_column == "completed_date":
+                # Date sorting - handle empty dates
+                if not value:
+                    return "0000-00-00"  # Empty dates sort first
+                return value
+            elif self.sort_column == "time_to_beat":
+                # Time sorting - convert to numeric for proper ordering
+                if not value:
+                    return 0
+                try:
+                    # If it's already numeric (seconds), use it
+                    if isinstance(value, (int, float)):
+                        return value
+                    # If it's a string, try to parse it
+                    return float(value)
+                except (ValueError, TypeError):
+                    return 0
+            else:
+                # String sorting (case-insensitive)
+                return str(value).lower()
+        
+        self.filtered_data.sort(key=get_sort_key, reverse=self.sort_reverse)
 
 
 

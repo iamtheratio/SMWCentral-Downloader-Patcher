@@ -1,6 +1,8 @@
 import json
 import os
 import shutil
+import time
+import threading
 from datetime import datetime
 
 class HackDataManager:
@@ -9,19 +11,28 @@ class HackDataManager:
     def __init__(self, json_path="processed.json"):
         self.json_path = json_path
         self.data = self._load_data()
+        self.unsaved_changes = False
+        self.last_save_time = 0
+        self.save_delay = 2.0  # Wait 2 seconds before auto-saving
+        self._save_timer = None
     
     def _load_data(self):
         """Load data from processed.json"""
         try:
             with open(self.json_path, "r", encoding="utf-8") as f:
                 data = json.load(f)
-                # Ensure all entries have the new fields
+                # Ensure all entries have the v3.0 and v3.1 fields
                 for hack_id, hack_data in data.items():
                     if isinstance(hack_data, dict):
+                        # v3.0 fields
                         hack_data.setdefault("completed", False)
                         hack_data.setdefault("completed_date", "")
                         hack_data.setdefault("personal_rating", 0)
                         hack_data.setdefault("notes", "")
+                        # v3.1 NEW fields
+                        hack_data.setdefault("time_to_beat", 0)
+                        hack_data.setdefault("exits", 0)
+                        hack_data.setdefault("authors", [])
                 return data
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
@@ -66,13 +77,15 @@ class HackDataManager:
                     "completed": hack_data.get("completed", False),
                     "completed_date": hack_data.get("completed_date", ""),
                     "personal_rating": hack_data.get("personal_rating", 0),
-                    "notes": hack_data.get("notes", "")
+                    "notes": hack_data.get("notes", ""),
+                    "time_to_beat": hack_data.get("time_to_beat", 0),  # v3.1 NEW: Add time_to_beat field
+                    "exits": hack_data.get("exits", 0)  # v3.1 NEW: Add exits field for analytics
                 }
                 hacks.append(hack_info)
         return hacks
     
     def update_hack(self, hack_id, field, value):
-        """Update a specific field for a hack with validation"""
+        """Update a specific field for a hack with delayed saving for performance"""
         if hack_id not in self.data:
             print(f"ERROR: Hack ID {hack_id} not found in data")
             return False
@@ -90,16 +103,48 @@ class HackDataManager:
             old_value = self.data[hack_id].get(field, None)
             self.data[hack_id][field] = value
             
-            # Save and validate
-            if self.save_data():
-                print(f"SUCCESS: Updated {field} for hack {hack_id}: '{old_value}' → '{value}'")
-                return True
-            else:
-                print(f"ERROR: Failed to save data after updating {field} for hack {hack_id}")
-                return False
+            # Mark as having unsaved changes and schedule delayed save
+            self.unsaved_changes = True
+            self._schedule_delayed_save()
+            
+            print(f"SUCCESS: Updated {field} for hack {hack_id}: '{old_value}' → '{value}' (will save in {self.save_delay}s)")
+            return True
         except Exception as e:
             print(f"ERROR: Exception updating hack {hack_id} field {field}: {e}")
             return False
+    
+    def _schedule_delayed_save(self):
+        """Schedule a delayed save to improve performance"""
+        # Cancel any existing save timer
+        if self._save_timer:
+            self._save_timer.cancel()
+        
+        # Schedule new save
+        self._save_timer = threading.Timer(self.save_delay, self._delayed_save)
+        self._save_timer.start()
+    
+    def _delayed_save(self):
+        """Perform the actual delayed save"""
+        if self.unsaved_changes:
+            if self.save_data():
+                self.unsaved_changes = False
+                print(f"AUTO-SAVE: Successfully saved batched changes to {self.json_path}")
+            else:
+                print("AUTO-SAVE: Failed to save batched changes")
+    
+    def force_save(self):
+        """Force immediate save of any pending changes"""
+        if self._save_timer:
+            self._save_timer.cancel()
+            self._save_timer = None
+        
+        if self.unsaved_changes:
+            success = self.save_data()
+            if success:
+                self.unsaved_changes = False
+                print(f"FORCED SAVE: Successfully saved pending changes to {self.json_path}")
+            return success
+        return True
     
     def get_unique_types(self):
         """Get list of unique hack types"""

@@ -1,4 +1,4 @@
-# SMWC Downloader & Patcher v3.0
+# SMWC Downloader & Patcher v3.1
 
 A comprehensive Python GUI tool that automates downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). Features built-in IPS/BPS patching, intelligent filtering, and a powerful hack history management system.
 
@@ -14,7 +14,7 @@ A comprehensive Python GUI tool that automates downloading, patching, and organi
 5. **Select** hack type, difficulty, and filters
 6. **Click** Download & Patch
 
-![Bulk Interface](/images/ss_app_bulk_v3.0.png)
+![Bulk Interface](/images/ss_app_bulk_v3.1.png)
 
 > [!IMPORTANT]
 > ### ⚠️ Security Software Note
@@ -28,19 +28,20 @@ A comprehensive Python GUI tool that automates downloading, patching, and organi
 >
 > The application is open-source, and the code can be inspected on GitHub.
 
-## 🆕 v3.0 Migration Guide
+## 🆕 v3.1 Migration Guide
 
 ### For Existing Users
 
-If you've used a previous version, **v3.0 will automatically upgrade your database** when you first open the app. Here's what to expect:
+If you've used a previous version, **v3.1 will automatically upgrade your database** when you first open the app. Here's what to expect:
 
 #### Migration Process
 
 1. **Automatic Detection**: The app detects your old format and shows a migration dialog
-2. **Backup Creation**: Your existing data is backed up to `processed.json.pre-v3.0.backup`
+2. **Backup Creation**: Your existing data is backed up to `processed.json.pre-v3.1.backup`
 3. **API Enhancement**: Fetches real metadata from SMWC (Hall of Fame, SA-1, Collaboration, Demo status)
-4. **Progress Dialog**: Shows real-time progress with detailed logging
-5. **Privacy Cleanup**: Removes file paths from your data for privacy
+4. **New Features**: Adds Time to Beat tracking, Authors, and Exit count data
+5. **Progress Dialog**: Shows real-time progress with detailed logging
+6. **Privacy Cleanup**: Removes file paths from your data for privacy
 
 #### What Changes
 
@@ -55,7 +56,7 @@ If you've used a previous version, **v3.0 will automatically upgrade your databa
 }
 ```
 
-**After v3.0:**
+**After v3.1:**
 ```json
 {
   "12345": {
@@ -66,10 +67,18 @@ If you've used a previous version, **v3.0 will automatically upgrade your databa
     "sa1_compatibility": false,
     "collaboration": false,
     "demo": false,
+    "exits": 14,
+    "authors": [
+      {
+        "id": 12345,
+        "name": "AuthorName"
+      }
+    ],
     "completed": false,
     "completed_date": "",
     "personal_rating": 0,
-    "notes": ""
+    "notes": "",
+    "time_to_beat": 0
   }
 }
 ```
@@ -80,14 +89,37 @@ If you've used a previous version, **v3.0 will automatically upgrade your databa
 - 🔐 **Privacy Protected**: File paths removed automatically
 - 📊 **Enhanced Data**: Hall of Fame, SA-1, Collaboration, Demo flags added
 - 📝 **History Ready**: Completion tracking and rating system enabled
+- ⏱️ **Time Tracking**: Time to Beat field added for performance analysis
+- 👥 **Author Data**: Author information and IDs from SMWC
+- 🚪 **Exit Counts**: Number of exits for each hack when available
+- 📊 **Analytics Ready**: Data structure optimized for dashboard analytics
 
 #### If Migration Fails
 
 - Your original data is safely backed up
-- You can restore from `processed.json.pre-v3.0.backup`
+- You can restore from `processed.json.pre-v3.1.backup`
 - Contact support with error details
 
 ## ✨ Key Features
+
+### 🏠 Dashboard Page *(Enhanced in v3.1)*
+
+![Dashboard Interface](/images/ss_app_dashboard_v3.1.png)
+
+A comprehensive analytics dashboard providing insights into your hack completion journey:
+
+#### Performance Analytics
+- **📊 Overview Cards**: Total hacks, completion rate, average rating, and completion velocity
+- **📈 Time Progression Chart**: Visual analysis of completion times by difficulty over 6 months
+- **🎯 Efficiency Metrics**: Average time per hack and per exit for performance tracking
+- **🔥 Streak Tracking**: Current and longest completion streaks with velocity indicators
+- **💡 Smart Guidance**: Helpful messages guide users to enter time data for analytics
+
+#### Advanced Filtering
+- **📅 Date Filters**: Last week, month, 3 months, 6 months, or all-time data
+- **📊 Interactive Charts**: Line charts with type filtering and difficulty-based color coding
+- **🏆 Dynamic Updates**: Real-time recalculation based on selected time periods
+- **🎯 Reorganized Layout**: Logical grouping of hack-focused vs exit-focused metrics
 
 ### 🏠 Bulk Download Page
 - **Types**: Standard, Kaizo, Puzzle, Tool-Assisted, Pit
@@ -98,7 +130,7 @@ If you've used a previous version, **v3.0 will automatically upgrade your databa
 
 ### 📚 Hack History Page *(NEW in v3.0)*
 
-![Hack History Interface](/images/ss_app_hackhistory_v3.0.png)
+![Hack History Interface](/images/ss_app_hackhistory_v3.1.png)
 
 A complete hack management system for tracking your ROM hack journey:
 
@@ -130,6 +162,7 @@ A complete hack management system for tracking your ROM hack journey:
 - **Real-time Updates**: Changes save immediately and update display
 - **Smart Validation**: Date format checking and note length limits
 - **Undo Protection**: All changes backed up automatically
+- **💾 Auto-Save Protection**: Refresh operations automatically save pending changes to prevent data loss
 
 ### Smart Processing
 - **Built-in Patching**: No external tools needed - handles IPS & BPS formats
@@ -185,10 +218,18 @@ The app saves settings in `config.json`:
     "sa1_compatibility": false,
     "collaboration": false,
     "demo": false,
+    "exits": 14,
+    "authors": [
+      {
+        "id": 12345,
+        "name": "AuthorName"
+      }
+    ],
     "completed": true,
     "completed_date": "2025-01-15",
     "personal_rating": 4,
-    "notes": "Amazing level design!"
+    "notes": "Amazing level design!",
+    "time_to_beat": 7200
   }
 }
 ```
@@ -201,7 +242,7 @@ The app saves settings in `config.json`:
 - Clean Super Mario World ROM file
 - Internet connection for SMWC API
 
-## 🆕 What's New in v3.0
+## 🆕 What's New in v3.1
 
 ### 🎯 Major Features
 - **📚 Hack History Page**: Complete hack management system with tracking, ratings, notes, and advanced filtering
@@ -209,14 +250,30 @@ The app saves settings in `config.json`:
 - **🏷️ Real Metadata**: Hall of Fame, SA-1, Collaboration, and Demo flags fetched from SMWC
 - **⭐ Personal Tracking**: Completion status, dates, star ratings, and personal notes
 - **🎨 Tabbed Interface**: Navigate between Bulk Download and Hack History pages
+- **📊 Advanced Dashboard Analytics**: Time progression charts, completion analytics, and performance metrics
+- **⏱️ Time to Beat Tracking**: Record and analyze completion times for hacks
+- **🚀 Enhanced Download Pipeline**: Improved cancellation support and Unicode filename handling
+- **🛡️ Data Protection**: Auto-save system prevents data loss during operations
 
-### 📊 Hack History Features
+### 📊 Dashboard Analytics Features
+- **📈 Time Progression Charts**: Visual analysis of completion times by difficulty over 6 months
+- **🎯 Performance Metrics**: Average completion time per hack and per exit
+- **📋 Completion Analytics**: Breakdown by difficulty, type, and rating distribution
+- **🔥 Streak Tracking**: Current and longest completion streaks
+- **🏆 Advanced Filtering**: Last week, month, 3 months, 6 months, or all-time data
+- **📊 Interactive Charts**: Line charts with type filtering and difficulty-based color coding
+- **💡 User Guidance**: Clear instructions when no data is available for analytics
+- **📐 Improved Layout**: Reorganized metrics for better logical grouping
+
+### 📚 Hack History Features
 - **Interactive Table**: Click to edit completion status, ratings, dates, and notes
 - **Smart Filtering**: 9 different filter types including name search and metadata
 - **Real-time Validation**: Date format checking and automatic data sync
 - **Completion Tracking**: Mark hacks complete with automatic date setting
 - **Star Ratings**: 5-star rating system with visual feedback
 - **Personal Notes**: Add detailed notes with character limit protection
+- **⏱️ Time Recording**: Track completion times for performance analysis
+- **🛡️ Data Safety**: Automatic save protection prevents loss during refresh operations
 
 ### 🛠️ Technical Improvements
 - **Database Migration**: Seamless upgrade from v2.x with 99.8% API success rate
@@ -224,6 +281,11 @@ The app saves settings in `config.json`:
 - **Enhanced API**: Bulk metadata fetching with rate limiting and retry logic
 - **Modular Architecture**: Separated page components for better maintainability
 - **Improved Logging**: Enhanced debug output and user-friendly messages
+- **🔧 Download Cancellation**: Full cancellation support with proper cleanup
+- **🌍 Unicode Support**: Handles special characters and emojis in hack titles
+- **🎨 Theme-Aware UI**: Consistent styling across light and dark themes
+- **🛡️ Data Integrity**: Auto-save protection and improved error handling
+- **📊 Analytics Engine**: Optimized calculations for dashboard metrics
 
 ### 🎨 UI/UX Enhancements
 - **Navigation Tabs**: Clean tab system for switching between pages
@@ -231,6 +293,7 @@ The app saves settings in `config.json`:
 - **Better Iconography**: Application icon on all dialogs and popups
 - **Responsive Design**: Improved layout and spacing throughout
 - **Status Indicators**: Real-time feedback on data loading and filtering
+- **📊 Visual Charts**: Interactive line charts with hover effects and legends
 
 ## 🔧 Technical Notes
 
@@ -240,9 +303,15 @@ The app saves settings in `config.json`:
 
 **File Formats**: Supports .smc/.sfc ROMs and .ips/.bps patches with automatic header detection.
 
-**Database Migration**: v3.0 automatically detects older formats and upgrades them with real SMWC metadata. Process is fully automated and includes backup creation.
+**Database Migration**: v3.1 automatically detects older formats and upgrades them with enhanced metadata including Time to Beat tracking, author data, and exit counts. Process is fully automated and includes backup creation.
 
 **Difficulty Ordering**: Logical progression from Newcomer → Casual → Skilled → Advanced → Expert → Master → Grandmaster.
+
+**Time Tracking**: Completion times are stored in seconds and automatically converted to hours for display in analytics. Charts show rolling 6-month averages for trend analysis.
+
+**Unicode Support**: Filename handling supports special characters, emojis, and international text. Files are automatically converted to emulator-compatible formats while preserving original display names.
+
+**Cancellation System**: Full pipeline cancellation with proper cleanup, thread management, and user feedback. Safely stops downloads and file operations without corruption.
 
 ## 📦 Building from Source
 
@@ -258,23 +327,43 @@ python main.py
 <details>
 <summary>Click to expand version history</summary>
 
-### v3.0.0 - Hack History & Database Revolution
-- **NEW: Hack History Page** - Complete hack management system
-  - Interactive table with click-to-edit functionality
-  - Personal ratings (1-5 stars), completion tracking, and notes
-  - Advanced filtering with 9 filter types
-  - Real-time search and status indicators
-- **NEW: Database Migration System** - Automatic upgrade from v2.x
-  - 99.8% API success rate for metadata enhancement
-  - Hall of Fame, SA-1, Collaboration, Demo flags from SMWC
-  - Privacy protection with automatic file path removal
-  - Progress dialog with detailed logging
-- **NEW: Tabbed Interface** - Navigate between Bulk Download and Hack History
-- **Enhanced Data Structure** - Rich metadata from SMWC API
-- **Improved Difficulty Ordering** - Logical Newcomer → Grandmaster progression
-- **Better Error Handling** - Robust migration and data validation
-- **UI Consistency** - Application icon on all dialogs
-- **Modular Architecture** - Separated components for maintainability
+### v3.1.0 - Enhanced Analytics, Time Tracking & Download Improvements
+- **NEW: Advanced Dashboard Analytics** - Time progression charts and performance metrics
+  - 📈 Time progression line charts with 6-month rolling analysis
+  - 🎯 Average completion time per hack and per exit tracking
+  - 📊 Interactive charts with type filtering and difficulty color coding
+  - 🔥 Completion streak tracking and velocity calculations
+  - 🏆 Advanced date filtering (last week, month, 3 months, 6 months, all-time)
+- **NEW: Time to Beat Tracking** - Record and analyze completion times
+  - ⏱️ Time recording functionality in hack history
+  - 📈 Performance analytics and trend visualization
+  - 🎯 Exit-based efficiency calculations
+- **NEW: Enhanced Download Pipeline** - Improved user experience
+  - 🚀 Full cancellation support with proper cleanup and logging
+  - 🌍 Unicode filename support for special characters and emojis
+  - 🎨 Theme-aware cancel button styling
+  - 📋 Improved error handling and user feedback
+- **NEW: Author & Exit Data** - Enhanced hack metadata
+  - 👥 Author information with IDs from SMWC API
+  - 🚪 Exit count data for difficulty assessment
+  - 📊 Comprehensive metadata structure for analytics
+- **Enhanced Hack History Page** - Additional functionality
+  - ⏱️ Time to beat recording and editing
+  - 📊 Performance metrics integration
+  - 🔄 Improved data synchronization
+  - 🛡️ Auto-save protection during refresh operations
+- **Dashboard Analytics Improvements** - Better user experience
+  - 📐 Reorganized layout with logical metric grouping
+  - 💡 Helpful guidance messages for empty charts
+  - 🎯 Fixed completion rate calculations
+  - 📊 Improved legend display and chart spacing
+- **Technical Improvements**
+  - 🏗️ Modular dashboard architecture with analytics engine
+  - 📊 Optimized data processing for large datasets
+  - 🎨 Consistent theme handling across all components
+  - 🔧 Enhanced error handling and validation
+  - 🛡️ Data protection with auto-save before refresh operations
+  - 📐 Improved chart layouts and legend spacing
 
 ### v2.5.0 - Waiting Hacks & UI Improvements
 - Added "Include Waiting" option for pending hacks

@@ -2,12 +2,13 @@ import tkinter as tk
 from tkinter import ttk
 from api_pipeline import run_pipeline
 from ui import setup_ui, update_log_colors
+from utils import resource_path  # ADDED: Import resource path utility
 import sv_ttk
 import sys
 import platform
 import pywinstyles
 
-VERSION = "v3.0"
+VERSION = "v3.1"
 
 def apply_theme_to_titlebar(root):
     if platform.system() != "Windows":
@@ -102,6 +103,17 @@ def toggle_theme_callback(root):
     if hasattr(root, 'log_text'):
         update_log_colors(root.log_text)
     
+    # Update dashboard if it exists
+    if hasattr(root, 'navigation') and hasattr(root.navigation, 'page_manager'):
+        current_page = root.navigation.page_manager.get_current_page()
+        if current_page == "Dashboard":
+            # Refresh the dashboard to apply new theme using the stored reference
+            if hasattr(root, 'dashboard_page') and hasattr(root.dashboard_page, '_refresh_dashboard'):
+                try:
+                    root.dashboard_page._refresh_dashboard()
+                except Exception as e:
+                    print(f"Error refreshing dashboard during theme toggle: {e}")
+    
     # Single update at the very end
     root.update_idletasks()
 
@@ -116,11 +128,11 @@ def clear_log_shortcut(root):
 def main():
     root = tk.Tk()
     root.title("SMWC Downloader & Patcher")
-    root.geometry("1000x900")
+    root.geometry("1050x900")
     
     # Set application icon
     try:
-        root.iconbitmap("assets/icon.ico")
+        root.iconbitmap(resource_path("assets/icon.ico"))
     except tk.TclError:
         print("Could not load application icon. Make sure the file exists.")
     
@@ -146,6 +158,19 @@ def main():
         
         # Add keyboard shortcut for clearing log
         root.bind("<Control-l>", lambda e: clear_log_shortcut(root))
+        
+        # Add cleanup handler for when app closes
+        def on_closing():
+            # Force save any pending changes in hack history
+            if hasattr(root, 'navigation') and hasattr(root.navigation, 'page_manager'):
+                pages = root.navigation.page_manager.pages
+                if 'Hack History' in pages:
+                    hack_history_page = pages['Hack History']
+                    if hasattr(hack_history_page, 'cleanup'):
+                        hack_history_page.cleanup()
+            root.destroy()
+        
+        root.protocol("WM_DELETE_WINDOW", on_closing)
     
     # Import and run migration check
     try:

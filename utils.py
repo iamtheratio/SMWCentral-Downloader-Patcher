@@ -4,11 +4,22 @@ import json
 import re
 import shutil
 import tkinter as tk
+import sys
+
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and for PyInstaller"""
+    try:
+        # PyInstaller creates a temp folder and stores path in _MEIPASS
+        base_path = sys._MEIPASS
+    except Exception:
+        base_path = os.path.abspath(".")
+    
+    return os.path.join(base_path, relative_path)
 
 def set_window_icon(window):
     """Set the application icon for any window or dialog"""
     try:
-        window.iconbitmap("assets/icon.ico")
+        window.iconbitmap(resource_path("assets/icon.ico"))
     except (tk.TclError, AttributeError):
         pass  # Fallback silently if icon not found or not supported
 
@@ -64,7 +75,74 @@ TYPE_DISPLAY_LOOKUP = {
 
 # Filename sanitization
 def safe_filename(name):
-    return re.sub(r'[<>:"/\\|?*]', '', name).strip()
+    import unicodedata
+    
+    # First, handle common Unicode characters that cause emulator issues
+    unicode_replacements = {
+        '⏱︎': 'Timer',  # Timer symbol
+        '⏱': 'Timer',   # Timer symbol (variant)
+        '🐸': 'Frog',   # Frog emoji
+        '🥣': 'Soup',   # Soup emoji
+        '🍃': 'Leaf',   # Leaf emoji
+        '⭐': 'Star',   # Star emoji
+        '💀': 'Skull',  # Skull emoji
+        '👑': 'Crown',  # Crown emoji
+        '🔥': 'Fire',   # Fire emoji
+        '❄️': 'Snow',   # Snowflake emoji
+        '🌟': 'Star',   # Glowing star emoji
+        '💎': 'Diamond', # Diamond emoji
+        '🎯': 'Target', # Target emoji
+        '⚡': 'Lightning', # Lightning emoji
+        '🌙': 'Moon',   # Moon emoji
+        '☀️': 'Sun',    # Sun emoji
+        '🎵': 'Music',  # Music note emoji
+        '🎶': 'Music',  # Multiple music notes emoji
+        '💥': 'Explosion', # Explosion emoji
+        '🚀': 'Rocket', # Rocket emoji
+        '🎮': 'Game',   # Game controller emoji
+        '🏆': 'Trophy', # Trophy emoji
+        '⚔️': 'Swords', # Crossed swords emoji
+        '🛡️': 'Shield', # Shield emoji
+        '🗡️': 'Sword',  # Sword emoji
+        '🏰': 'Castle', # Castle emoji
+        '🌊': 'Wave',   # Wave emoji
+        '🔴': 'Red',    # Red circle emoji
+        '🟢': 'Green',  # Green circle emoji
+        '🔵': 'Blue',   # Blue circle emoji
+        '🟡': 'Yellow', # Yellow circle emoji
+        '🟣': 'Purple', # Purple circle emoji
+        '⚫': 'Black',  # Black circle emoji
+        '⚪': 'White',  # White circle emoji
+        '🔶': 'Orange', # Orange diamond emoji
+        '🔷': 'Blue',   # Blue diamond emoji
+        # Add more as needed
+    }
+    
+    # Replace known Unicode characters with descriptive text
+    result = name
+    for unicode_char, replacement in unicode_replacements.items():
+        result = result.replace(unicode_char, replacement)
+    
+    # Add spaces between consecutive converted words (when multiple emojis were adjacent)
+    # This handles cases like "FrogSoupStarFire" -> "Frog Soup Star Fire"
+    # Keep applying the regex until no more changes are made
+    prev_result = ""
+    while prev_result != result:
+        prev_result = result
+        result = re.sub(r'([a-z])([A-Z])', r'\1 \2', result)
+    
+    # Handle any remaining Unicode characters by converting to ASCII equivalents
+    # This will convert accented characters like é→e, ñ→n, etc.
+    result = unicodedata.normalize('NFD', result)
+    result = ''.join(char for char in result if unicodedata.category(char) != 'Mn')
+    
+    # Remove any remaining non-ASCII characters that couldn't be converted
+    result = result.encode('ascii', 'ignore').decode('ascii')
+    
+    # Remove filesystem-invalid characters
+    result = re.sub(r'[<>:"/\\|?*]', '', result).strip()
+    
+    return result
 
 def sanitize_name(name):
     return re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")

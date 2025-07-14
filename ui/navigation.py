@@ -3,6 +3,7 @@ from tkinter import ttk
 from colors import get_colors
 import sv_ttk
 from PIL import Image, ImageTk  # ADDED: Import PIL for image handling
+from utils import resource_path  # ADDED: Import resource path utility
 
 class NavigationBar:
     """Handles the main navigation bar with tabs"""
@@ -16,7 +17,7 @@ class NavigationBar:
         self.theme_frame = None
         self.moon_label = None
         self.moon_image = None  # ADDED: Store image reference
-        self.current_page = "Bulk Download"
+        self.current_page = "Dashboard"
         
     def create(self):
         """Create the navigation bar"""
@@ -32,20 +33,20 @@ class NavigationBar:
         )
         self.nav_bar.pack(fill="x", side="top", pady=0)
         
-        # Add tabs - CENTERED VERTICALLY, NO UNDERLINES
-        tabs = ["Bulk Download", "Hack History"]
+        # Add tabs - CENTERED VERTICALLY AND HORIZONTALLY
+        tabs = ["Dashboard", "Bulk Download", "Hack History"]
         tab_width = 140
         
         for i, tab in enumerate(tabs):
             x_pos = 20 + (i * tab_width)
             
             tab_id = self.nav_bar.create_text(
-                x_pos + 10,
+                x_pos + (tab_width // 2),  # Center text horizontally within tab space
                 nav_height // 2,
                 text=tab,
                 font=("Segoe UI", 11, "bold" if tab == self.current_page else "normal"),
                 fill=colors["nav_text"],
-                anchor="w"
+                anchor="center"  # Center anchor for better alignment
             )
             
             self.tab_refs.append({
@@ -81,7 +82,7 @@ class NavigationBar:
             # CHANGED: Load PNG image instead of emoji
             try:
                 # Load and resize the moon image
-                image = Image.open("assets/moon.png")  # Adjust path as needed
+                image = Image.open(resource_path("assets/moon.png"))  # Use resource_path for bundled executable
                 image = image.resize((20, 20), Image.Resampling.LANCZOS)  # Resize to 20x20 pixels
                 self.moon_image = ImageTk.PhotoImage(image)
                 

@@ -1,7 +1,14 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
+import sys
+import os
+
+# Add path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
 from utils import TYPE_KEYMAP
+from ui_constants import get_page_padding, get_section_padding
 
 class BulkDownloadPage:
     """Bulk download page implementation"""
@@ -18,10 +25,97 @@ class BulkDownloadPage:
         self.download_button = None
         self.frame = None
         self.log_level_combo = None
+        
+        # Cancellation support
+        self.is_cancelled = False
+        self.current_thread = None
     
+    def update_theme_colors(self):
+        """Update cancel button colors when theme changes"""
+        # No longer needed - button keeps its original style
+        pass
+
+    def _configure_cancel_style(self):
+        """Configure the complete cancel button style independent of theme changes"""
+        try:
+            from colors import get_colors
+            colors = get_colors()
+            
+            # Create completely independent cancel button style
+            style = ttk.Style()
+            
+            # First, clear any existing Cancel.TButton configuration
+            try:
+                style.configure("Cancel.TButton")  # Reset to defaults
+            except:
+                pass
+            
+            # Get the current TButton configuration to see what might be interfering
+            try:
+                button_config = style.configure("TButton")
+                print(f"DEBUG: Current TButton config: {button_config}")
+            except:
+                pass
+            
+            # Force complete reconfiguration to override any interference
+            # Configure Cancel.TButton to be completely independent of TButton
+            style.configure("Cancel.TButton", 
+                           font=("Segoe UI", 10, "bold"),  # Explicit font - larger than default
+                           padding=(20, 10),               # Explicit padding
+                           background=colors["cancel_bg"],
+                           foreground=colors["cancel_fg"],
+                           borderwidth=1,
+                           relief="flat",
+                           width=None,      # Let text determine width
+                           height=None)     # Let font+padding determine height
+            
+            # Also configure the style mapping to prevent inheritance issues
+            style.map("Cancel.TButton",
+                     background=[('active', colors["cancel_hover"]),
+                                ('pressed', colors["cancel_pressed"]),
+                                ('disabled', colors["cancel_bg"]),
+                                ('focus', colors["cancel_bg"]),
+                                ('!focus', colors["cancel_bg"]),
+                                ('selected', colors["cancel_bg"]),
+                                ('!selected', colors["cancel_bg"]),
+                                ('readonly', colors["cancel_bg"]),
+                                ('alternate', colors["cancel_bg"]),
+                                ('invalid', colors["cancel_bg"]),
+                                ('', colors["cancel_bg"])],
+                     foreground=[('active', colors["cancel_fg"]),
+                                ('pressed', colors["cancel_fg"]),
+                                ('disabled', colors["cancel_fg"]),
+                                ('focus', colors["cancel_fg"]),
+                                ('!focus', colors["cancel_fg"]),
+                                ('selected', colors["cancel_fg"]),
+                                ('!selected', colors["cancel_fg"]),
+                                ('readonly', colors["cancel_fg"]),
+                                ('alternate', colors["cancel_fg"]),
+                                ('invalid', colors["cancel_fg"]),
+                                ('', colors["cancel_fg"])],
+                     # Override font in map as well to prevent inheritance
+                     font=[('', ("Segoe UI", 10, "bold"))],
+                     focuscolor=[('', ''), ('focus', ''), ('!focus', '')],
+                     bordercolor=[('', colors["cancel_bg"]), ('focus', colors["cancel_bg"])],
+                     lightcolor=[('', colors["cancel_bg"])],
+                     darkcolor=[('', colors["cancel_bg"])])
+            
+            # Ensure the button is using our style and force refresh
+            if self.download_button:
+                self.download_button.configure(style="Cancel.TButton")
+                # Force widget to recalculate its size
+                self.download_button.update_idletasks()
+                
+                # DEBUG: Check what style the button is actually using
+                actual_style = self.download_button.cget('style')
+                print(f"DEBUG: Button is using style: {actual_style}")
+                
+        except Exception as e:
+            print(f"Error configuring cancel button style: {e}")
+
     def create(self):
         """Create the bulk download page"""
-        self.frame = ttk.Frame(self.parent, padding=25)
+        self.frame = ttk.Frame(self.parent, padding=get_page_padding())
         
         # Configure styles
         style = ttk.Style()
@@ -33,13 +127,14 @@ class BulkDownloadPage:
                       padding=(20, 10))
 
         # Difficulty selection
+        _, section_padding_y = get_section_padding()
         self.difficulty_section.parent = self.frame
         difficulty_frame = self.difficulty_section.create(self.font)
-        difficulty_frame.pack(fill="x", pady=10)
+        difficulty_frame.pack(fill="x", pady=0) #section_padding_y)
 
         # Setup & filters section
         row_frame = ttk.Frame(self.frame)
-        row_frame.pack(fill="both", expand=True, pady=10)
+        row_frame.pack(fill="both", expand=True, pady=section_padding_y)
 
         # Configure grid for row_frame
         row_frame.rowconfigure(0, weight=1)
@@ -61,7 +156,7 @@ class BulkDownloadPage:
         self.download_button = ttk.Button(
             self.frame, 
             text="Download & Patch", 
-            command=self._run_pipeline_threaded,
+            command=self._on_button_click,
             style="Large.Accent.TButton"
         )
         self.download_button.pack(pady=(10, 15))
@@ -168,33 +263,66 @@ class BulkDownloadPage:
             )
             return
         
-        # Disable button and show running state
-        self.download_button.configure(state="disabled", text="Running...")
+        # Reset cancellation flag and set button to cancel mode
+        self.is_cancelled = False
+        
+        # Simply change the text - keep the same blue style for consistency
+        self.download_button.configure(text="Cancel")
         
         def pipeline_worker():
             try:
+                # Call original pipeline
                 self.run_pipeline_func(
                     filter_payload=payload,
                     base_rom_path=paths["base_rom_path"],
                     output_dir=paths["output_dir"],
                     log=self.logger.log
                 )
-                self.logger.log("✅ Done!", level="Information")
+                if not self.is_cancelled:
+                    self.logger.log("✅ Done!", level="Information")
             except Exception as e:
-                self.logger.log(f"❌ Error: {e}", level="Error")
+                if not self.is_cancelled:
+                    self.logger.log(f"❌ Error: {e}", level="Error")
             finally:
-                # Re-enable button when done
+                # Re-enable button when done and restore original colors
+                self.current_thread = None
                 root = self.parent.winfo_toplevel()
                 if root:
-                    root.after(0, lambda: self.download_button.configure(
-                        state="normal", 
-                        text="Download & Patch"
-                    ))
+                    def restore_button():
+                        # Restore original button text
+                        self.download_button.configure(text="Download & Patch")
+                    
+                    root.after(0, restore_button)
         
         # Start pipeline in separate thread
         thread = threading.Thread(target=pipeline_worker, daemon=True)
         thread.start()
+        self.current_thread = thread
     
+    def _on_button_click(self):
+        """Handle button click - either start download or cancel operation"""
+        if self.current_thread and self.current_thread.is_alive():
+            # Cancel operation
+            self._cancel_operation()
+        else:
+            # Start operation
+            self._run_pipeline_threaded()
+    
+    def _cancel_operation(self):
+        """Cancel the current operation"""
+        self.is_cancelled = True
+        
+        # Cancel the pipeline operation
+        from api_pipeline import cancel_pipeline
+        cancel_pipeline()
+        
+        self.logger.log("🛑 Cancelling operation...", level="warning")
+        
+        # Reset button immediately
+        self.download_button.configure(text="Download & Patch")
+        
+        # Note: Cancellation confirmation message is logged by api_pipeline.py
+
     def get_download_button(self):
         """Return the download button reference"""
         return self.download_button
@@ -214,3 +342,113 @@ class BulkDownloadPage:
         
         # Pass filters to the download pipeline
         self.run_pipeline_func(filters=current_filters)
+    
+    def _run_pipeline_with_cancellation(self, filter_payload, base_rom_path, output_dir, log=None):
+        """Run pipeline with cancellation support"""
+        # Import required modules
+        from api_pipeline import fetch_hack_list, load_processed, save_processed
+        from utils import DIFFICULTY_KEYMAP, title_case, safe_filename
+        from patch_handler import extract_patches_from_zip, apply_patch
+        import tempfile
+        import shutil
+        import requests
+        import os
+        
+        processed = load_processed()
+        all_hacks = []
+        if log: log("🔎 Starting download...")
+
+        # Check if we need to do post-collection filtering
+        difficulties = filter_payload.get("difficulties", [])
+        has_no_difficulty = "no difficulty" in difficulties
+        regular_difficulties = [d for d in difficulties if d != "no difficulty"]
+        needs_post_filtering = has_no_difficulty and not regular_difficulties
+        
+        # Add warning for "No Difficulty" selections
+        if has_no_difficulty:
+            if log:
+                log("[WRN] 'No Difficulty' selected - downloading ALL hacks then filtering locally due to SMWC API limitations", level="warning")
+
+        # PHASE 1: Fetch all moderated hacks (u=0)
+        page = 1
+        while True:
+            if self.is_cancelled:
+                return
+                
+            page_result = fetch_hack_list(filter_payload, page=page, waiting_mode=False, log=log)
+            
+            hacks = page_result["data"]
+            last_page = page_result.get("last_page", page)
+            
+            if not hacks:
+                if log: log("📄 No more moderated pages available", level="information")
+                break
+            
+            all_hacks.extend(hacks)
+            
+            if log: 
+                log(f"📄 Moderated page {page} returned {len(hacks)} entries", level="information")
+            
+            # Stop if we've reached the last page
+            if page >= last_page:
+                if log: log(f"📄 Reached last moderated page ({last_page})", level="information")
+                break
+            
+            page += 1
+
+        # PHASE 2: Fetch waiting hacks if enabled (u=1)
+        if filter_payload.get("waiting", False):
+            page = 1
+            while True:
+                if self.is_cancelled:
+                    return
+                    
+                page_result = fetch_hack_list(filter_payload, page=page, waiting_mode=True, log=log)
+                
+                hacks = page_result["data"]
+                last_page = page_result.get("last_page", page)
+                
+                if not hacks:
+                    if log: log("📄 No more waiting pages available", level="information")
+                    break
+                
+                all_hacks.extend(hacks)
+                
+                if log: 
+                    log(f"📄 Waiting page {page} returned {len(hacks)} entries", level="information")
+                
+                if page >= last_page:
+                    if log: log(f"📄 Reached last waiting page ({last_page})", level="information")
+                    break
+                
+                page += 1
+
+        if self.is_cancelled:
+            return
+
+        # Continue with the rest of the pipeline logic...
+        # (This is a simplified version - you'd need to adapt the full pipeline with cancellation checks)
+        
+        if log:
+            log(f"📦 Found {len(all_hacks)} total hacks.")
+            log("🧪 Starting patching...")
+
+        base_rom_ext = os.path.splitext(base_rom_path)[1]
+        raw_type = filter_payload["type"][0]
+        normalized_type = raw_type.lower().replace("-", "_")
+
+        for i, hack in enumerate(all_hacks):
+            if self.is_cancelled:
+                return
+                
+            # Process each hack (simplified version)
+            hack_id = str(hack["id"])
+            raw_title = hack["name"]
+            title_clean = title_case(safe_filename(raw_title))
+            
+            if log:
+                log(f"Processing {i+1}/{len(all_hacks)}: {title_clean}")
+            
+            # Add cancellation checks during processing
+            # This is where you'd call the original pipeline logic
+            # but with periodic cancellation checks

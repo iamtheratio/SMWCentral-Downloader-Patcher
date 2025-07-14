@@ -2,6 +2,13 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 from colors import get_colors
 from datetime import datetime
+import sys
+import os
+
+# Add path for imports
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+
+from ui_constants import get_labelframe_padding
 
 # Move the existing SetupSection, FilterSection, DifficultySection here
 # (Just copy the existing content from components.py)
@@ -10,7 +17,7 @@ class SetupSection:
     """Setup section with path controls"""
     def __init__(self, master):
         self.master = master
-        self.frame = ttk.LabelFrame(master, text="Setup")
+        self.frame = ttk.LabelFrame(master, text="Setup", padding=get_labelframe_padding())
         self.frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
 
         # Source code path
@@ -60,7 +67,7 @@ class FilterSection:
     """Filter section for hack type and options"""
     def __init__(self, master):
         self.master = master
-        self.frame = ttk.LabelFrame(master, text="Filters")
+        self.frame = ttk.LabelFrame(master, text="Filters", padding=get_labelframe_padding())
         self.frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
 
         # Hack type
@@ -90,7 +97,7 @@ class DifficultySection:
     """Difficulty selection section"""
     def __init__(self, master):
         self.master = master
-        self.frame = ttk.LabelFrame(master, text="Difficulty")
+        self.frame = ttk.LabelFrame(master, text="Difficulty", padding=get_labelframe_padding())
         self.frame.grid(row=2, column=0, padx=10, pady=10, sticky="ew")
 
         # Difficulty level
