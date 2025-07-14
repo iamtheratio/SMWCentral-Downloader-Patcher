@@ -14,6 +14,24 @@ from utils import (
 from smwc_api_proxy import smwc_api_get, get_api_delay
 from patch_handler import PatchHandler
 
+# Global cancellation flag
+_cancel_operation = False
+
+def cancel_pipeline():
+    """Cancel the current pipeline operation"""
+    global _cancel_operation
+    _cancel_operation = True
+
+def reset_cancel_flag():
+    """Reset the cancellation flag"""
+    global _cancel_operation
+    _cancel_operation = False
+
+def is_cancelled():
+    """Check if operation was cancelled"""
+    global _cancel_operation
+    return _cancel_operation
+
 def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
     """Fetch hack list - separated for moderated vs waiting hacks"""
     params = {"a": "getsectionlist", "s": "smwhacks", "n": page, "u": "1" if waiting_mode else "0"}
@@ -154,6 +172,9 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
     """
     Main pipeline function using unified patch handler
     """
+    # Reset cancellation flag at start
+    reset_cancel_flag()
+    
     processed = load_processed()
     all_hacks = []
     if log: log("🔎 Starting download...")
@@ -172,6 +193,11 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
     # PHASE 1: Fetch all moderated hacks (u=0)
     page = 1
     while True:
+        # Check for cancellation
+        if is_cancelled():
+            if log: log("❌ Operation cancelled by user", "warning")
+            return
+            
         page_result = fetch_hack_list(filter_payload, page=page, waiting_mode=False, log=log)
         
         hacks = page_result["data"]
@@ -197,6 +223,11 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
     if filter_payload.get("waiting", False):
         page = 1
         while True:
+            # Check for cancellation
+            if is_cancelled():
+                if log: log("❌ Operation cancelled by user", "warning")
+                return
+                
             page_result = fetch_hack_list(filter_payload, page=page, waiting_mode=True, log=log)
             
             waiting_hacks = page_result["data"]
@@ -274,6 +305,11 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
     normalized_type = raw_type.lower().replace("-", "_")
 
     for hack in all_hacks:
+        # Check for cancellation at the start of each hack processing
+        if is_cancelled():
+            if log: log("❌ Operation cancelled by user", "warning")
+            return
+            
         hack_id = str(hack["id"])
         raw_title = hack["name"]
         title_clean = title_case(safe_filename(raw_title))

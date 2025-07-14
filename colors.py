@@ -14,6 +14,12 @@ def get_colors():
             "filter_info": "#888888",
             "applying": "#e0e0e0",
             "app_bg": "#1c1c1c",
+            
+            # Cancel button colors for dark mode
+            "cancel_bg": "#FF4444",        # Bright red background
+            "cancel_fg": "#E0E0E0",        # Light gray text (was black)
+            "cancel_hover": "#FF6666",     # Lighter red on hover
+            "cancel_pressed": "#DD2222",   # Darker red when pressed
 
             # UI element colors
             "api_delay": "#0078d4",
@@ -63,6 +69,12 @@ def get_colors():
             "filter_info": "#888888",
             "applying": "#000000",
             "app_bg": "#f8f9fa",
+            
+            # Cancel button colors for light mode
+            "cancel_bg": "#DC3545",        # Bootstrap danger red (better for light mode)
+            "cancel_fg": "#2C2C2C",        # Dark gray text for better contrast in light mode
+            "cancel_hover": "#C82333",     # Darker red on hover
+            "cancel_pressed": "#BD2130",   # Even darker red when pressed
 
             # UI element colors
             "api_delay": "#0078d4",
