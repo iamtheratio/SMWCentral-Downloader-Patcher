@@ -118,7 +118,7 @@ class DashboardMetrics:
         )
         
         self._create_metric_card(
-            top_row, "COMPLETED", 
+            top_row, "COMPLETED HACKS", 
             str(self.analytics_data.get('completed_hacks', 0)),
             "✅", colors.get("text"), 0, 1
         )
