@@ -148,8 +148,36 @@ def sanitize_name(name):
     return re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")
 
 def title_case(text):
-    """Convert text to proper title case for filenames"""
-    # Handle common abbreviations and special cases
+    """
+    Convert text to proper title case following English title case rules.
+    
+    Rules applied:
+    - First and last words are always capitalized
+    - Words after colons or dashes (subtitles) are capitalized
+    - Articles (a, an, the) are lowercase unless first/last/after subtitle
+    - Coordinating conjunctions (and, but, or, nor, for, so, yet) are lowercase unless first/last/after subtitle
+    - Short prepositions (at, by, in, of, off, on, out, to, up) are lowercase unless first/last/after subtitle
+    - Other short words (as, if, than, via) are lowercase unless first/last/after subtitle
+    - Special abbreviations and acronyms are handled with custom capitalization
+    
+    Examples:
+    - "super mario world: the lost levels" → "Super Mario World: The Lost Levels"
+    - "mario and luigi: brothers in time" → "Mario and Luigi: Brothers in Time"
+    """
+    
+    # Words that should NOT be capitalized in titles (unless first or last word)
+    lowercase_words = {
+        # Articles
+        'a', 'an', 'the',
+        # Coordinating conjunctions
+        'and', 'but', 'or', 'nor', 'for', 'so', 'yet',
+        # Short prepositions (typically under 4 letters)
+        'at', 'by', 'in', 'of', 'off', 'on', 'out', 'to',
+        # Other common words
+        'as', 'if', 'than', 'via'
+    }
+    
+    # Handle common abbreviations and special cases that should always be capitalized
     special_cases = {
         'smw': 'SMW',
         'nsmb': 'NSMB', 
@@ -177,28 +205,159 @@ def title_case(text):
         'ultra': 'Ultra',
         'super': 'Super',
         'mega': 'Mega',
-        'hyper': 'Hyper'
+        'hyper': 'Hyper',
+        'rta': 'RTA',
+        # Period abbreviations
+        'a.': 'A.',
+        'd.': 'D.',
+        'i.': 'I.',
+        'a.d.d.': 'A.D.D.',
+        'u.s.a.': 'U.S.A.',
+        'r.p.g.': 'R.P.G.',
+        'a.i.': 'A.I.'
     }
     
-    # Split into words and apply title case
+    # Split into words and apply proper title case rules
     words = text.split()
     result = []
     
-    for word in words:
+    for i, word in enumerate(words):
         word_lower = word.lower()
+        is_first_word = (i == 0)
+        is_last_word = (i == len(words) - 1)
+        
+        # Check if previous word ends with colon or dash (indicates subtitle)
+        follows_subtitle_marker = False
+        if i > 0:
+            prev_word = words[i-1]
+            follows_subtitle_marker = prev_word.endswith((':', '-'))
+        
+        # Special cases always take precedence
         if word_lower in special_cases:
             result.append(special_cases[word_lower])
+        # First word, last word, or word after subtitle marker should always be capitalized
+        elif is_first_word or is_last_word or follows_subtitle_marker:
+            # Handle apostrophes and special name patterns properly
+            if "'" in word:
+                result.append(capitalize_with_apostrophes(word))
+            else:
+                result.append(capitalize_proper_name(word))
+        # Short words should be lowercase (unless they're special cases)
+        elif word_lower in lowercase_words:
+            result.append(word_lower)
+        # All other words should be capitalized
         else:
-            result.append(word.capitalize())
+            # Handle apostrophes and special name patterns properly for all words
+            if "'" in word:
+                result.append(capitalize_with_apostrophes(word))
+            else:
+                result.append(capitalize_proper_name(word))
     
     return ' '.join(result)
+
+def capitalize_proper_name(word):
+    """
+    Properly capitalize names including Scottish/Irish prefixes and apostrophes.
+    Examples: 
+    - mcdonald → McDonald, mccarthy → McCarthy
+    - macdonald → MacDonald, macbeth → MacBeth  
+    - o'connor → O'Connor, d'angelo → D'Angelo
+    - mcdonald's → McDonald's
+    """
+    if not word:
+        return word
+    
+    word_lower = word.lower()
+    
+    # Handle apostrophes first
+    if "'" in word:
+        return capitalize_with_apostrophes(word)
+    
+    # Handle Scottish "Mc" prefix - always capitalize after Mc
+    if word_lower.startswith('mc') and len(word) > 2:
+        return 'Mc' + word[2].upper() + word[3:].lower()
+    
+    # Handle Scottish "Mac" prefix - more complex rules
+    if word_lower.startswith('mac') and len(word) > 3:
+        # Common Mac names that should have capital after Mac
+        mac_names = {
+            'macdonald', 'macbeth', 'macduff', 'macleod', 'mackenzie', 
+            'macarthur', 'macmillan', 'macgregor', 'macpherson'
+        }
+        
+        # Check if it's a known Mac name (these get MacDonald style)
+        if word_lower in mac_names or any(word_lower.startswith(name) for name in mac_names):
+            return 'Mac' + word[3].upper() + word[4:].lower()
+        else:
+            # For other Mac words (like Macintosh), just capitalize normally
+            return word.capitalize()
+    
+    # Default capitalization for other words
+    return word.capitalize()
+
+def capitalize_with_apostrophes(word):
+    """
+    Properly capitalize words containing apostrophes.
+    Examples: o'ghim → O'Ghim, mcdonald's → McDonald's, isn't → Isn't
+    """
+    if "'" not in word:
+        return capitalize_proper_name(word)
+    
+    # Split on apostrophe and capitalize each part
+    parts = word.split("'")
+    capitalized_parts = []
+    
+    for i, part in enumerate(parts):
+        if i == 0:
+            # First part gets proper name capitalization (handles Mc/Mac)
+            capitalized_parts.append(capitalize_proper_name(part))
+        else:
+            # Parts after apostrophe: capitalize if not a common suffix
+            part_lower = part.lower()
+            # Common contractions/possessive endings that should stay lowercase
+            lowercase_suffixes = {'s', 't', 're', 've', 'll', 'd', 'm'}
+            
+            if part_lower in lowercase_suffixes and len(part) <= 2:
+                # Keep common contractions lowercase: 's, 't, 're, 've, 'll, 'd, 'm
+                capitalized_parts.append(part_lower)
+            else:
+                # Capitalize proper name parts: O'Ghim, McDonald's, D'Angelo
+                capitalized_parts.append(capitalize_proper_name(part))
+    
+    return "'".join(capitalized_parts)
 
 def clean_hack_title(title):
     """Clean and properly format hack titles with proper capitalization and roman numerals"""
     if not title:
         return "Unknown"
     
-    # First, apply title case to get basic capitalization
+    # Handle special Unicode cases
+    special_cases = {
+        "Up \u1d40\u02b0\u1d49 \u1d3f\u1d52\u1d50\u02b0\u1d43\u1d9c\u1d4f": "Up the Romhack"
+    }
+    
+    # Check for exact matches of special cases
+    if title in special_cases:
+        return special_cases[title]
+    
+    # Fix specific period abbreviations BEFORE title case processing
+    period_abbreviations = {
+        r'\bA\.d\.d\.\b': 'A.D.D.',
+        r'\bA\.D\.D\.\b': 'A.D.D.',
+        r'\ba\.d\.d\.\b': 'A.D.D.',
+        r'\bU\.S\.A\.\b': 'U.S.A.',
+        r'\bR\.P\.G\.\b': 'R.P.G.',
+        r'\bA\.I\.\b': 'A.I.',
+        r'\bA\.i\.\b': 'A.I.',
+        r'\ba\.I\.\b': 'A.I.',
+        r'\ba\.i\.\b': 'A.I.'
+    }
+    
+    # Apply period abbreviation fixes first
+    for pattern, replacement in period_abbreviations.items():
+        title = re.sub(pattern, replacement, title, flags=re.IGNORECASE)
+    
+    # Then apply title case to get basic capitalization
     cleaned = title_case(title)
     
     # Define roman numeral patterns and their proper replacements
@@ -239,7 +398,7 @@ def clean_hack_title(title):
         r'\bDx\b': 'DX',
         r'\bEx\b': 'EX',
         r'\bVs\b': 'VS',
-        r'\bA\.?i\.?\b': 'AI',
+        r'\bAi\b': 'AI',  # Match "Ai" without periods
         r'\bGba\b': 'GBA',
         r'\bNes\b': 'NES',
         r'\bSnes\b': 'SNES',
@@ -251,28 +410,6 @@ def clean_hack_title(title):
     
     for pattern, replacement in acronyms.items():
         cleaned = re.sub(pattern, replacement, cleaned, flags=re.IGNORECASE)
-    
-    # Fix common words that should be lowercase (articles, prepositions, conjunctions)
-    # but only if they're not at the beginning or end
-    lowercase_words = r'\b(a|an|and|as|at|but|by|for|in|nor|of|on|or|so|the|to|up|yet)\b'
-    
-    def lowercase_middle_words(match):
-        word = match.group(0)
-        # Check if this word is at the beginning or end of the string
-        start_pos = match.start()
-        end_pos = match.end()
-        
-        # Don't lowercase if it's the first word or last word
-        if start_pos == 0 or end_pos == len(cleaned):
-            return word
-        
-        # Don't lowercase if it follows a colon or dash (subtitle)
-        if start_pos > 0 and cleaned[start_pos-1] in ':- ':
-            return word
-            
-        return word.lower()
-    
-    cleaned = re.sub(lowercase_words, lowercase_middle_words, cleaned, flags=re.IGNORECASE)
     
     return cleaned.strip()
 
