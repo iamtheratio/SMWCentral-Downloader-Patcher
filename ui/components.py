@@ -212,6 +212,7 @@ class DifficultySection:
         self.difficulty_list = difficulty_list
         self.difficulty_vars = {}
         self.select_all_var = tk.BooleanVar()
+        self.select_all_button = None  # Store reference to the button
         
         # Initialize difficulty variables
         for diff in difficulty_list:
@@ -234,16 +235,18 @@ class DifficultySection:
                 diff_frame,
                 text=display_name,
                 variable=self.difficulty_vars[difficulty],
+                command=self._update_button_text,  # Update button text when checkbox clicked
                 style="Custom.TCheckbutton"
             ).pack(side="left", padx=(0, 15))
         
         # Select All button underneath
-        ttk.Button(
+        self.select_all_button = ttk.Button(
             self.frame,
             text="Select All",
             command=self._toggle_difficulties,
             style="Custom.TButton"
-        ).pack(anchor="w")
+        )
+        self.select_all_button.pack(anchor="w")
         
         return self.frame
     
@@ -255,6 +258,20 @@ class DifficultySection:
         
         for var in self.difficulty_vars.values():
             var.set(new_state)
+        
+        # Update button text
+        self._update_button_text()
+    
+    def _update_button_text(self):
+        """Update the Select All button text based on current state"""
+        if self.select_all_button:
+            any_checked = any(var.get() for var in self.difficulty_vars.values())
+            all_checked = all(var.get() for var in self.difficulty_vars.values())
+            
+            if all_checked:
+                self.select_all_button.configure(text="Deselect All")
+            else:
+                self.select_all_button.configure(text="Select All")
     
     def get_selected_difficulties(self):
         """Get list of selected difficulties"""
