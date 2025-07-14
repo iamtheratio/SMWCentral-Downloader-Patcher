@@ -14,7 +14,7 @@ A comprehensive Python GUI tool that automates downloading, patching, and organi
 5. **Select** hack type, difficulty, and filters
 6. **Click** Download & Patch
 
-![Bulk Interface](/images/ss_app_bulk_v3.0.png)
+![Bulk Interface](/images/ss_app_bulk_v3.1.png)
 
 > [!IMPORTANT]
 > ### ⚠️ Security Software Note
@@ -104,6 +104,8 @@ If you've used a previous version, **v3.1 will automatically upgrade your databa
 
 ### 🏠 Dashboard Page *(Enhanced in v3.1)*
 
+![Dashboard Interface](/images/ss_app_dashboard_v3.1.png)
+
 A comprehensive analytics dashboard providing insights into your hack completion journey:
 
 #### Performance Analytics
@@ -128,7 +130,7 @@ A comprehensive analytics dashboard providing insights into your hack completion
 
 ### 📚 Hack History Page *(NEW in v3.0)*
 
-![Hack History Interface](/images/ss_app_hackhistory_v3.0.png)
+![Hack History Interface](/images/ss_app_hackhistory_v3.1.png)
 
 A complete hack management system for tracking your ROM hack journey:
 
