@@ -27,7 +27,7 @@ class DashboardPage:
         self.data_manager = HackDataManager()
         self.analytics = DashboardAnalytics(self.data_manager)
         self.analytics_data = {}
-        self.date_filter = "all_time"
+        self.date_filter = "last_week"
         
         # Scrolling components
         self.canvas = None

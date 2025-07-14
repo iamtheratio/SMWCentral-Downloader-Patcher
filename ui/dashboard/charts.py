@@ -180,7 +180,16 @@ class DashboardCharts:
             for diff_data in month_data.get('difficulties', {}).values():
                 all_types.update(diff_data.get('types', []))
         
-        type_options = ['All Types'] + sorted(list(all_types))
+        # Create display names for types (capitalized) while preserving original values
+        type_display_map = {}
+        type_value_map = {}  # Reverse mapping from display name to original value
+        
+        for type_name in sorted(list(all_types)):
+            display_name = type_name.capitalize()
+            type_display_map[type_name] = display_name
+            type_value_map[display_name] = type_name
+        
+        type_options = ['All Types'] + [type_display_map[t] for t in sorted(list(all_types))]
         type_var = tk.StringVar(value='All Types')
         type_combo = ttk.Combobox(filter_frame, textvariable=type_var, values=type_options, 
                                 state="readonly", width=15)
@@ -196,7 +205,12 @@ class DashboardCharts:
         # Function to update chart based on filter
         def update_chart():
             canvas.delete("all")
-            selected_type = type_var.get()
+            selected_display = type_var.get()
+            # Convert display name back to original value for filtering
+            if selected_display == 'All Types':
+                selected_type = 'All Types'
+            else:
+                selected_type = type_value_map.get(selected_display, selected_display)
             # Ensure canvas is properly sized before drawing
             canvas.update_idletasks()
             self._draw_time_progression_lines(canvas, selected_type)
@@ -344,7 +358,7 @@ class DashboardCharts:
         legend_start_x = margin_left
         
         canvas.create_text(legend_start_x, legend_y, text="Difficulties:", 
-                         font=("Segoe UI", 10, "bold"), fill=colors.get("text"), anchor="w")
+                         font=("Segoe UI", 12, "bold"), fill=colors.get("text"), anchor="w")
         
         # Calculate spacing for horizontal layout
         available_width = chart_width
@@ -361,11 +375,11 @@ class DashboardCharts:
             
             # Legend bullet point
             canvas.create_text(x_offset, y_offset, text="●", 
-                             font=("Segoe UI", 12), fill=color, anchor="w")
+                             font=("Segoe UI", 14), fill=color, anchor="w")
             
             # Legend text  
             canvas.create_text(x_offset + 15, y_offset, text=difficulty,
-                             font=("Segoe UI", 9), fill=colors.get("text"), anchor="w")
+                             font=("Segoe UI", 11), fill=colors.get("text"), anchor="w")
         
         # Chart title/labels
         canvas.create_text(width//2, 15, text="Avg Hours per Hack per Month",

@@ -29,7 +29,7 @@ class DashboardAnalytics:
             'completion_velocity': 0.0,
             'avg_time_per_hack': 0.0,
             'avg_time_per_exit': 0.0,
-            'average_rating': 0.0,
+            'total_exits': 0,  # NEW: Track total exits
             'completion_by_difficulty': {},
             'completion_by_type': {},
             'rating_distribution': {},
@@ -216,6 +216,10 @@ class DashboardAnalytics:
                 except (ValueError, TypeError):
                     exits = 0
             
+            # Track total exits for all completed hacks in time period
+            if exits > 0:
+                total_exits += exits
+            
             if time_to_beat > 0:
                 total_time += time_to_beat
                 completed_count += 1
@@ -224,6 +228,9 @@ class DashboardAnalytics:
                 if exits > 0:
                     exit_based_total_time += time_to_beat
                     exit_based_total_exits += exits
+        
+        # Store total exits
+        self.analytics_data['total_exits'] = total_exits
         
         # Calculate averages (convert to hours)
         if completed_count > 0:

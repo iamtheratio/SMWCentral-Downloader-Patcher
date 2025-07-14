@@ -19,7 +19,7 @@ class DashboardMetrics:
         self.analytics_data = analytics_data
         self.dashboard_ref = dashboard_ref  # Reference to main dashboard for refresh/filter
         self.filter_buttons = {}  # Track filter buttons for highlighting
-        self.current_filter = "all_time"  # Track current filter
+        self.current_filter = "last_week"  # Track current filter
         
     def create_filter_section(self):
         """Create time period filter controls"""
@@ -131,24 +131,44 @@ class DashboardMetrics:
         )
         
         # Bottom row metrics
-        avg_rating = self.analytics_data.get('average_rating', 0.0)
+        total_exits = self.analytics_data.get('total_exits', 0)
         self._create_metric_card(
-            bottom_row, "AVG RATING", 
-            f"{avg_rating:.1f}⭐" if avg_rating > 0 else "N/A",
-            "⭐", colors.get("text"), 0, 0
+            bottom_row, "COMPLETED EXITS", 
+            str(total_exits) if total_exits > 0 else "N/A",
+            "🚪", colors.get("text"), 0, 0
         )
         
         avg_time_per_hack = self.analytics_data.get('avg_time_per_hack', 0.0)
+        if avg_time_per_hack > 0:
+            if avg_time_per_hack < 1:
+                # Show in minutes if under 1 hour
+                time_display = f"{avg_time_per_hack * 60:.0f}m"
+            else:
+                # Show in hours if 1 hour or more
+                time_display = f"{avg_time_per_hack:.1f}h"
+        else:
+            time_display = "N/A"
+        
         self._create_metric_card(
             bottom_row, "AVG TIME PER HACK", 
-            f"{avg_time_per_hack:.1f}h" if avg_time_per_hack > 0 else "N/A",
+            time_display,
             "⏱️", colors.get("text"), 0, 1
         )
         
         avg_time_per_exit = self.analytics_data.get('avg_time_per_exit', 0.0)
+        if avg_time_per_exit > 0:
+            if avg_time_per_exit < 1:
+                # Show in minutes if under 1 hour
+                time_display = f"{avg_time_per_exit * 60:.0f}m"
+            else:
+                # Show in hours if 1 hour or more
+                time_display = f"{avg_time_per_exit:.1f}h"
+        else:
+            time_display = "N/A"
+        
         self._create_metric_card(
             bottom_row, "AVG TIME PER EXIT",
-            f"{avg_time_per_exit:.2f}h" if avg_time_per_exit > 0 else "N/A",
+            time_display,
             "🚪", colors.get("text"), 0, 2
         )
     
