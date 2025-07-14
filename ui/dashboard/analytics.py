@@ -29,7 +29,8 @@ class DashboardAnalytics:
             'completion_velocity': 0.0,
             'avg_time_per_hack': 0.0,
             'avg_time_per_exit': 0.0,
-            'total_exits': 0,  # NEW: Track total exits
+            'completed_exits': 0,  # Exits from hacks completed in the time period
+            'total_exits': 0,  # Exits from all completed hacks (unfiltered)
             'completion_by_difficulty': {},
             'completion_by_type': {},
             'rating_distribution': {},
@@ -90,9 +91,25 @@ class DashboardAnalytics:
         all_ratings = []
         completion_dates = []
         
+        # FIXED: Calculate total completed hacks regardless of date filter for completion rate
+        total_completed_ever = 0
+        total_exits = 0  # Track total exits from all completed hacks
+        
         for hack_id, hack_data in self.data_manager.data.items():
             if hack_data.get('completed', False):
-                # Check if this hack should be included based on date filter
+                total_completed_ever += 1  # Count all completed hacks for completion rate
+                
+                # Count exits from all completed hacks (regardless of time filter)
+                exits = hack_data.get('exits', 0)
+                if isinstance(exits, str):
+                    try:
+                        exits = int(exits)
+                    except (ValueError, TypeError):
+                        exits = 0
+                if exits > 0:
+                    total_exits += exits
+                
+                # Check if this hack should be included based on date filter for other metrics
                 if self._should_include_hack(hack_data):
                     completed_hacks.append(hack_data)
                     self.analytics_data['completed_hacks'] += 1
@@ -115,10 +132,14 @@ class DashboardAnalytics:
                         except ValueError:
                             pass
         
-        # Calculate completion rate
+        # Store total completed and total exits for completion rate calculation
+        self.analytics_data['total_completed_ever'] = total_completed_ever
+        self.analytics_data['total_exits'] = total_exits
+        
+        # Calculate completion rate using ALL completed hacks, not filtered ones
         if self.analytics_data['total_hacks'] > 0:
             self.analytics_data['completion_rate'] = (
-                self.analytics_data['completed_hacks'] / self.analytics_data['total_hacks']
+                total_completed_ever / self.analytics_data['total_hacks']
             ) * 100
         
         # Calculate average rating
@@ -185,7 +206,7 @@ class DashboardAnalytics:
     def _calculate_time_metrics(self):
         """Calculate time-based performance metrics"""
         total_time = 0
-        total_exits = 0
+        completed_exits = 0  # RENAMED: Track exits from completed hacks in time period
         completed_count = 0
         
         # Separate tracking for exit calculations
@@ -218,7 +239,7 @@ class DashboardAnalytics:
             
             # Track total exits for all completed hacks in time period
             if exits > 0:
-                total_exits += exits
+                completed_exits += exits
             
             if time_to_beat > 0:
                 total_time += time_to_beat
@@ -229,8 +250,8 @@ class DashboardAnalytics:
                     exit_based_total_time += time_to_beat
                     exit_based_total_exits += exits
         
-        # Store total exits
-        self.analytics_data['total_exits'] = total_exits
+        # Store completed exits (filtered by time period)
+        self.analytics_data['completed_exits'] = completed_exits
         
         # Calculate averages (convert to hours)
         if completed_count > 0:

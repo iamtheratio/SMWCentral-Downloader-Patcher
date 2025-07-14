@@ -110,32 +110,11 @@ class DashboardMetrics:
             top_row.columnconfigure(i, weight=1, uniform="metrics")
             bottom_row.columnconfigure(i, weight=1, uniform="metrics")
         
-        # Top row metrics
-        self._create_metric_card(
-            top_row, "TOTAL HACKS", 
-            str(self.analytics_data.get('total_hacks', 0)),
-            "📦", colors.get("text"), 0, 0
-        )
-        
+        # Top row: [ COMPLETED HACKS ] [ AVG TIME PER HACK ] [ TOTAL HACKS ]
         self._create_metric_card(
             top_row, "COMPLETED HACKS", 
             str(self.analytics_data.get('completed_hacks', 0)),
-            "✅", colors.get("text"), 0, 1
-        )
-        
-        recent_count = len(self.analytics_data.get('recent_completions', []))
-        self._create_metric_card(
-            top_row, "LAST 30 DAYS", 
-            str(recent_count),
-            "🔥", colors.get("text"), 0, 2
-        )
-        
-        # Bottom row metrics
-        total_exits = self.analytics_data.get('total_exits', 0)
-        self._create_metric_card(
-            bottom_row, "COMPLETED EXITS", 
-            str(total_exits) if total_exits > 0 else "N/A",
-            "🚪", colors.get("text"), 0, 0
+            "✅", colors.get("text"), 0, 0
         )
         
         avg_time_per_hack = self.analytics_data.get('avg_time_per_hack', 0.0)
@@ -150,9 +129,23 @@ class DashboardMetrics:
             time_display = "N/A"
         
         self._create_metric_card(
-            bottom_row, "AVG TIME PER HACK", 
+            top_row, "AVG TIME PER HACK", 
             time_display,
             "⏱️", colors.get("text"), 0, 1
+        )
+        
+        self._create_metric_card(
+            top_row, "TOTAL HACKS", 
+            str(self.analytics_data.get('total_hacks', 0)),
+            "�", colors.get("text"), 0, 2
+        )
+        
+        # Bottom row: [ COMPLETED EXITS ] [ AVG TIME PER EXIT ] [ TOTAL EXITS ]
+        completed_exits = self.analytics_data.get('completed_exits', 0)
+        self._create_metric_card(
+            bottom_row, "COMPLETED EXITS", 
+            str(completed_exits) if completed_exits > 0 else "N/A",
+            "🚪", colors.get("text"), 0, 0
         )
         
         avg_time_per_exit = self.analytics_data.get('avg_time_per_exit', 0.0)
@@ -169,6 +162,13 @@ class DashboardMetrics:
         self._create_metric_card(
             bottom_row, "AVG TIME PER EXIT",
             time_display,
+            "🚪", colors.get("text"), 0, 1
+        )
+        
+        total_exits = self.analytics_data.get('total_exits', 0)
+        self._create_metric_card(
+            bottom_row, "TOTAL EXITS", 
+            str(total_exits) if total_exits > 0 else "N/A",
             "🚪", colors.get("text"), 0, 2
         )
     
