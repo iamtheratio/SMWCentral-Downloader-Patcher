@@ -54,8 +54,9 @@ class MigrationManager:
                         if field not in hack_data:
                             missing_v3_1_fields += 1
                     
-                    # If missing any v3.1 fields, we need migration
-                    if missing_v3_1_fields > 0:
+                    # If missing ALL v3.1 fields, we need migration
+                    # Changed from > 0 to >= 3 to be less strict
+                    if missing_v3_1_fields >= 3:
                         return True
                         
             return False  # All hacks have v3.1 format

@@ -4,7 +4,7 @@ from .navigation import NavigationBar
 from .page_manager import PageManager
 from .theme_controls import ThemeControls
 from .version_display import VersionDisplay
-from .pages import DashboardPage, BulkDownloadPage, HackHistoryPage
+from .pages import DashboardPage, DownloadPage, SettingsPage, HistoryPage
 
 class MainLayout:
     """Main UI layout manager - now simplified and modular"""
@@ -29,6 +29,7 @@ class MainLayout:
         
         # Pages
         self.dashboard_page = None
+        self.single_download_page = None
         self.bulk_download_page = None
         self.hack_history_page = None
     
@@ -75,8 +76,17 @@ class MainLayout:
         # Store dashboard instance reference in root for theme toggling
         self.root.dashboard_page = self.dashboard_page
         
-        # Create bulk download page
-        self.bulk_download_page = BulkDownloadPage(
+        # Create download page (renamed from single download)
+        self.download_page = DownloadPage(
+            self.content_frame,
+            self.run_pipeline_func,
+            self.logger
+        )
+        download_frame = self.download_page.create()
+        self.page_manager.add_page("Download", download_frame)
+        
+        # Create settings page (renamed from bulk download)
+        self.settings_page = SettingsPage(
             self.content_frame,
             self.run_pipeline_func,
             self.setup_section,
@@ -84,20 +94,18 @@ class MainLayout:
             self.difficulty_section,
             self.logger
         )
-        bulk_frame = self.bulk_download_page.create()
-        self.page_manager.add_page("Bulk Download", bulk_frame)
+        settings_frame = self.settings_page.create()
+        self.page_manager.add_page("Settings", settings_frame)
         
         # Store log_text reference for theme toggling
-        if hasattr(self.bulk_download_page, 'frame') and hasattr(self.logger, 'log_text'):
+        if hasattr(self.settings_page, 'frame') and hasattr(self.logger, 'log_text'):
             self.root.log_text = self.logger.log_text
         
-        # Create hack history page - PASS LOGGER for centralized logging
-        self.hack_history_page = HackHistoryPage(self.content_frame, self.logger)
-        history_frame = self.hack_history_page.create()
-        self.page_manager.add_page("Hack History", history_frame)
+        # Create history page (renamed from hack history)
+        self.history_page = HistoryPage(self.content_frame, self.logger)
+        history_frame = self.history_page.create()
+        self.page_manager.add_page("History", history_frame)
     
     def get_download_button(self):
-        """Return the download button reference"""
-        if self.bulk_download_page:
-            return self.bulk_download_page.get_download_button()
+        """Return the download button reference - deprecated for Settings page"""
         return None

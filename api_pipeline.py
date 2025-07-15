@@ -36,6 +36,10 @@ def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
     """Fetch hack list - separated for moderated vs waiting hacks"""
     params = {"a": "getsectionlist", "s": "smwhacks", "n": page, "u": "1" if waiting_mode else "0"}
     
+    # Add order parameter if specified
+    if "order" in config:
+        params["o"] = config["order"]
+    
     # Handle difficulty filtering with "No Difficulty" support
     difficulties = config.get("difficulties", [])
     has_no_difficulty = "no difficulty" in difficulties
@@ -52,6 +56,21 @@ def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
                             converted.append(f"diff_{diff_key}")
                 if converted:
                     params["f[difficulty][]"] = converted
+        elif key == "name" and values:
+            # Handle name search - direct text search
+            params["f[name]"] = values
+        elif key == "author" and values:
+            # Handle author search - direct text search
+            params["f[author]"] = values
+        elif key == "tags" and values:
+            # Handle tags search - comma-separated
+            if isinstance(values, list):
+                params["f[tags]"] = ", ".join(values)
+            else:
+                params["f[tags]"] = values
+        elif key == "description" and values:
+            # Handle description search - direct text search
+            params["f[description]"] = values
         elif key != "waiting" and values:
             # FIXED: Special handling for different parameter types
             if key == "type":
@@ -514,3 +533,141 @@ def save_hack_to_processed_json(hack_data, file_path, hack_type):
     
     # Save to processed.json
     # ... existing save logic
+
+def process_individual_hacks(selected_hacks, base_rom_path, output_dir, log=None):
+    """Process a list of pre-selected hacks for download and patching"""
+    if log: log(f"🎯 Processing {len(selected_hacks)} individually selected hacks...")
+    
+    processed = load_processed()
+    patch_handler = PatchHandler(base_rom_path, output_dir, log)
+    
+    # Reset cancellation flag at start
+    reset_cancel_flag()
+    
+    total_hacks = len(selected_hacks)
+    successful_downloads = 0
+    
+    for i, hack in enumerate(selected_hacks, 1):
+        # Check for cancellation
+        if is_cancelled():
+            if log: log("❌ Operation cancelled by user", "warning")
+            break
+        
+        hack_id = hack.get("id")
+        hack_name = hack.get("name", "Unknown")
+        
+        if log: log(f"📥 [{i}/{total_hacks}] Processing: {hack_name}")
+        
+        # Check if already processed
+        if hack_id in processed:
+            if log: log(f"⏭️ Skipping {hack_name} (already processed)")
+            continue
+        
+        try:
+            # Fetch detailed metadata
+            file_metadata = fetch_file_metadata(hack_id, log)
+            if not file_metadata:
+                if log: log(f"❌ Could not fetch metadata for {hack_name}")
+                continue
+            
+            # Merge hack data with detailed metadata
+            full_hack_data = {**hack, **file_metadata}
+            
+            # Download and patch
+            success = download_and_patch_hack(full_hack_data, patch_handler, processed, log)
+            if success:
+                successful_downloads += 1
+                # Save progress after each successful download
+                save_processed(processed)
+            
+        except Exception as e:
+            if log: log(f"❌ Error processing {hack_name}: {str(e)}", "error")
+            continue
+    
+    # Final report
+    if log: 
+        log(f"✅ Single download complete! Successfully processed {successful_downloads}/{total_hacks} hacks")
+        if successful_downloads > 0:
+            log(f"📁 Output location: {output_dir}")
+
+def download_and_patch_hack(hack_data, patch_handler, processed, log=None):
+    """Download and patch a single hack"""
+    hack_id = hack_data.get("id")
+    hack_name = hack_data.get("name", "Unknown")
+    
+    try:
+        # Get download URL from metadata
+        download_url = hack_data.get("download_url")
+        if not download_url:
+            if log: log(f"❌ No download URL for {hack_name}")
+            return False
+        
+        # Create output folder
+        difficulty = hack_data.get("difficulty", "")
+        difficulty_name = DIFFICULTY_LOOKUP.get(difficulty, "No Difficulty")
+        folder_name = get_sorted_folder_name(difficulty_name)
+        
+        authors = hack_data.get("authors", "Unknown")
+        hack_type = hack_data.get("type", "")
+        type_name = TYPE_DISPLAY_LOOKUP.get(hack_type, "Unknown")
+        
+        # Generate safe filename
+        safe_name = safe_filename(hack_name)
+        output_filename = f"{safe_name}.smc"
+        
+        # Download the hack file
+        if log: log(f"⬇️ Downloading {hack_name}...")
+        
+        response = requests.get(download_url, timeout=30)
+        response.raise_for_status()
+        
+        # Create temporary file for the downloaded hack
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.zip') as temp_file:
+            temp_file.write(response.content)
+            temp_path = temp_file.name
+        
+        try:
+            # Process the hack file (extract and patch)
+            result = patch_handler.process_hack_file(
+                temp_path,
+                output_filename,
+                folder_name,
+                {
+                    "id": hack_id,
+                    "name": hack_name,
+                    "authors": authors,
+                    "type": type_name,
+                    "difficulty": difficulty_name,
+                    "rating": hack_data.get("rating", "N/A"),
+                    "exit": hack_data.get("exit", "N/A"),
+                    "date": hack_data.get("date", "Unknown")
+                }
+            )
+            
+            if result["success"]:
+                # Mark as processed
+                processed[hack_id] = {
+                    "name": hack_name,
+                    "processed_date": datetime.now().isoformat(),
+                    "output_path": result.get("output_path", ""),
+                    "type": type_name,
+                    "difficulty": difficulty_name,
+                    "authors": authors
+                }
+                
+                if log: log(f"✅ Successfully processed {hack_name}")
+                return True
+            else:
+                if log: log(f"❌ Failed to patch {hack_name}: {result.get('error', 'Unknown error')}")
+                return False
+                
+        finally:
+            # Clean up temp file
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
+                
+    except Exception as e:
+        if log: log(f"❌ Error downloading {hack_name}: {str(e)}")
+        return False

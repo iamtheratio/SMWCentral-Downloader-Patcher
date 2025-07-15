@@ -8,7 +8,7 @@ import sys
 import platform
 import pywinstyles
 
-VERSION = "v3.1"
+VERSION = "v4.0"
 
 def apply_theme_to_titlebar(root):
     if platform.system() != "Windows":
@@ -125,6 +125,167 @@ def clear_log_shortcut(root):
         log_text.delete(1.0, tk.END)
         log_text.config(state="disabled")
 
+def run_pipeline_wrapper(*args, **kwargs):
+    """Wrapper function to handle both bulk downloads and single downloads"""
+    # Check if this is a single download call with selected_hacks
+    if 'selected_hacks' in kwargs:
+        selected_hacks = kwargs.pop('selected_hacks')
+        
+        # For single downloads, we'll use the regular pipeline but with a custom hack list
+        # Instead of fetching from API, we'll inject the selected hacks
+        return run_single_download_pipeline(selected_hacks, **kwargs)
+    else:
+        # This is a regular bulk download call
+        run_pipeline(*args, **kwargs)
+
+def run_single_download_pipeline(selected_hacks, log=None, progress_callback=None):
+    """Custom pipeline for single download page that works like bulk download"""
+    from api_pipeline import fetch_file_metadata, load_processed, save_processed, reset_cancel_flag, is_cancelled, extract_patches_from_zip, make_output_path, clean_hack_title, DIFFICULTY_LOOKUP, get_sorted_folder_name, title_case, safe_filename
+    from patch_handler import PatchHandler
+    from config_manager import ConfigManager
+    import tempfile
+    import requests
+    import os
+    
+    # Get config for paths
+    config = ConfigManager()
+    base_rom_path = config.get("base_rom_path", "")
+    output_dir = config.get("output_dir", "")
+    
+    if not base_rom_path or not output_dir:
+        if log: log("Error: Base ROM path and output directory must be configured", "Error")
+        return
+    
+    if log: log(f"🎯 Starting download of {len(selected_hacks)} selected hacks...", "Information")
+    
+    # Reset cancellation flag
+    reset_cancel_flag()
+    
+    # Load processed hacks
+    processed = load_processed()
+    
+    successful_downloads = 0
+    skipped_hacks = 0
+    errored_hacks = 0
+    total_hacks = len(selected_hacks)
+    base_rom_ext = os.path.splitext(base_rom_path)[1]
+    
+    for i, hack in enumerate(selected_hacks, 1):
+        # Check for cancellation
+        if is_cancelled():
+            if log: log("❌ Download cancelled by user", "warning")
+            break
+        
+        hack_id = str(hack.get("id"))
+        hack_name = hack.get("name", "Unknown")
+        title_clean = title_case(safe_filename(hack_name))
+        
+        if log: log(f"📥 [{i}/{total_hacks}] Processing: {hack_name}", "Information")
+        
+        # Update progress callback if provided
+        if progress_callback:
+            progress_callback(i, total_hacks, hack_name)
+        
+        # Get difficulty info
+        raw_fields = hack.get("raw_fields", {})
+        raw_diff = raw_fields.get("difficulty", "")
+        if not raw_diff or raw_diff in [None, "N/A"]:
+            raw_diff = ""
+        display_diff = DIFFICULTY_LOOKUP.get(raw_diff, "No Difficulty")
+        folder_name = get_sorted_folder_name(display_diff)
+        
+        # Check if already processed
+        if hack_id in processed:
+            if log: log(f"✅ Skipped: {hack_name}")
+            skipped_hacks += 1
+            continue
+        
+        try:
+            # Get download URL - search results don't include download_url, so fetch it
+            download_url = hack.get("download_url")
+            if not download_url:
+                # Fetch detailed metadata to get download URL
+                if log: log(f"🔍 Fetching download URL for {hack_name}...", "Information")
+                file_metadata = fetch_file_metadata(hack_id, log)
+                if file_metadata and file_metadata.get("data"):
+                    download_url = file_metadata["data"].get("download_url")
+                
+                if not download_url:
+                    if log: log(f"❌ No download URL found for {hack_name}", "Error")
+                    continue
+            
+            # Create temp directory for processing
+            temp_dir = tempfile.mkdtemp()
+            try:
+                zip_path = os.path.join(temp_dir, "hack.zip")
+                
+                # Download the hack
+                if log: log(f"⬇️ Downloading {hack_name}...", "Information")
+                r = requests.get(download_url)
+                r.raise_for_status()  # Raise exception for bad status codes
+                with open(zip_path, "wb") as f:
+                    f.write(r.content)
+                
+                # Extract patch file
+                patch_path = extract_patches_from_zip(zip_path, temp_dir, title_clean)
+                if not patch_path:
+                    raise Exception("Patch file (.ips or .bps) not found in archive")
+                
+                # Determine hack type for output path
+                hack_type = raw_fields.get("type") or hack.get("type", "")
+                if isinstance(hack_type, list):
+                    hack_type = hack_type[0] if hack_type else ""
+                normalized_type = hack_type.lower().replace("-", "_")
+                
+                # Create output path
+                output_filename = f"{title_clean}{base_rom_ext}"
+                output_path = os.path.join(make_output_path(output_dir, normalized_type, folder_name), output_filename)
+                
+                # Apply the patch
+                if log: log(f"🔧 Patching {hack_name}...", "Information")
+                success = PatchHandler.apply_patch(patch_path, base_rom_path, output_path, log)
+                if not success:
+                    raise Exception("Patch application failed")
+                
+                # Update processed data
+                processed[hack_id] = {
+                    "title": clean_hack_title(hack_name),
+                    "current_difficulty": display_diff,
+                    "folder_name": folder_name,
+                    "file_path": output_path,
+                    "hack_type": normalized_type,
+                    "hall_of_fame": bool(raw_fields.get("hof", False)),
+                    "sa1_compatibility": bool(raw_fields.get("sa1", False)),
+                    "collaboration": bool(raw_fields.get("collab", False)),
+                    "demo": bool(raw_fields.get("demo", False)),
+                    "authors": hack.get("authors", []),
+                    "exits": raw_fields.get("length", hack.get("length", 0)) or 0
+                }
+                
+                if log: log(f"✅ Successfully processed: {hack_name}", "Information")
+                successful_downloads += 1
+                
+                # Save progress after each successful download
+                save_processed(processed)
+                
+            finally:
+                # Clean up temp directory
+                import shutil
+                try:
+                    shutil.rmtree(temp_dir)
+                except:
+                    pass
+            
+        except Exception as e:
+            if log: log(f"❌ Error processing {hack_name}: {str(e)}", "Error")
+            errored_hacks += 1
+            continue
+    
+    # Final summary
+    if progress_callback:
+        progress_callback(total_hacks, total_hacks, "Complete!")
+    if log: log(f"✅ Download complete! {successful_downloads} processed, {skipped_hacks} skipped, {errored_hacks} errored, out of {total_hacks} hacks.", "Information")
+
 def main():
     root = tk.Tk()
     root.title("SMWC Downloader & Patcher")
@@ -151,7 +312,7 @@ def main():
     # Check for migration before setting up UI
     def setup_after_migration():
         # Setup UI and run - pass version to setup_ui
-        download_button = setup_ui(root, run_pipeline, toggle_theme_callback, VERSION)
+        download_button = setup_ui(root, run_pipeline_wrapper, toggle_theme_callback, VERSION)
         
         # Store button reference for pipeline access
         root.download_button = download_button
@@ -161,13 +322,13 @@ def main():
         
         # Add cleanup handler for when app closes
         def on_closing():
-            # Force save any pending changes in hack history
+            # Force save any pending changes in history
             if hasattr(root, 'navigation') and hasattr(root.navigation, 'page_manager'):
                 pages = root.navigation.page_manager.pages
-                if 'Hack History' in pages:
-                    hack_history_page = pages['Hack History']
-                    if hasattr(hack_history_page, 'cleanup'):
-                        hack_history_page.cleanup()
+                if 'History' in pages:
+                    history_page = pages['History']
+                    if hasattr(history_page, 'cleanup'):
+                        history_page.cleanup()
             root.destroy()
         
         root.protocol("WM_DELETE_WINDOW", on_closing)

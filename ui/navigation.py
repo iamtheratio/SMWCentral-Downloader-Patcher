@@ -34,7 +34,7 @@ class NavigationBar:
         self.nav_bar.pack(fill="x", side="top", pady=0)
         
         # Add tabs - CENTERED VERTICALLY AND HORIZONTALLY
-        tabs = ["Dashboard", "Bulk Download", "Hack History"]
+        tabs = ["Dashboard", "Download", "History", "Settings"]
         tab_width = 140
         
         for i, tab in enumerate(tabs):

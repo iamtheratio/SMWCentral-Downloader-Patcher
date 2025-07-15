@@ -5,16 +5,16 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from hack_data_manager import HackDataManager
-from ui.hack_history_components import InlineEditor, DateValidator, NotesValidator, TableFilters, HackHistoryInlineEditor
+from ui.history_components import InlineEditor, DateValidator, NotesValidator, TableFilters, HackHistoryInlineEditor
 from ui_constants import get_page_padding, get_section_padding
 
 # Import VERSION from main module
 try:
     from main import VERSION
 except ImportError:
-    VERSION = "v3.1"  # Fallback if import fails
+    VERSION = "v4.0"  # Updated version
 
-class HackHistoryPage:
+class HistoryPage:
     """Simplified hack history page with extracted components"""
     
     def __init__(self, parent, logger=None):
