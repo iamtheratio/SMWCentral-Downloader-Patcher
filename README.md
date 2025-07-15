@@ -55,7 +55,6 @@ An all-in-one tool for discovering, downloading, and managing Super Mario World 
 ## 🏠 Main Features
 
 ### Dashboard - Your Gaming Overview
-![Dashboard Interface](images/ss_app_dashboard_v4.0.png)
 
 See your gaming progress at a glance:
 - **📈 Statistics**: Total hacks downloaded, completion rate, average ratings
