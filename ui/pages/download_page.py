@@ -135,6 +135,20 @@ class DownloadPage:
                 if var.get():
                     selected_difficulties.append(diff_key)
         
+        # Check if "No Difficulty" is selected and show warning
+        has_no_difficulty = "no difficulty" in selected_difficulties
+        if has_no_difficulty:
+            result = messagebox.askokcancel(
+                "Search with No Difficulty",
+                "⚠️ Searching for hacks with 'No Difficulty' requires downloading ALL hacks from SMWCentral's API and then filtering locally.\n\n"
+                "This process may take significantly longer than normal searches due to API limitations.\n\n"
+                "Do you want to continue with this comprehensive search?",
+                icon='warning'
+            )
+            
+            if not result:  # User clicked Cancel
+                return
+        
         if selected_difficulties:
             config["difficulties"] = selected_difficulties
         
@@ -170,6 +184,17 @@ class DownloadPage:
             self.current_search_config = config
             all_results = []
             
+            # Handle "No Difficulty" filtering - remove difficulties from API search if "No Difficulty" is selected
+            api_config = config.copy()
+            selected_difficulties = config.get("difficulties", [])
+            has_no_difficulty = "no difficulty" in selected_difficulties
+            
+            if has_no_difficulty:
+                # Remove difficulty filters from API call to get ALL hacks
+                if "difficulties" in api_config:
+                    del api_config["difficulties"]
+                self._log("Removed difficulty filters from API search to find 'No Difficulty' hacks", "Debug")
+            
             # Calculate cutoff timestamp for time period filtering
             cutoff_timestamp = self._calculate_cutoff_timestamp(time_period)
             
@@ -192,7 +217,7 @@ class DownloadPage:
                     
                     try:
                         # Add order by date for efficient time period filtering
-                        search_config = config.copy()
+                        search_config = api_config.copy()
                         if cutoff_timestamp:  # Only add order if we have time filtering
                             search_config["order"] = "date"  # Sort by date descending (newest first)
                         
@@ -209,7 +234,6 @@ class DownloadPage:
                         
                         hacks = result.get("data", [])
                         
-                        # Check for cancellation after getting hack data
                         if self.search_cancelled:
                             self._log(f"❌ Search cancelled - not processing {len(hacks)} hacks from page {page}", "Information")
                             return
@@ -313,8 +337,11 @@ class DownloadPage:
                 self._log("Search was cancelled, not displaying results", "Information")
                 return
             
+            # Apply "No Difficulty" filtering if needed
+            filtered_results = self._apply_difficulty_filtering(all_results, config.get("difficulties", []))
+            
             # Update UI with results (no need for client-side time filtering now)
-            self.frame.after(0, lambda: self.results.display_results(all_results, time_period))
+            self.frame.after(0, lambda: self.results.display_results(filtered_results, time_period))
             self.frame.after(0, lambda: self._search_completed())
             
         except Exception as e:
@@ -347,6 +374,51 @@ class DownloadPage:
         cutoff_timestamp = int(cutoff_date.timestamp())
         self._log(f"Time period '{time_period}' cutoff: {cutoff_date.strftime('%Y-%m-%d %H:%M:%S')} (timestamp: {cutoff_timestamp})", "Information")
         return cutoff_timestamp
+    
+    def _apply_difficulty_filtering(self, all_results, selected_difficulties):
+        """Apply client-side difficulty filtering for 'No Difficulty' searches"""
+        if not selected_difficulties or "no difficulty" not in selected_difficulties:
+            return all_results
+        
+        self._log(f"Applying client-side difficulty filtering for: {selected_difficulties}", "Information")
+        
+        # Import difficulty lookup
+        from api_pipeline import DIFFICULTY_LOOKUP
+        
+        filtered_results = []
+        
+        for hack in all_results:
+            # Check for cancellation during filtering
+            if self.search_cancelled:
+                self._log("Filtering cancelled", "Information")
+                return filtered_results
+            
+            # Get hack difficulty from raw API data
+            raw_fields = hack.get("raw_fields", {})
+            raw_diff = raw_fields.get("difficulty", "")
+            
+            # A hack has "No Difficulty" if the difficulty field is empty, null, or "N/A"
+            has_no_difficulty = not raw_diff or raw_diff in [None, "N/A", ""]
+            
+            # Check if this hack matches our selected difficulties
+            should_include = False
+            
+            for selected_diff in selected_difficulties:
+                if selected_diff == "no difficulty" and has_no_difficulty:
+                    should_include = True
+                    break
+                elif selected_diff != "no difficulty" and not has_no_difficulty:
+                    # For regular difficulties, check if they match
+                    display_diff = DIFFICULTY_LOOKUP.get(raw_diff, "No Difficulty")
+                    if selected_diff.replace("_", " ") == display_diff.lower():
+                        should_include = True
+                        break
+            
+            if should_include:
+                filtered_results.append(hack)
+        
+        self._log(f"Filtered {len(all_results)} hacks down to {len(filtered_results)} matching difficulty criteria", "Information")
+        return filtered_results
     
     def _search_completed(self, status_text=None):
         """Handle search completion"""

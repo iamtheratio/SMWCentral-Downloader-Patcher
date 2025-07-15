@@ -302,7 +302,7 @@ class DownloadResults:
         self.tree = ttk.Treeview(results_frame, columns=columns, show="headings", height=10)
         
         # Configure headers and columns
-        headers = ["✓", "Title", "Type", "Difficulty", "Rating", "Exit(s)", "Author(s)", "Date"]
+        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Exit(s)", "Author(s)", "Date"]
         widths = [40, 250, 90, 100, 70, 60, 150, 90]
         min_widths = [35, 200, 70, 80, 60, 50, 120, 80]
         anchors = ["center", "w", "center", "center", "center", "center", "w", "center"]
@@ -548,11 +548,22 @@ class DownloadResults:
         raw_fields = hack.get("raw_fields", {})
         hack_type_raw = raw_fields.get("type") or hack.get("type", "")
         
-        # Handle case where type might be a list (take first element) or string
+        # Handle case where type might be a list or string
         if isinstance(hack_type_raw, list):
-            hack_type_raw = hack_type_raw[0] if hack_type_raw else ""
-        
-        hack_type = TYPE_DISPLAY_LOOKUP.get(hack_type_raw, hack_type_raw.title() if hack_type_raw else "Unknown")
+            if len(hack_type_raw) > 1:
+                # Multiple types - convert to display names and join
+                display_types = []
+                for type_val in hack_type_raw:
+                    display_name = TYPE_DISPLAY_LOOKUP.get(type_val, type_val.title() if type_val else "Unknown")
+                    display_types.append(display_name)
+                hack_type = " + ".join(display_types)
+            else:
+                # Single type in list
+                type_val = hack_type_raw[0] if hack_type_raw else ""
+                hack_type = TYPE_DISPLAY_LOOKUP.get(type_val, type_val.title() if type_val else "Unknown")
+        else:
+            # String type
+            hack_type = TYPE_DISPLAY_LOOKUP.get(hack_type_raw, hack_type_raw.title() if hack_type_raw else "Unknown")
         
         # Get difficulty from raw_fields
         raw_diff = raw_fields.get("difficulty", "")
