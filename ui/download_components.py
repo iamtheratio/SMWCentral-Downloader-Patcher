@@ -551,12 +551,12 @@ class DownloadResults:
         # Handle case where type might be a list or string
         if isinstance(hack_type_raw, list):
             if len(hack_type_raw) > 1:
-                # Multiple types - convert to display names and join
+                # Multiple types - convert to display names and join with commas
                 display_types = []
                 for type_val in hack_type_raw:
                     display_name = TYPE_DISPLAY_LOOKUP.get(type_val, type_val.title() if type_val else "Unknown")
                     display_types.append(display_name)
-                hack_type = " + ".join(display_types)
+                hack_type = ", ".join(display_types)
             else:
                 # Single type in list
                 type_val = hack_type_raw[0] if hack_type_raw else ""
