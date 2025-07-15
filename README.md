@@ -2,7 +2,29 @@
 
 An all-in-one tool for discovering, downloading, and managing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). Features automatic patching, smart organization, and comprehensive hack tracking with a beautiful modern interface.
 
+## 📑 Table of Contents
+
+- [🚀 Quick Start](#-quick-start)
+- [🎮 What This App Does](#-what-this-app-does)
+- [🏠 Main Features](#-main-features)
+  - [Dashboard - Your Gaming Overview](#dashboard---your-gaming-overview)
+  - [Download - Find New Hacks](#download---find-new-hacks)
+  - [History - Track Your Progress](#history---track-your-progress)
+  - [Settings - Easy Configuration](#settings---easy-configuration)
+- [📁 How Files Are Organized](#-how-files-are-organized)
+- [🎯 Who This Is For](#-who-this-is-for)
+- [🛠️ Technical Details](#️-technical-details)
+- [📚 User Guide](#-user-guide)
+  - [Getting Started](#getting-started)
+  - [Tips & Tricks](#tips--tricks)
+- [🔧 Troubleshooting](#-troubleshooting)
+- [📝 Privacy & Data](#-privacy--data)
+- [🎨 Customization](#-customization)
+- [🔄 Updates & Maintenance](#-updates--maintenance)
+
 ## 🚀 Quick Start
+
+![SMWC Downloader & Patcher](images/ss_app_dashboard_v4.0.png)
 
 1. **Download** the [latest release](https://github.com/iamtheratio/SMWCentral-Downloader-Patcher/releases/latest)
 2. **Run** `SMWC Downloader.exe`
@@ -33,7 +55,7 @@ An all-in-one tool for discovering, downloading, and managing Super Mario World 
 ## 🏠 Main Features
 
 ### Dashboard - Your Gaming Overview
-![Dashboard Interface](/images/ss_app_dashboard_v3.1.png)
+![Dashboard Interface](images/ss_app_dashboard_v4.0.png)
 
 See your gaming progress at a glance:
 - **📈 Statistics**: Total hacks downloaded, completion rate, average ratings
@@ -42,6 +64,8 @@ See your gaming progress at a glance:
 - **🔥 Streaks**: Track your gaming momentum
 
 ### Download - Find New Hacks
+![Download Interface](images/ss_app_download_v4.0.png)
+
 Advanced search and download system:
 - **🔍 Smart Search**: Find hacks by name, author, tags, or description
 - **🎯 Filters**: Type (Standard, Kaizo, Puzzle), difficulty, features
@@ -50,6 +74,8 @@ Advanced search and download system:
 - **✅ Multi-Select**: Download multiple hacks at once
 
 ### History - Track Your Progress
+![History Interface](images/ss_app_history_v4.0.png)
+
 Complete gaming journal:
 - **📋 Full Library**: See every hack you've downloaded
 - **✅ Completion Tracking**: Mark hacks as completed with dates
@@ -59,6 +85,8 @@ Complete gaming journal:
 - **🔍 Advanced Filtering**: Find specific hacks quickly
 
 ### Settings - Easy Configuration
+![Settings Interface](images/ss_app_settings_v4.0.png)
+
 Simple setup and management:
 - **📁 Path Configuration**: Set your ROM and output folders
 - **🔧 API Settings**: Adjust download speed if needed

@@ -96,7 +96,7 @@ class DashboardAnalytics:
         total_exits = 0  # Track total exits from ALL hacks (completed or not)
         
         for hack_id, hack_data in self.data_manager.data.items():
-            self.analytics_data['total_hacks'] += 1  # Count all hacks
+            # Remove the incorrect increment - total_hacks is already set correctly above
             
             # Count exits from ALL hacks regardless of completion status
             exits = hack_data.get('exits', 0)
