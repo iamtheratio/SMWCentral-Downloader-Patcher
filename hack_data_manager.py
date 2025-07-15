@@ -67,7 +67,8 @@ class HackDataManager:
                 hack_info = {
                     "id": hack_id,
                     "title": hack_data.get("title", "Unknown"),
-                    "hack_type": hack_data.get("hack_type", "unknown").title(),  # Capitalize for display
+                    "hack_type": hack_data.get("hack_type", "unknown").title(),  # Keep for backward compatibility
+                    "hack_types": hack_data.get("hack_types", [hack_data.get("hack_type", "unknown")]),  # NEW: Include multi-type support
                     "difficulty": hack_data.get("current_difficulty", "Unknown"),  # Use current_difficulty only
                     "hall_of_fame": hack_data.get("hall_of_fame", False),
                     "sa1_compatibility": hack_data.get("sa1_compatibility", False),

@@ -416,10 +416,13 @@ class TableFilters:
         if name_filter_text and name_filter_text not in hack.get("title", "").lower():
             return False
             
-        # Type filter
+        # Type filter - Check against all hack types
         type_filter_value = self.type_filter.get()
-        if type_filter_value != "All" and hack.get("hack_type", "").title() != type_filter_value:
-            return False
+        if type_filter_value != "All":
+            hack_types = hack.get("hack_types", []) or [hack.get("hack_type", "")]
+            type_matches = any(hack_type.title() == type_filter_value for hack_type in hack_types)
+            if not type_matches:
+                return False
             
         # Difficulty filter
         difficulty_filter_value = self.difficulty_filter.get()

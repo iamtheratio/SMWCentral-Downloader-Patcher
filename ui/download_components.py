@@ -8,7 +8,7 @@ import os
 # Add path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
-from utils import TYPE_DISPLAY_LOOKUP, DIFFICULTY_LOOKUP
+from utils import TYPE_DISPLAY_LOOKUP, DIFFICULTY_LOOKUP, format_types_display
 from ui_constants import get_labelframe_padding
 from ui.components import DifficultySection
 import sv_ttk
@@ -548,21 +548,10 @@ class DownloadResults:
         raw_fields = hack.get("raw_fields", {})
         hack_type_raw = raw_fields.get("type") or hack.get("type", "")
         
-        # Handle case where type might be a list or string
+        # Use the new helper function to format multiple types
         if isinstance(hack_type_raw, list):
-            if len(hack_type_raw) > 1:
-                # Multiple types - convert to display names and join with commas
-                display_types = []
-                for type_val in hack_type_raw:
-                    display_name = TYPE_DISPLAY_LOOKUP.get(type_val, type_val.title() if type_val else "Unknown")
-                    display_types.append(display_name)
-                hack_type = ", ".join(display_types)
-            else:
-                # Single type in list
-                type_val = hack_type_raw[0] if hack_type_raw else ""
-                hack_type = TYPE_DISPLAY_LOOKUP.get(type_val, type_val.title() if type_val else "Unknown")
+            hack_type = format_types_display(hack_type_raw)
         else:
-            # String type
             hack_type = TYPE_DISPLAY_LOOKUP.get(hack_type_raw, hack_type_raw.title() if hack_type_raw else "Unknown")
         
         # Get difficulty from raw_fields

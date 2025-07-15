@@ -231,15 +231,18 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                 if not patch_path:
                     raise Exception("Patch file (.ips or .bps) not found in archive")
                 
-                # Determine hack type for output path
-                hack_type = raw_fields.get("type") or hack.get("type", "")
-                if isinstance(hack_type, list):
-                    hack_type = hack_type[0] if hack_type else ""
-                normalized_type = hack_type.lower().replace("-", "_")
+                # Determine hack types for output path - support multiple types
+                hack_types_raw = raw_fields.get("type") or hack.get("type", "")
+                if isinstance(hack_types_raw, list):
+                    hack_types = [t.lower().replace("-", "_") for t in hack_types_raw if t]
+                    primary_type = hack_types[0] if hack_types else "standard"
+                else:
+                    primary_type = hack_types_raw.lower().replace("-", "_") if hack_types_raw else "standard"
+                    hack_types = [primary_type]
                 
-                # Create output path
+                # Create output path using primary type (for now - TODO: support multiple folders)
                 output_filename = f"{title_clean}{base_rom_ext}"
-                output_path = os.path.join(make_output_path(output_dir, normalized_type, folder_name), output_filename)
+                output_path = os.path.join(make_output_path(output_dir, primary_type, folder_name), output_filename)
                 
                 # Apply the patch
                 if log: log(f"🔧 Patching {hack_name}...", "Information")
@@ -247,13 +250,14 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                 if not success:
                     raise Exception("Patch application failed")
                 
-                # Update processed data
+                # Update processed data with multi-type support
                 processed[hack_id] = {
                     "title": clean_hack_title(hack_name),
                     "current_difficulty": display_diff,
                     "folder_name": folder_name,
                     "file_path": output_path,
-                    "hack_type": normalized_type,
+                    "hack_type": primary_type,  # Keep for backward compatibility
+                    "hack_types": hack_types,   # New: array of all types
                     "hall_of_fame": bool(raw_fields.get("hof", False)),
                     "sa1_compatibility": bool(raw_fields.get("sa1", False)),
                     "collaboration": bool(raw_fields.get("collab", False)),
@@ -341,6 +345,25 @@ def main():
     except ImportError:
         # If migration manager doesn't exist, just setup normally
         setup_after_migration()
+    
+    # Quick multi-type migration check (silent, fast)
+    try:
+        from api_pipeline import load_processed, save_processed
+        processed = load_processed()
+        needs_multi_type_update = False
+        
+        for hack_id, hack_data in processed.items():
+            if isinstance(hack_data, dict) and "hack_type" in hack_data and "hack_types" not in hack_data:
+                # Convert single hack_type to hack_types array
+                single_type = hack_data["hack_type"]
+                hack_data["hack_types"] = [single_type] if single_type else ["standard"]
+                needs_multi_type_update = True
+        
+        if needs_multi_type_update:
+            save_processed(processed)
+            print("✅ Updated processed.json for multi-type support")
+    except Exception as e:
+        print(f"Note: Could not update processed.json for multi-type support: {e}")
     
     root.mainloop()
 

@@ -7,6 +7,8 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from hack_data_manager import HackDataManager
 from ui.history_components import InlineEditor, DateValidator, NotesValidator, TableFilters, HackHistoryInlineEditor
 from ui_constants import get_page_padding, get_section_padding
+from utils import get_sorted_folder_name, move_hack_to_new_difficulty, get_primary_type, format_types_display
+from colors import get_colors
 
 # Import VERSION from main module
 try:
@@ -229,10 +231,14 @@ class HistoryPage:
         
         hack_id = hack.get("id")
         
+        # Use new helper function for type display
+        hack_types = hack.get("hack_types", []) or [hack.get("hack_type", "standard")]
+        type_display = format_types_display(hack_types)
+        
         self.tree.insert("", "end", values=(
             completed_display,
             hack["title"],
-            hack.get("hack_type", "Unknown").title(),
+            type_display,  # Now shows multiple types if available
             hack.get("difficulty", "Unknown"),
             rating_display,
             hack.get("completed_date", ""),
@@ -503,8 +509,10 @@ class HistoryPage:
         title = hack_data.get("title", "Unknown Hack")
         details = f"Hack: {title}\n\n"
         
-        # Basic info
-        details += f"Type: {hack_data.get('hack_type', 'Unknown').title()}\n"
+        # Basic info - Use multi-type display
+        hack_types = hack_data.get("hack_types", []) or [hack_data.get("hack_type", "Unknown")]
+        type_display = format_types_display(hack_types)
+        details += f"Type: {type_display}\n"
         details += f"Difficulty: {hack_data.get('difficulty', 'Unknown')}\n"
         details += f"Rating: {self._get_rating_display(hack_data.get('personal_rating', 0))}\n"
         
