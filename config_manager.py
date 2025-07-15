@@ -57,7 +57,8 @@ class ConfigManager:
             return self._get_default_config()
         
         # Only allow specific configuration keys
-        allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path"}
+        allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path", 
+                       "multi_type_enabled", "multi_type_download_mode"}
         cleaned = {}
         
         for key, value in config.items():

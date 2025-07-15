@@ -2,7 +2,6 @@
   "base_rom_path": "C:/Users/georg/Desktop/SMWCentralDownloader/clean.smc",
   "output_dir": "C:/Users/georg/Desktop/SMWCentralDownloader/Romhacks",
   "api_delay": 0.8,
-  "multi_type_download_mode": "primary_only",
-  "multi_type_duplicate_method": "copy",
+  "multi_type_download_mode": "copy_all",
   "multi_type_enabled": true
 }

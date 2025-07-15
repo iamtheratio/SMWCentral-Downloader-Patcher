@@ -196,8 +196,61 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
         
         # Check if already processed
         if hack_id in processed:
-            if log: log(f"✅ Skipped: {hack_name}")
-            skipped_hacks += 1
+            # Check if this hack needs multi-type copies that are missing
+            existing_hack = processed[hack_id]
+            
+            # Get current hack types from the fresh data
+            from multi_type_utils import get_hack_types_from_raw_data
+            current_hack_types = get_hack_types_from_raw_data(raw_fields, hack)
+            
+            # Check if multi-type is enabled and hack has multiple types
+            multi_type_enabled = config.get("multi_type_enabled", True)
+            download_mode = config.get("multi_type_download_mode", "primary_only")
+            
+            if (multi_type_enabled and download_mode == "copy_all" and 
+                len(current_hack_types) > 1 and 
+                existing_hack.get("file_path") and 
+                os.path.exists(existing_hack["file_path"])):
+                
+                # Check if additional_paths exist or are missing
+                existing_additional_paths = existing_hack.get("additional_paths", [])
+                expected_additional_types = current_hack_types[1:]  # Skip primary type
+                
+                missing_copies = []
+                for hack_type in expected_additional_types:
+                    expected_path = os.path.join(make_output_path(output_dir, hack_type, existing_hack["folder_name"]), 
+                                               os.path.basename(existing_hack["file_path"]))
+                    if not os.path.exists(expected_path):
+                        missing_copies.append((hack_type, expected_path))
+                
+                if missing_copies:
+                    if log: log(f"🔄 Creating missing multi-type copies for: {hack_name}", "Information")
+                    
+                    # Create missing copies
+                    new_additional_paths = list(existing_additional_paths)
+                    for hack_type, target_path in missing_copies:
+                        try:
+                            os.makedirs(os.path.dirname(target_path), exist_ok=True)
+                            import shutil
+                            shutil.copy2(existing_hack["file_path"], target_path)
+                            new_additional_paths.append(target_path)
+                            if log: log(f"📄 Created copy in {hack_type.title()} folder", "Debug")
+                        except Exception as e:
+                            if log: log(f"⚠️ Failed to create {hack_type} copy: {str(e)}", "Error")
+                    
+                    # Update processed data with new additional paths and hack_types
+                    existing_hack["additional_paths"] = new_additional_paths
+                    existing_hack["hack_types"] = current_hack_types
+                    save_processed(processed)
+                    
+                    if log: log(f"✅ Updated multi-type copies for: {hack_name}", "Information")
+                    successful_downloads += 1
+                else:
+                    if log: log(f"✅ Skipped: {hack_name} (all multi-type copies exist)", "Debug")
+                    skipped_hacks += 1
+            else:
+                if log: log(f"✅ Skipped: {hack_name}", "Debug")
+                skipped_hacks += 1
             continue
         
         try:
@@ -232,30 +285,34 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     raise Exception("Patch file (.ips or .bps) not found in archive")
                 
                 # Determine hack types for output path - support multiple types
-                hack_types_raw = raw_fields.get("type") or hack.get("type", "")
-                if isinstance(hack_types_raw, list):
-                    hack_types = [t.lower().replace("-", "_") for t in hack_types_raw if t]
-                    primary_type = hack_types[0] if hack_types else "standard"
-                else:
-                    primary_type = hack_types_raw.lower().replace("-", "_") if hack_types_raw else "standard"
-                    hack_types = [primary_type]
+                from multi_type_utils import get_hack_types_from_raw_data, handle_multi_type_download
                 
-                # Create output path using primary type (for now - TODO: support multiple folders)
+                hack_types = get_hack_types_from_raw_data(raw_fields, hack)
+                primary_type = hack_types[0] if hack_types else "standard"
+                
+                # Create primary output path
                 output_filename = f"{title_clean}{base_rom_ext}"
-                output_path = os.path.join(make_output_path(output_dir, primary_type, folder_name), output_filename)
+                primary_output_path = os.path.join(make_output_path(output_dir, primary_type, folder_name), output_filename)
                 
-                # Apply the patch
+                # Apply the patch to primary location
                 if log: log(f"🔧 Patching {hack_name}...", "Information")
-                success = PatchHandler.apply_patch(patch_path, base_rom_path, output_path, log)
+                success = PatchHandler.apply_patch(patch_path, base_rom_path, primary_output_path, log)
                 if not success:
                     raise Exception("Patch application failed")
+                
+                # Handle multi-type downloads
+                additional_paths = handle_multi_type_download(
+                    primary_output_path, hack_types, output_dir, folder_name, 
+                    title_clean, base_rom_ext, config, log
+                )
                 
                 # Update processed data with multi-type support
                 processed[hack_id] = {
                     "title": clean_hack_title(hack_name),
                     "current_difficulty": display_diff,
                     "folder_name": folder_name,
-                    "file_path": output_path,
+                    "file_path": primary_output_path,  # Use primary path for backward compatibility
+                    "additional_paths": additional_paths,  # Store additional paths for multi-type
                     "hack_type": primary_type,  # Keep for backward compatibility
                     "hack_types": hack_types,   # New: array of all types
                     "hall_of_fame": bool(raw_fields.get("hof", False)),

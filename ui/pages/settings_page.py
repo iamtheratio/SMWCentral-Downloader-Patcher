@@ -111,25 +111,73 @@ class SettingsPage:
         
         # Configure styles
         style = ttk.Style()
-        for widget in ("TCheckbutton", "TRadiobutton", "TButton", "TCombobox"):
+        for widget in ("TCheckbutton", "TRadiobutton", "TButton", "TCombobox", "TLabel"):
             style.configure(f"Custom.{widget}", font=self.font)
 
-        # Setup section - now takes full width
-        _, section_padding_y = get_section_padding()
-        self.setup_section.parent = self.frame
-        setup_frame = self.setup_section.create(self.font)
-        setup_frame.pack(fill="x", pady=section_padding_y)
+        # Top row: Setup section on left, Multi-type options on right - EQUAL WIDTHS
+        top_row_frame = ttk.Frame(self.frame)
+        top_row_frame.pack(fill="x", pady=(0, 20))
         
-        # Log section with level dropdown and clear button - positioned below Setup
+        # Setup section (left side) - equal width, no extra wrapper
+        setup_frame = ttk.Frame(top_row_frame)
+        setup_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        
+        self.setup_section.parent = setup_frame
+        setup_content = self.setup_section.create(self.font)
+        setup_content.pack(fill="both", expand=True)
+        
+        # Multi-Type Download Options Section (right side) - equal width
+        multi_type_frame = ttk.LabelFrame(top_row_frame, text="Multi-Type Download Options", padding=(15, 10, 15, 15))
+        multi_type_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
+        
+        # Multi-type enabled checkbox
+        self.multi_type_enabled_var = tk.BooleanVar()
+        self.multi_type_enabled_checkbox = ttk.Checkbutton(
+            multi_type_frame,
+            text="Enable multi-type downloads\n(for hacks with types like 'Kaizo, Tool-Assisted')",
+            variable=self.multi_type_enabled_var,
+            style="Custom.TCheckbutton"
+        )
+        self.multi_type_enabled_checkbox.pack(anchor="w", pady=(0, 12))
+        
+        # Download mode selection
+        mode_frame = ttk.Frame(multi_type_frame)
+        mode_frame.pack(fill="x", pady=(0, 12))
+        
+        ttk.Label(mode_frame, text="Download Mode:", style="Custom.TLabel").pack(anchor="w", pady=(0, 4))
+        
+        self.download_mode_var = tk.StringVar()
+        mode_options = [
+            ("primary_only", "Primary type only"),
+            ("copy_all", "Copy to all type folders")
+        ]
+        
+        for value, description in mode_options:
+            ttk.Radiobutton(
+                mode_frame,
+                text=description,
+                variable=self.download_mode_var,
+                value=value,
+                style="Custom.TRadiobutton"
+            ).pack(anchor="w", padx=(15, 0), pady=2)
+        
+        # Load current settings FIRST
+        self._load_multi_type_settings()
+        
+        # Bind changes to save settings
+        self.multi_type_enabled_var.trace("w", self._save_multi_type_settings)
+        self.download_mode_var.trace("w", self._save_multi_type_settings)
+        
+        # Log section with level dropdown and clear button
         log_header_frame = ttk.Frame(self.frame)
-        log_header_frame.pack(fill="x", pady=(20, 5))
+        log_header_frame.pack(fill="x", pady=(0, 5))
         
-        # Log level dropdown (left side) - UPDATED ORDER AND REMOVED WARNING
-        ttk.Label(log_header_frame, text="Log Level:", font=self.font).pack(side="left")
+        # Log level dropdown (left side)
+        ttk.Label(log_header_frame, text="Log Level:", style="Custom.TLabel").pack(side="left")
         
         self.log_level_combo = ttk.Combobox(
             log_header_frame,
-            values=["Information", "Debug", "Error"],  # REORDERED AND REMOVED WARNING
+            values=["Information", "Debug", "Error"],
             state="readonly",
             font=self.font,
             width=12
@@ -147,79 +195,11 @@ class SettingsPage:
             command=self.logger.clear_log
         ).pack(side="right")
         
-        # Multi-Type Download Options Section
-        multi_type_frame = ttk.LabelFrame(self.frame, text="Multi-Type Download Options", padding=get_section_padding())
-        multi_type_frame.pack(fill="x", pady=(20, 5))
-        
-        # Multi-type enabled checkbox
-        self.multi_type_enabled_var = tk.BooleanVar()
-        self.multi_type_enabled_checkbox = ttk.Checkbutton(
-            multi_type_frame,
-            text="Enable multi-type downloads (for hacks with multiple types like 'Kaizo, Tool-Assisted')",
-            variable=self.multi_type_enabled_var,
-            font=self.font
-        )
-        self.multi_type_enabled_checkbox.pack(anchor="w", pady=(0, 10))
-        
-        # Download mode selection
-        mode_frame = ttk.Frame(multi_type_frame)
-        mode_frame.pack(fill="x", pady=(0, 10))
-        
-        ttk.Label(mode_frame, text="Download Mode:", font=self.font).pack(anchor="w")
-        
-        self.download_mode_var = tk.StringVar()
-        mode_options = [
-            ("primary_only", "Primary type only (saves to first type folder only)"),
-            ("copy_all", "Copy to all type folders (creates multiple copies)"),
-            ("symlink_all", "Symlink to all type folders (saves space, requires admin rights)")
-        ]
-        
-        for value, description in mode_options:
-            ttk.Radiobutton(
-                mode_frame,
-                text=description,
-                variable=self.download_mode_var,
-                value=value,
-                font=self.font
-            ).pack(anchor="w", padx=(20, 0), pady=2)
-        
-        # Duplicate method (only shown when copy_all is selected)
-        self.duplicate_frame = ttk.Frame(multi_type_frame)
-        self.duplicate_frame.pack(fill="x", pady=(0, 5))
-        
-        ttk.Label(self.duplicate_frame, text="File Management:", font=self.font).pack(anchor="w")
-        
-        self.duplicate_method_var = tk.StringVar()
-        duplicate_options = [
-            ("copy", "Create separate copies (uses more disk space)"),
-            ("hardlink", "Create hard links (saves space, same file)")
-        ]
-        
-        for value, description in duplicate_options:
-            ttk.Radiobutton(
-                self.duplicate_frame,
-                text=description,
-                variable=self.duplicate_method_var,
-                value=value,
-                font=self.font
-            ).pack(anchor="w", padx=(20, 0), pady=2)
-        
-        # Bind mode change to show/hide duplicate options
-        self.download_mode_var.trace("w", self._on_download_mode_changed)
-        
-        # Load current settings
-        self._load_multi_type_settings()
-        
-        # Bind changes to save settings
-        self.multi_type_enabled_var.trace("w", self._save_multi_type_settings)
-        self.download_mode_var.trace("w", self._save_multi_type_settings)
-        self.duplicate_method_var.trace("w", self._save_multi_type_settings)
-        
-        # Log text area - now takes remaining space to bottom of app
+        # Log text area - takes remaining space to bottom
         log_text = self.logger.setup(self.frame)
         log_text.pack(fill="both", expand=True, pady=(2, 5))
         
-        # Store reference for theme toggling - CORRECTLY on root, not in config
+        # Store reference for theme toggling
         root = self.parent.winfo_toplevel()
         root.log_text = log_text
         
@@ -235,14 +215,11 @@ class SettingsPage:
         """Show/hide duplicate method options based on download mode"""
         mode = self.download_mode_var.get()
         if mode == "copy_all":
-            # Show duplicate method options
-            for widget in self.duplicate_frame.winfo_children():
-                widget.pack_configure()
+            # Show the entire duplicate frame
+            self.duplicate_frame.pack(fill="x", pady=(8, 0))
         else:
-            # Hide duplicate method options
-            for widget in self.duplicate_frame.winfo_children():
-                if isinstance(widget, ttk.Radiobutton):
-                    widget.pack_forget()
+            # Hide the entire duplicate frame
+            self.duplicate_frame.pack_forget()
     
     def _load_multi_type_settings(self):
         """Load multi-type settings from config"""
@@ -253,21 +230,15 @@ class SettingsPage:
             # Load settings with defaults
             enabled = config.get("multi_type_enabled", True)
             mode = config.get("multi_type_download_mode", "primary_only")
-            method = config.get("multi_type_duplicate_method", "copy")
             
             self.multi_type_enabled_var.set(enabled)
             self.download_mode_var.set(mode)
-            self.duplicate_method_var.set(method)
-            
-            # Update UI visibility
-            self._on_download_mode_changed()
             
         except Exception as e:
             print(f"Error loading multi-type settings: {e}")
             # Set defaults
             self.multi_type_enabled_var.set(True)
             self.download_mode_var.set("primary_only")
-            self.duplicate_method_var.set("copy")
     
     def _save_multi_type_settings(self, *args):
         """Save multi-type settings to config"""
@@ -277,11 +248,9 @@ class SettingsPage:
             
             enabled = self.multi_type_enabled_var.get()
             mode = self.download_mode_var.get()
-            method = self.duplicate_method_var.get()
             
             config.set("multi_type_enabled", enabled)
             config.set("multi_type_download_mode", mode)  
-            config.set("multi_type_duplicate_method", method)
             
         except Exception as e:
             print(f"Error saving multi-type settings: {e}")
