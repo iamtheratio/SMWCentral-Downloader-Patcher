@@ -202,7 +202,6 @@ SMWCentral Downloader & Patcher v4.0 represents the culmination of years of deve
 
 ### 📄 Technical Information
 - **Version**: 4.0.0
-- **License**: MIT License
 - **Language**: Python 3.8+
 - **Platforms**: Windows 10/11 (64-bit)
 - **Last Updated**: 2024
