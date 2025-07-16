@@ -109,7 +109,7 @@ class HistoryPage:
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15)
         
         # Configure headers and columns
-        headers = ["✓", "Title", "Type", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
+        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
         widths = [45, 220, 90, 100, 90, 110, 120, 150]
         min_widths = [35, 170, 70, 80, 70, 90, 100, 120]
         anchors = ["center", "w", "center", "center", "center", "center", "center", "w"]
@@ -814,7 +814,7 @@ class HistoryPage:
     
     def _update_column_headers(self):
         """Update column headers to show sort indicators"""
-        headers = ["✓", "Title", "Type", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
+        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
         columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
         
         for i, (col, base_header) in enumerate(zip(columns, headers)):

@@ -102,7 +102,7 @@ class DownloadFilters:
         type_combo = ttk.Combobox(
             type_frame, 
             textvariable=self.type_var,
-            values=["Any"] + list(TYPE_DISPLAY_LOOKUP.values()),
+            values=["Any"] + sorted(TYPE_DISPLAY_LOOKUP.values()),
             state="readonly",
             width=12
         )

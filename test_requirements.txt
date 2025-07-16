@@ -1,0 +1,34 @@
+# Test requirements for SMWCentral Downloader & Patcher
+# Install with: pip install -r test_requirements.txt
+
+# Testing framework (built into Python)
+# unittest - included with Python
+
+# Coverage reporting
+coverage>=7.0.0
+
+# Test utilities
+mock>=4.0.0  # For older Python versions (3.7 compatibility)
+
+# Optional: Enhanced testing tools
+pytest>=7.0.0  # Alternative test runner
+pytest-cov>=4.0.0  # Coverage plugin for pytest
+pytest-mock>=3.10.0  # Mock plugin for pytest
+
+# Performance testing
+memory_profiler>=0.60.0  # Memory usage profiling
+
+# Test data generation
+faker>=15.0.0  # Generate fake test data
+
+# HTTP mocking for API tests
+responses>=0.22.0  # Mock HTTP requests
+
+# Temporary file handling (built into Python)
+# tempfile - included with Python
+
+# JSON handling (built into Python)
+# json - included with Python
+
+# File operations (built into Python)  
+# os, shutil - included with Python
