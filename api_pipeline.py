@@ -1,3 +1,11 @@
+"""
+SMWCentral API Pipeline
+Core downloading and processing functionality for SMWCentral hacks
+
+Copyright (c) 2025 iamtheratio
+Licensed under the MIT License - see LICENSE file for details
+"""
+
 import requests
 import os
 import tempfile

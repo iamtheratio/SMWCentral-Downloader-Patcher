@@ -1,3 +1,11 @@
+"""
+Patch Handler
+Handles IPS and BPS patch application for ROM hacks
+
+Copyright (c) 2025 iamtheratio
+Licensed under the MIT License - see LICENSE file for details
+"""
+
 import os
 import glob
 from pathlib import Path

@@ -180,7 +180,16 @@ This project welcomes contributions! Whether it's bug reports, feature requests,
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+**What this means:**
+- ✅ **Free to use** - Download and use the software for any purpose
+- ✅ **Free to modify** - Change the code to suit your needs  
+- ✅ **Free to distribute** - Share copies with others
+- ✅ **Commercial use allowed** - Use in commercial projects
+- ✅ **Open source** - Source code is available for inspection and contribution
+
+The only requirement is to include the original copyright notice in any copies or substantial portions of the software.
 
 ---
 
