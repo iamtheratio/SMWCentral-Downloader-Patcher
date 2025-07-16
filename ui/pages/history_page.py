@@ -5,16 +5,18 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from hack_data_manager import HackDataManager
-from ui.hack_history_components import InlineEditor, DateValidator, NotesValidator, TableFilters, HackHistoryInlineEditor
+from ui.history_components import InlineEditor, DateValidator, NotesValidator, TableFilters, HackHistoryInlineEditor
 from ui_constants import get_page_padding, get_section_padding
+from utils import get_sorted_folder_name, move_hack_to_new_difficulty, get_primary_type, format_types_display
+from colors import get_colors
 
 # Import VERSION from main module
 try:
     from main import VERSION
 except ImportError:
-    VERSION = "v3.1"  # Fallback if import fails
+    VERSION = "v4.0"  # Updated version
 
-class HackHistoryPage:
+class HistoryPage:
     """Simplified hack history page with extracted components"""
     
     def __init__(self, parent, logger=None):
@@ -107,7 +109,7 @@ class HackHistoryPage:
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15)
         
         # Configure headers and columns
-        headers = ["✓", "Title", "Type", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
+        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
         widths = [45, 220, 90, 100, 90, 110, 120, 150]
         min_widths = [35, 170, 70, 80, 70, 90, 100, 120]
         anchors = ["center", "w", "center", "center", "center", "center", "center", "w"]
@@ -158,7 +160,7 @@ class HackHistoryPage:
                 self._log("❌ Failed to save pending changes - refresh cancelled", "Error")
                 return
         
-        # FIXED: Don't create new data manager - just reload the existing one's data
+        # Don't create new data manager - just reload the existing one's data
         try:
             old_count = len(self.data_manager.get_all_hacks())
             self.data_manager.data = self.data_manager._load_data()  # Reload from file
@@ -229,10 +231,14 @@ class HackHistoryPage:
         
         hack_id = hack.get("id")
         
+        # Use new helper function for type display
+        hack_types = hack.get("hack_types", []) or [hack.get("hack_type", "standard")]
+        type_display = format_types_display(hack_types)
+        
         self.tree.insert("", "end", values=(
             completed_display,
             hack["title"],
-            hack.get("hack_type", "Unknown").title(),
+            type_display,  # Now shows multiple types if available
             hack.get("difficulty", "Unknown"),
             rating_display,
             hack.get("completed_date", ""),
@@ -503,8 +509,10 @@ class HackHistoryPage:
         title = hack_data.get("title", "Unknown Hack")
         details = f"Hack: {title}\n\n"
         
-        # Basic info
-        details += f"Type: {hack_data.get('hack_type', 'Unknown').title()}\n"
+        # Basic info - Use multi-type display
+        hack_types = hack_data.get("hack_types", []) or [hack_data.get("hack_type", "Unknown")]
+        type_display = format_types_display(hack_types)
+        details += f"Type: {type_display}\n"
         details += f"Difficulty: {hack_data.get('difficulty', 'Unknown')}\n"
         details += f"Rating: {self._get_rating_display(hack_data.get('personal_rating', 0))}\n"
         
@@ -806,7 +814,7 @@ class HackHistoryPage:
     
     def _update_column_headers(self):
         """Update column headers to show sort indicators"""
-        headers = ["✓", "Title", "Type", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
+        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
         columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
         
         for i, (col, base_header) in enumerate(zip(columns, headers)):

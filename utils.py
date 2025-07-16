@@ -32,7 +32,7 @@ DIFFICULTY_LOOKUP = {
     "diff_5": "Expert",
     "diff_6": "Master",
     "diff_7": "Grandmaster",
-    "": "No Difficulty"  # ADDED: for hacks without difficulty
+    "": "No Difficulty"  # for hacks without difficulty
 }
 
 DIFFICULTY_KEYMAP = {
@@ -43,7 +43,7 @@ DIFFICULTY_KEYMAP = {
     "expert": "5",
     "master": "6",
     "grandmaster": "7",
-    "no difficulty": ""  # ADDED: for searching hacks without difficulty
+    "no difficulty": ""  # for searching hacks without difficulty
 }
 
 DIFFICULTY_SORTED = {
@@ -54,7 +54,7 @@ DIFFICULTY_SORTED = {
     "Expert": "05 - Expert",
     "Master": "06 - Master",
     "Grandmaster": "07 - Grandmaster",
-    "No Difficulty": "08 - No Difficulty"  # ADDED: for folder sorting
+    "No Difficulty": "08 - No Difficulty"  # for folder sorting
 }
 
 TYPE_KEYMAP = {
@@ -72,6 +72,49 @@ TYPE_DISPLAY_LOOKUP = {
     "tool_assisted": "Tool-Assisted",
     "pit": "Pit"
 }
+
+# Multi-type support utilities
+def get_hack_types(hack_data):
+    """Get array of hack types from hack data, with backward compatibility"""
+    if isinstance(hack_data, dict):
+        # Prefer new hack_types array
+        if "hack_types" in hack_data and isinstance(hack_data["hack_types"], list):
+            return hack_data["hack_types"]
+        # Fallback to single hack_type
+        elif "hack_type" in hack_data:
+            return [hack_data["hack_type"]]
+    return ["standard"]
+
+def get_primary_type(hack_data):
+    """Get primary (first) type from hack data"""
+    types = get_hack_types(hack_data)
+    return types[0] if types else "standard"
+
+def normalize_types(types_input):
+    """Normalize type strings to consistent format"""
+    if isinstance(types_input, str):
+        types_input = [types_input]
+    elif not isinstance(types_input, list):
+        return ["standard"]
+    
+    normalized = []
+    for type_str in types_input:
+        if type_str:
+            normalized.append(type_str.lower().replace("-", "_"))
+    
+    return normalized if normalized else ["standard"]
+
+def format_types_display(hack_types):
+    """Format types array for display (e.g., 'Kaizo, Tool-Assisted')"""
+    if not hack_types:
+        return "Unknown"
+    
+    display_types = []
+    for type_val in hack_types:
+        display_name = TYPE_DISPLAY_LOOKUP.get(type_val, type_val.title() if type_val else "Unknown")
+        display_types.append(display_name)
+    
+    return ", ".join(display_types)
 
 # Filename sanitization
 def safe_filename(name):
@@ -143,9 +186,6 @@ def safe_filename(name):
     result = re.sub(r'[<>:"/\\|?*]', '', result).strip()
     
     return result
-
-def sanitize_name(name):
-    return re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")
 
 def title_case(text):
     """
@@ -471,3 +511,54 @@ if not os.path.exists(CONFIG_FILE):
             "base_rom_path": "",
             "output_dir": ""
         }, f, indent=2)
+
+# Multi-type support utilities
+def get_hack_types(hack_data):
+    """Get array of hack types from hack data, with backward compatibility"""
+    if isinstance(hack_data, dict):
+        # Prefer new hack_types array
+        if "hack_types" in hack_data and isinstance(hack_data["hack_types"], list):
+            return hack_data["hack_types"]
+        # Fallback to single hack_type
+        elif "hack_type" in hack_data:
+            return [hack_data["hack_type"]]
+    return ["standard"]
+
+def get_primary_type(hack_data):
+    """Get primary (first) type from hack data"""
+    types = get_hack_types(hack_data)
+    return types[0] if types else "standard"
+
+def normalize_types(types_input):
+    """Normalize type strings to consistent format"""
+    if isinstance(types_input, str):
+        types_input = [types_input]
+    elif not isinstance(types_input, list):
+        return ["standard"]
+    
+    normalized = []
+    for type_str in types_input:
+        if type_str:
+            normalized.append(type_str.lower().replace("-", "_"))
+    
+    return normalized if normalized else ["standard"]
+
+def make_output_paths(output_dir, hack_types, display_difficulty):
+    """Create output paths for multiple types (future feature)"""
+    paths = []
+    for hack_type in hack_types:
+        path = make_output_path(output_dir, hack_type, display_difficulty)
+        paths.append(path)
+    return paths
+
+def format_types_display(hack_types):
+    """Format types array for display (e.g., 'Kaizo, Tool-Assisted')"""
+    if not hack_types:
+        return "Unknown"
+    
+    display_types = []
+    for type_val in hack_types:
+        display_name = TYPE_DISPLAY_LOOKUP.get(type_val, type_val.title() if type_val else "Unknown")
+        display_types.append(display_name)
+    
+    return ", ".join(display_types)

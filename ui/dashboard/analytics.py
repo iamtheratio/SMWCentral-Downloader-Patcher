@@ -22,15 +22,24 @@ class DashboardAnalytics:
         """Load and calculate all analytics data with optional date filtering"""
         self.date_filter = date_filter
         
+        # Get different datasets for different metric types
+        # Inventory metrics (exclude obsolete): Total Hacks, Total Exits, Completion Rate
+        current_hacks = self.data_manager.get_all_hacks(include_obsolete=False)
+        current_data = {hack['id']: self.data_manager.data[hack['id']] for hack in current_hacks if hack['id'] in self.data_manager.data}
+        
+        # Completion metrics (include obsolete): Completed Hacks, Completed Exits, Time metrics, Line Graph
+        all_hacks = self.data_manager.get_all_hacks(include_obsolete=True)
+        all_data = {hack['id']: self.data_manager.data[hack['id']] for hack in all_hacks if hack['id'] in self.data_manager.data}
+        
         self.analytics_data = {
-            'total_hacks': len(self.data_manager.data),
+            'total_hacks': len(current_data),  # Exclude obsolete
             'completed_hacks': 0,
             'completion_rate': 0.0,
             'completion_velocity': 0.0,
             'avg_time_per_hack': 0.0,
             'avg_time_per_exit': 0.0,
             'completed_exits': 0,  # Exits from hacks completed in the time period
-            'total_exits': 0,  # Exits from all completed hacks (unfiltered)
+            'total_exits': 0,  # Exits from all current (non-obsolete) hacks
             'completion_by_difficulty': {},
             'completion_by_type': {},
             'rating_distribution': {},
@@ -46,6 +55,10 @@ class DashboardAnalytics:
             'completion_streak': 0,
             'time_progression': {}  # NEW: Time progression data for charts
         }
+        
+        # Store both datasets for use in different calculations
+        self.current_data = current_data  # For inventory metrics
+        self.all_data = all_data  # For completion metrics
         
         self._calculate_basic_stats()
         self._calculate_completion_data()
@@ -91,14 +104,9 @@ class DashboardAnalytics:
         all_ratings = []
         completion_dates = []
         
-        # FIXED: Calculate total completed hacks regardless of date filter for completion rate
-        total_completed_ever = 0
-        total_exits = 0  # Track total exits from ALL hacks (completed or not)
-        
-        for hack_id, hack_data in self.data_manager.data.items():
-            self.analytics_data['total_hacks'] += 1  # Count all hacks
-            
-            # Count exits from ALL hacks regardless of completion status
+        # Calculate total exits from current (non-obsolete) hacks only
+        total_exits = 0
+        for hack_id, hack_data in self.current_data.items():
             exits = hack_data.get('exits', 0)
             if isinstance(exits, str):
                 try:
@@ -107,17 +115,23 @@ class DashboardAnalytics:
                     exits = 0
             if exits > 0:
                 total_exits += exits
-            
+        
+        # Calculate completion rate using current (non-obsolete) hacks only
+        total_completed_current = 0
+        for hack_id, hack_data in self.current_data.items():
             if hack_data.get('completed', False):
-                total_completed_ever += 1  # Count all completed hacks for completion rate
-                
+                total_completed_current += 1
+        
+        # For completion metrics, use ALL hacks (including obsolete)
+        for hack_id, hack_data in self.all_data.items():
+            if hack_data.get('completed', False):
                 # Check if this hack should be included based on date filter for other metrics
                 if self._should_include_hack(hack_data):
                     completed_hacks.append(hack_data)
                     self.analytics_data['completed_hacks'] += 1
                     
                     # Collect ratings
-                    rating = hack_data.get('personal_rating')  # Changed from 'rating' to 'personal_rating'
+                    rating = hack_data.get('personal_rating')
                     if rating and rating != 'Not Rated':
                         try:
                             rating_val = int(rating)
@@ -134,14 +148,11 @@ class DashboardAnalytics:
                         except ValueError:
                             pass
         
-        # Store total completed and total exits for completion rate calculation
-        self.analytics_data['total_completed_ever'] = total_completed_ever
+        # Store completion rate based on current (non-obsolete) hacks
         self.analytics_data['total_exits'] = total_exits
-        
-        # Calculate completion rate using ALL completed hacks, not filtered ones
         if self.analytics_data['total_hacks'] > 0:
             self.analytics_data['completion_rate'] = (
-                total_completed_ever / self.analytics_data['total_hacks']
+                total_completed_current / self.analytics_data['total_hacks']
             ) * 100
         
         # Calculate average rating
@@ -167,19 +178,31 @@ class DashboardAnalytics:
         type_stats = defaultdict(lambda: {'completed': 0, 'total': 0})
         rating_counts = defaultdict(int)
         
-        for hack_id, hack_data in self.data_manager.data.items():
+        # Calculate totals using current (non-obsolete) hacks only
+        for hack_id, hack_data in self.current_data.items():
             difficulty = hack_data.get('current_difficulty', 'Unknown')
-            hack_type = hack_data.get('hack_type', 'Unknown')  # Changed from 'type' to 'hack_type'
-            completed = hack_data.get('completed', False)
-            rating = hack_data.get('personal_rating')  # Changed from 'rating' to 'personal_rating'
+            hack_types = hack_data.get('hack_types', [hack_data.get('hack_type', 'Unknown')])
             
-            # Always count total, but only count completed if it passes the filter
+            # Count difficulty and type totals from current hacks
             difficulty_stats[difficulty]['total'] += 1
-            type_stats[hack_type]['total'] += 1
+            for hack_type in hack_types:
+                type_stats[hack_type]['total'] += 1
+        
+        # Calculate completed stats using all hacks (including obsolete)
+        for hack_id, hack_data in self.all_data.items():
+            difficulty = hack_data.get('current_difficulty', 'Unknown')
+            hack_types = hack_data.get('hack_types', [hack_data.get('hack_type', 'Unknown')])
+            completed = hack_data.get('completed', False)
+            rating = hack_data.get('personal_rating')
             
+            # Only count completed hacks that pass the date filter
             if completed and self._should_include_hack(hack_data):
+                # Count difficulty completions (once per hack)
                 difficulty_stats[difficulty]['completed'] += 1
-                type_stats[hack_type]['completed'] += 1
+                
+                # Count type completions (once per type for multi-type hacks)
+                for hack_type in hack_types:
+                    type_stats[hack_type]['completed'] += 1
                 
                 # Rating distribution (only for filtered completed hacks)
                 if rating and rating != 'Not Rated':
@@ -208,14 +231,15 @@ class DashboardAnalytics:
     def _calculate_time_metrics(self):
         """Calculate time-based performance metrics"""
         total_time = 0
-        completed_exits = 0  # RENAMED: Track exits from completed hacks in time period
+        completed_exits = 0  # Track exits from completed hacks in time period (include obsolete)
         completed_count = 0
         
         # Separate tracking for exit calculations
         exit_based_total_time = 0
         exit_based_total_exits = 0
         
-        for hack_id, hack_data in self.data_manager.data.items():
+        # Use all data (including obsolete) for completion-based time metrics
+        for hack_id, hack_data in self.all_data.items():
             if not hack_data.get('completed', False):
                 continue
                 
@@ -239,7 +263,7 @@ class DashboardAnalytics:
                 except (ValueError, TypeError):
                     exits = 0
             
-            # Track total exits for all completed hacks in time period
+            # Track total exits for all completed hacks in time period (including obsolete)
             if exits > 0:
                 completed_exits += exits
             
@@ -247,7 +271,7 @@ class DashboardAnalytics:
                 total_time += time_to_beat
                 completed_count += 1
                 
-                # FIXED: Only include in exit calculations if hack has BOTH time and exit data
+                # Only include in exit calculations if hack has BOTH time and exit data
                 if exits > 0:
                     exit_based_total_time += time_to_beat
                     exit_based_total_exits += exits
@@ -259,7 +283,7 @@ class DashboardAnalytics:
         if completed_count > 0:
             self.analytics_data['avg_time_per_hack'] = (total_time / completed_count) / 3600
             
-            # FIXED: Use only time and exits from hacks that have both pieces of data
+            # Use only time and exits from hacks that have both pieces of data
             if exit_based_total_exits > 0:
                 self.analytics_data['avg_time_per_exit'] = (exit_based_total_time / exit_based_total_exits) / 3600
     
@@ -328,7 +352,8 @@ class DashboardAnalytics:
         # Group completions by month and difficulty/type
         monthly_data = defaultdict(lambda: defaultdict(list))  # month -> difficulty -> [times]
         
-        for hack_id, hack_data in self.data_manager.data.items():
+        # Use all data (including obsolete) for time progression since this is completion-based
+        for hack_id, hack_data in self.all_data.items():
             if not hack_data.get('completed', False):
                 continue
                 
@@ -345,16 +370,19 @@ class DashboardAnalytics:
                 month_key = date_obj.strftime('%Y-%m')
                 
                 difficulty = hack_data.get('current_difficulty', 'Unknown')
-                hack_type = hack_data.get('hack_type', 'standard')
+                # Use new hack_types array - include hack in all its type categories for time progression
+                hack_types = hack_data.get('hack_types', [hack_data.get('hack_type', 'standard')])
                 time_to_beat = hack_data.get('time_to_beat', 0)
                 
                 if time_to_beat > 0:
                     # Convert to hours
                     time_hours = time_to_beat / 3600
-                    monthly_data[month_key][difficulty].append({
-                        'time': time_hours,
-                        'type': hack_type
-                    })
+                    # Add entry for each hack type (so multi-type hacks appear in all relevant type filters)
+                    for hack_type in hack_types:
+                        monthly_data[month_key][difficulty].append({
+                            'time': time_hours,
+                            'type': hack_type
+                        })
                     
             except ValueError:
                 continue

@@ -1,410 +1,219 @@
-# SMWC Downloader & Patcher v3.1
+# SMWCentral Downloader & Patcher v4.0
 
-A comprehensive Python GUI tool that automates downloading, patching, and organizing Super Mario World ROM hacks from [SMWCentral.net](https://www.smwcentral.net/). Features built-in IPS/BPS patching, intelligent filtering, and a powerful hack history management system.
+A comprehensive, professional-grade application for downloading, managing, and playing Super Mario World hacks from SMWCentral. Designed for both newcomers and experienced hack enthusiasts, this tool provides everything you need to explore the vast world of SMW ROM hacks.
 
-## 🚀 Quick Start
+## 🌟 What Makes v4.0 Special
 
-1. **Download** the [latest release](https://github.com/iamtheratio/SMWCentral-Downloader-Patcher/releases/latest)
-2. **Extract** to your preferred folder
-3. **Run** `SMWC Downloader.exe`
-4. **Setup** paths:
-   - Clean SMW ROM (headerless .smc recommended)
-   - Output directory
-   - Optional: Adjust API delay slider if needed
-5. **Select** hack type, difficulty, and filters
-6. **Click** Download & Patch
+**SMWCentral Downloader & Patcher v4.0** is a complete rewrite that transforms how you discover, download, and manage SMW hacks. Whether you're new to ROM hacks or a seasoned veteran, v4.0 provides a polished, intuitive experience that makes exploring thousands of hacks effortless.
 
-![Bulk Interface](/images/ss_app_bulk_v3.1.png)
+### 🎯 Perfect for First-Time Users
+- **One-Click Setup**: Install and start downloading hacks immediately
+- **Guided Experience**: Intuitive interface guides you through every step
+- **Auto-Organization**: Hacks are automatically categorized and organized
+- **Smart Recommendations**: Discover hacks based on your preferences and skill level
 
-> [!IMPORTANT]
-> ### ⚠️ Security Software Note
-> Some antivirus software may flag this program. This is a **false positive** caused by the executable packaging.
-> 
-> **Solutions:**
-> - Add an exclusion in your antivirus for the download folder
-> - Use the "More info" → "Run anyway" option in Windows SmartScreen
-> - Download the source code and run with Python if concerned
-> - Verify the file hash against the published value in the release notes
->
-> The application is open-source, and the code can be inspected on GitHub.
+### 🚀 Powerful for Advanced Users
+- **Bulk Operations**: Download and manage hundreds of hacks efficiently
+- **Advanced Analytics**: Deep insights into your hack collection and progress
+- **Custom Workflows**: Flexible filtering, sorting, and organization options
+- **Professional Tools**: Comprehensive patching, backup, and migration systems
 
-## 🆕 v3.1 Migration Guide
+## 🎮 Comprehensive Hack Support
 
-### For Existing Users
+### Complete Multi-Type System
+v4.0 introduces full support for **all** SMWCentral hack categories:
 
-If you've used a previous version, **v3.1 will automatically upgrade your database** when you first open the app. Here's what to expect:
+| Category | Description | Perfect For |
+|----------|-------------|-------------|
+| **Standard** | Traditional SMW platforming | Newcomers to ROM hacks |
+| **Kaizo** | Precision-based challenging gameplay | Players seeking extreme difficulty |
+| **Puzzle** | Logic and brain-teaser focused | Fans of problem-solving gameplay |
+| **Tool-Assisted** | Designed for TAS (Tool-Assisted Speedrun) | Technical players and speedrunners |
+| **Music** | Showcasing custom soundtracks | Music enthusiasts |
+| **Miscellaneous** | Experimental and unique concepts | Players wanting something different |
 
-#### Migration Process
+### Intelligent Version Management
+- **Obsolete Tracking**: Automatically identifies and manages outdated hack versions
+- **Version History**: Complete timeline of hack updates and improvements
+- **Smart Updates**: Notifications when newer versions of your hacks are available
+- **Legacy Support**: Maintains compatibility with older hack formats
 
-1. **Automatic Detection**: The app detects your old format and shows a migration dialog
-2. **Backup Creation**: Your existing data is backed up to `processed.json.pre-v3.1.backup`
-3. **API Enhancement**: Fetches real metadata from SMWC (Hall of Fame, SA-1, Collaboration, Demo status)
-4. **New Features**: Adds Time to Beat tracking, Authors, and Exit count data
-5. **Progress Dialog**: Shows real-time progress with detailed logging
-6. **Privacy Cleanup**: Removes file paths from your data for privacy
+## 📊 Professional Dashboard & Analytics
 
-#### What Changes
+### Real-Time Collection Insights
+- **Visual Analytics**: Beautiful charts showing your hack collection statistics
+- **Progress Tracking**: Completion rates, difficulty analysis, and personal goals
+- **Type Distribution**: Understanding your hack preferences and patterns
+- **Time Management**: Track time spent and optimize your gaming experience
 
-**Before v3.0:**
-```json
-{
-  "12345": {
-    "title": "Super Mario World",
-    "current_difficulty": "Expert", 
-    "hack_type": "kaizo"
-  }
-}
+### Advanced Data Management
+- **Smart Categorization**: AI-powered organization of your hack library
+- **Personal Rating System**: Rate and review hacks with detailed feedback
+- **Custom Tags**: Create personal organization systems
+- **Backup & Sync**: Cloud-ready backup system for your hack database
+
+## 🔧 Professional-Grade Features
+
+### Automated Download System
+- **Queue Management**: Download multiple hacks with intelligent queue system
+- **Resume Support**: Interrupted downloads automatically resume
+- **Bandwidth Control**: Manage download speeds to optimize your connection
+- **Error Recovery**: Robust error handling with automatic retry systems
+
+### Advanced Patching Engine
+- **Multi-Format Support**: BPS, IPS, and other patch formats supported
+- **ROM Base Detection**: Automatically identifies and manages ROM bases
+- **Batch Patching**: Apply patches to multiple ROMs simultaneously
+- **Integrity Verification**: Ensures perfect patches every time
+
+### Smart Organization System
+- **Auto-Sorting**: Hacks automatically organized by type, difficulty, and status
+- **Flexible Filtering**: Find exactly what you want with advanced search
+- **Custom Collections**: Create themed collections and playlists
+- **Quick Access**: Favorites and recently played systems
+
+## 💻 System Requirements & Installation
+
+### Minimum System Requirements
+- **OS**: Windows 10 (64-bit) or later
+- **RAM**: 4 GB (8 GB recommended)
+- **Storage**: 200 MB + space for hacks
+- **Network**: Broadband internet connection
+- **Display**: 1366x768 minimum (1920x1080 recommended)
+
+### Quick Installation
+1. **Download**: Get the latest installer from [Releases](../../releases)
+2. **Install**: Run the installer and follow the simple setup wizard
+3. **Launch**: Start from Start Menu or desktop shortcut
+4. **Enjoy**: Begin downloading and playing hacks immediately!
+
+## 🚀 Getting Started in 3 Minutes
+
+### For Complete Beginners
+1. **Launch the App**: Open SMWCentral Downloader & Patcher
+2. **Browse Hacks**: Click "Browse" and explore the hack library
+3. **Start Easy**: Filter by "Newcomer" difficulty for your first hacks
+4. **Download & Play**: Click any hack to download and auto-patch
+5. **Track Progress**: Mark hacks as completed and rate your favorites
+
+### For Experienced Users
+1. **Import Existing**: Use migration tools to import your current hack collection
+2. **Bulk Download**: Select multiple hacks and download in batches
+3. **Customize Organization**: Set up custom categories and filters
+4. **Analyze Collection**: Use Dashboard to understand your hack preferences
+5. **Advanced Features**: Explore bulk operations and custom workflows
+
+## 🎯 Key Workflows
+
+### Discovering New Hacks
+```
+Browse Tab → Apply Filters → Preview Details → Download → Auto-Organize
 ```
 
-**After v3.1:**
-```json
-{
-  "12345": {
-    "title": "Super Mario World",
-    "current_difficulty": "Expert",
-    "hack_type": "kaizo", 
-    "hall_of_fame": true,
-    "sa1_compatibility": false,
-    "collaboration": false,
-    "demo": false,
-    "exits": 14,
-    "authors": [
-      {
-        "id": 12345,
-        "name": "AuthorName"
-      }
-    ],
-    "completed": false,
-    "completed_date": "",
-    "personal_rating": 0,
-    "notes": "",
-    "time_to_beat": 0
-  }
-}
+### Managing Your Collection
+```
+Dashboard → View Analytics → Update Progress → Rate Hacks → Export Data
 ```
 
-#### Migration Results
-
-- ✅ **99.8% API Success Rate**: Fetches real SMWC metadata for nearly all hacks
-- 🔐 **Privacy Protected**: File paths removed automatically
-- 📊 **Enhanced Data**: Hall of Fame, SA-1, Collaboration, Demo flags added
-- 📝 **History Ready**: Completion tracking and rating system enabled
-- ⏱️ **Time Tracking**: Time to Beat field added for performance analysis
-- 👥 **Author Data**: Author information and IDs from SMWC
-- 🚪 **Exit Counts**: Number of exits for each hack when available
-- 📊 **Analytics Ready**: Data structure optimized for dashboard analytics
-
-#### If Migration Fails
-
-- Your original data is safely backed up
-- You can restore from `processed.json.pre-v3.1.backup`
-- Contact support with error details
-
-## ✨ Key Features
-
-### 🏠 Dashboard Page *(Enhanced in v3.1)*
-
-![Dashboard Interface](/images/ss_app_dashboard_v3.1.png)
-
-A comprehensive analytics dashboard providing insights into your hack completion journey:
-
-#### Performance Analytics
-- **📊 Overview Cards**: Total hacks, completion rate, average rating, and completion velocity
-- **📈 Time Progression Chart**: Visual analysis of completion times by difficulty over 6 months
-- **🎯 Efficiency Metrics**: Average time per hack and per exit for performance tracking
-- **🔥 Streak Tracking**: Current and longest completion streaks with velocity indicators
-- **💡 Smart Guidance**: Helpful messages guide users to enter time data for analytics
-
-#### Advanced Filtering
-- **📅 Date Filters**: Last week, month, 3 months, 6 months, or all-time data
-- **📊 Interactive Charts**: Line charts with type filtering and difficulty-based color coding
-- **🏆 Dynamic Updates**: Real-time recalculation based on selected time periods
-- **🎯 Reorganized Layout**: Logical grouping of hack-focused vs exit-focused metrics
-
-### 🏠 Bulk Download Page
-- **Types**: Standard, Kaizo, Puzzle, Tool-Assisted, Pit
-- **Difficulties**: Newcomer → Grandmaster + **"No Difficulty"** option
-- **Filters**: Hall of Fame, SA-1, Collab, Demo
-- **Mixed Selection**: Combine multiple difficulties (e.g., "Expert + No Difficulty")
-- **Waiting Hacks**: Option to include hacks pending moderation
-
-### 📚 Hack History Page *(NEW in v3.0)*
-
-![Hack History Interface](/images/ss_app_hackhistory_v3.1.png)
-
-A complete hack management system for tracking your ROM hack journey:
-
-#### Table Features
-- **Smart Filtering**: Name search, type, difficulty, completion status, rating, and metadata filters
-- **Sortable Columns**: Click headers to sort by any field
-- **Real-time Search**: Name filter updates as you type
-- **Status Overview**: Shows total hacks, filtered count, and completion statistics
-
-#### Interactive Editing
-- **✓ Completion Checkbox**: Click to mark hacks complete/incomplete
-- **⭐ Star Ratings**: Click stars to rate hacks 1-5 (click same rating to clear)
-- **📅 Completion Date**: Click to edit completion dates with smart validation
-- **📝 Notes**: Click to add personal notes (280 character limit)
-- **🔄 Auto-sync**: Completion date automatically sets when marking complete
-
-#### Advanced Filtering
-- **Name Search**: Find hacks by title (partial matching)
-- **Type Filter**: Standard, Kaizo, Puzzle, Tool-Assisted, Pit
-- **Difficulty Filter**: Newcomer through Grandmaster (logical order)
-- **Completion Filter**: Show only completed, incomplete, or all hacks
-- **Rating Filter**: Filter by your star ratings (1-5 stars)
-- **Metadata Filters**: Hall of Fame, SA-1, Collaboration, Demo status
-- **Clear All**: Reset all filters instantly
-- **Refresh**: Reload data from file
-
-#### Data Management
-- **Double-click Details**: View comprehensive hack information
-- **Real-time Updates**: Changes save immediately and update display
-- **Smart Validation**: Date format checking and note length limits
-- **Undo Protection**: All changes backed up automatically
-- **💾 Auto-Save Protection**: Refresh operations automatically save pending changes to prevent data loss
-
-### Smart Processing
-- **Built-in Patching**: No external tools needed - handles IPS & BPS formats
-- **Auto-Organization**: Files sorted by type/difficulty into numbered folders
-- **Update Detection**: Automatically replaces older versions
-- **API Rate Control**: Adjustable delay slider (0-3 seconds) to prevent throttling
-
-### Enhanced Experience
-- **Tabbed Interface**: Switch between Bulk Download and Hack History
-- **Modern UI**: Dark/light themes with Windows titlebar integration
-- **Clean Logging**: Organized progress with colored message levels
-- **Log Controls**: Clear button and Ctrl+L keyboard shortcut for log management
-- **Intelligent Filtering**: Special handling for hacks without difficulty ratings
-- **Error Recovery**: Robust handling of network issues and malformed files
-
-## 🗂️ File Organization
-
+### Bulk Operations
 ```
-/Output Folder
-  /Kaizo
-    /01 - Newcomer/
-    /02 - Casual/
-    /03 - Skilled/
-    /04 - Advanced/
-    /05 - Expert/
-    /06 - Master/
-    /07 - Grandmaster/
-    /08 - No Difficulty/    # For unrated hacks
-  /Standard
-    /01 - Newcomer/
-    /08 - No Difficulty/
+Select Multiple → Bulk Download → Auto-Patch → Organize → Update Status
 ```
 
-## ⚙️ Configuration
+## 🛠️ Professional Tools
 
-The app saves settings in `config.json`:
-```json
-{
-  "base_rom_path": "path/to/clean.smc",
-  "output_dir": "path/to/output",
-  "api_delay": 0.8
-}
+### Bulk Management System
+- **Mass Download**: Download dozens of hacks simultaneously
+- **Batch Processing**: Apply operations to multiple hacks at once
+- **Smart Queuing**: Intelligent download ordering and priority management
+- **Progress Monitoring**: Real-time tracking of all operations
+
+### Data Management
+- **Database Migration**: Seamlessly upgrade from older versions
+- **Import/Export**: Move your data between installations
+- **Backup Systems**: Automatic and manual backup options
+- **Data Integrity**: Built-in verification and repair tools
+
+### Advanced Configuration
+- **Custom Themes**: Light, dark, and custom visual themes
+- **Keyboard Shortcuts**: Fully customizable hotkey system
+- **Performance Tuning**: Optimize for your system specifications
+- **Privacy Controls**: Manage data collection and sharing preferences
+
+## 📁 Organized File Structure
+
+v4.0 creates a professional, organized directory structure:
+
+```
+SMWCentral Downloader & Patcher/
+├── 📁 Hack Library/
+│   ├── 🎯 Standard/
+│   │   ├── Newcomer/
+│   │   ├── Casual/
+│   │   └── [All Difficulties]/
+│   ├── 🔥 Kaizo/
+│   ├── 🧩 Puzzle/
+│   ├── 🎵 Music/
+│   ├── 🤖 Tool-Assisted/
+│   └── 📦 Miscellaneous/
+├── 🎮 Patched ROMs/
+│   ├── ✅ Completed/
+│   ├── 🎯 In Progress/
+│   └── ⭐ Favorites/
+├── 💾 Backups/
+│   ├── Database/
+│   └── Settings/
+├── 📊 Analytics/
+└── 🔧 Tools/
 ```
 
-**Hack history and progress** saved in `processed.json`:
-```json
-{
-  "12345": {
-    "title": "Example Hack",
-    "current_difficulty": "Expert",
-    "hack_type": "kaizo",
-    "hall_of_fame": true,
-    "sa1_compatibility": false,
-    "collaboration": false,
-    "demo": false,
-    "exits": 14,
-    "authors": [
-      {
-        "id": 12345,
-        "name": "AuthorName"
-      }
-    ],
-    "completed": true,
-    "completed_date": "2025-01-15",
-    "personal_rating": 4,
-    "notes": "Amazing level design!",
-    "time_to_beat": 7200
-  }
-}
-```
+## 🔍 Troubleshooting & Support
 
-**API Delay Slider**: Adjust if experiencing rate limiting (higher = slower but more reliable)
+### Common Solutions
+- **Download Issues**: Check network connection and restart application
+- **Patching Problems**: Verify ROM base integrity and available disk space
+- **Performance**: Close unnecessary applications and consider SSD upgrade
+- **Data Recovery**: Use built-in backup and recovery tools
 
-## 📋 Requirements
+### Getting Help
+- **Built-in Help**: Press F1 for context-sensitive help
+- **Error Logging**: Comprehensive logs help diagnose issues
+- **Community Support**: Active community forums and documentation
+- **Regular Updates**: Automatic updates keep everything working smoothly
 
-- Windows 10/11
-- Clean Super Mario World ROM file
-- Internet connection for SMWC API
+## 🌟 Why Choose v4.0?
 
-## 🆕 What's New in v3.1
+### For New Users
+- **Zero Learning Curve**: Start downloading and playing hacks in minutes
+- **Safe & Reliable**: Professional-grade software with robust error handling
+- **Guided Discovery**: Smart recommendations help you find hacks you'll love
+- **Future-Proof**: Regular updates and long-term support guaranteed
 
-### 🎯 Major Features
-- **📚 Hack History Page**: Complete hack management system with tracking, ratings, notes, and advanced filtering
-- **🔄 Smart Database Migration**: Automatic upgrade from previous versions with API enhancement
-- **🏷️ Real Metadata**: Hall of Fame, SA-1, Collaboration, and Demo flags fetched from SMWC
-- **⭐ Personal Tracking**: Completion status, dates, star ratings, and personal notes
-- **🎨 Tabbed Interface**: Navigate between Bulk Download and Hack History pages
-- **📊 Advanced Dashboard Analytics**: Time progression charts, completion analytics, and performance metrics
-- **⏱️ Time to Beat Tracking**: Record and analyze completion times for hacks
-- **🚀 Enhanced Download Pipeline**: Improved cancellation support and Unicode filename handling
-- **🛡️ Data Protection**: Auto-save system prevents data loss during operations
+### For Power Users
+- **Maximum Efficiency**: Bulk operations and automation save hours of time
+- **Deep Analytics**: Professional insights into your hack collection
+- **Customization**: Endless configuration options for your perfect workflow
+- **Professional Tools**: Everything you need for serious hack management
 
-### 📊 Dashboard Analytics Features
-- **📈 Time Progression Charts**: Visual analysis of completion times by difficulty over 6 months
-- **🎯 Performance Metrics**: Average completion time per hack and per exit
-- **📋 Completion Analytics**: Breakdown by difficulty, type, and rating distribution
-- **🔥 Streak Tracking**: Current and longest completion streaks
-- **🏆 Advanced Filtering**: Last week, month, 3 months, 6 months, or all-time data
-- **📊 Interactive Charts**: Line charts with type filtering and difficulty-based color coding
-- **💡 User Guidance**: Clear instructions when no data is available for analytics
-- **📐 Improved Layout**: Reorganized metrics for better logical grouping
+### For Everyone
+- **Beautiful Interface**: Modern, clean design that's a pleasure to use
+- **Rock-Solid Stability**: Extensively tested for reliability and performance
+- **Regular Updates**: Continuous improvements and new features
+- **Community-Driven**: Built by hack enthusiasts, for hack enthusiasts
 
-### 📚 Hack History Features
-- **Interactive Table**: Click to edit completion status, ratings, dates, and notes
-- **Smart Filtering**: 9 different filter types including name search and metadata
-- **Real-time Validation**: Date format checking and automatic data sync
-- **Completion Tracking**: Mark hacks complete with automatic date setting
-- **Star Ratings**: 5-star rating system with visual feedback
-- **Personal Notes**: Add detailed notes with character limit protection
-- **⏱️ Time Recording**: Track completion times for performance analysis
-- **🛡️ Data Safety**: Automatic save protection prevents loss during refresh operations
+## 🎉 Start Your Hack Journey Today!
 
-### 🛠️ Technical Improvements
-- **Database Migration**: Seamless upgrade from v2.x with 99.8% API success rate
-- **Privacy Protection**: File paths automatically removed during migration
-- **Enhanced API**: Bulk metadata fetching with rate limiting and retry logic
-- **Modular Architecture**: Separated page components for better maintainability
-- **Improved Logging**: Enhanced debug output and user-friendly messages
-- **🔧 Download Cancellation**: Full cancellation support with proper cleanup
-- **🌍 Unicode Support**: Handles special characters and emojis in hack titles
-- **🎨 Theme-Aware UI**: Consistent styling across light and dark themes
-- **🛡️ Data Integrity**: Auto-save protection and improved error handling
-- **📊 Analytics Engine**: Optimized calculations for dashboard metrics
+SMWCentral Downloader & Patcher v4.0 represents the culmination of years of development and community feedback. Whether you're taking your first steps into the world of ROM hacks or you're a veteran looking for the ultimate management tool, v4.0 provides everything you need.
 
-### 🎨 UI/UX Enhancements
-- **Navigation Tabs**: Clean tab system for switching between pages
-- **Consistent Theming**: Unified dark/light theme across all components
-- **Better Iconography**: Application icon on all dialogs and popups
-- **Responsive Design**: Improved layout and spacing throughout
-- **Status Indicators**: Real-time feedback on data loading and filtering
-- **📊 Visual Charts**: Interactive line charts with hover effects and legends
-
-## 🔧 Technical Notes
-
-**"No Difficulty" Processing**: Due to SMWC API limitations, selecting "No Difficulty" downloads ALL hacks then filters locally. This takes longer but finds hacks that weren't properly categorized.
-
-**"Include Waiting" Option**: Fetches both moderated hacks and those pending moderation. Provides access to the newest submissions.
-
-**File Formats**: Supports .smc/.sfc ROMs and .ips/.bps patches with automatic header detection.
-
-**Database Migration**: v3.1 automatically detects older formats and upgrades them with enhanced metadata including Time to Beat tracking, author data, and exit counts. Process is fully automated and includes backup creation.
-
-**Difficulty Ordering**: Logical progression from Newcomer → Casual → Skilled → Advanced → Expert → Master → Grandmaster.
-
-**Time Tracking**: Completion times are stored in seconds and automatically converted to hours for display in analytics. Charts show rolling 6-month averages for trend analysis.
-
-**Unicode Support**: Filename handling supports special characters, emojis, and international text. Files are automatically converted to emulator-compatible formats while preserving original display names.
-
-**Cancellation System**: Full pipeline cancellation with proper cleanup, thread management, and user feedback. Safely stops downloads and file operations without corruption.
-
-## 📦 Building from Source
-
-```bash
-pip install -r requirements.txt
-python main.py
-```
-
-**Dependencies**: `tkinter`, `requests`, `sv-ttk`, `pywinstyles`
-
-## 📄 Full Changelog
-
-<details>
-<summary>Click to expand version history</summary>
-
-### v3.1.0 - Enhanced Analytics, Time Tracking & Download Improvements
-- **NEW: Advanced Dashboard Analytics** - Time progression charts and performance metrics
-  - 📈 Time progression line charts with 6-month rolling analysis
-  - 🎯 Average completion time per hack and per exit tracking
-  - 📊 Interactive charts with type filtering and difficulty color coding
-  - 🔥 Completion streak tracking and velocity calculations
-  - 🏆 Advanced date filtering (last week, month, 3 months, 6 months, all-time)
-- **NEW: Time to Beat Tracking** - Record and analyze completion times
-  - ⏱️ Time recording functionality in hack history
-  - 📈 Performance analytics and trend visualization
-  - 🎯 Exit-based efficiency calculations
-- **NEW: Enhanced Download Pipeline** - Improved user experience
-  - 🚀 Full cancellation support with proper cleanup and logging
-  - 🌍 Unicode filename support for special characters and emojis
-  - 🎨 Theme-aware cancel button styling
-  - 📋 Improved error handling and user feedback
-- **NEW: Author & Exit Data** - Enhanced hack metadata
-  - 👥 Author information with IDs from SMWC API
-  - 🚪 Exit count data for difficulty assessment
-  - 📊 Comprehensive metadata structure for analytics
-- **Enhanced Hack History Page** - Additional functionality
-  - ⏱️ Time to beat recording and editing
-  - 📊 Performance metrics integration
-  - 🔄 Improved data synchronization
-  - 🛡️ Auto-save protection during refresh operations
-- **Dashboard Analytics Improvements** - Better user experience
-  - 📐 Reorganized layout with logical metric grouping
-  - 💡 Helpful guidance messages for empty charts
-  - 🎯 Fixed completion rate calculations
-  - 📊 Improved legend display and chart spacing
-- **Technical Improvements**
-  - 🏗️ Modular dashboard architecture with analytics engine
-  - 📊 Optimized data processing for large datasets
-  - 🎨 Consistent theme handling across all components
-  - 🔧 Enhanced error handling and validation
-  - 🛡️ Data protection with auto-save before refresh operations
-  - 📐 Improved chart layouts and legend spacing
-
-### v2.5.0 - Waiting Hacks & UI Improvements
-- Added "Include Waiting" option for pending hacks
-- Log clearing functionality (button + Ctrl+L)
-- Fixed pagination for large result sets
-- Centralized color management system
-- Automatic duplicate hack detection
-- Improved API delay slider precision (0.1 increments)
-- Enhanced logging for waiting vs. moderated hacks
-
-### v2.4.0 - "No Difficulty" & API Controls
-- Added "No Difficulty" filtering option
-- User-configurable API delay slider
-- Mixed difficulty selection support
-- Enhanced logging with orange warnings
-- Improved folder organization for unrated hacks
-
-### v2.3.0 - API Rate Limiting
-- Centralized SMWC API proxy
-- Dynamic delay calculation
-- Improved error handling for large batches
-
-### v2.2.0 - Modern UI & Theming
-- Sun Valley dark/light theme system
-- Windows titlebar theming
-- Built-in IPS/BPS patch support
-- Error-only log level
-- Modular architecture redesign
-
-### v2.1.0 - Flexible Filtering
-- Optional difficulty selection
-- Fixed Tool-Assisted hack API keys
-- Improved folder naming consistency
-
-### v2.0.0 - Built-in Patching
-- Removed Flips dependency
-- Unified IPS/BPS patch handler
-- Automatic header detection
-- Enhanced error recovery
-</details>
+**Download now and discover why thousands of players trust SMWCentral Downloader & Patcher for their hack adventures!**
 
 ---
 
-**Note**: This tool respects SMWC's terms of service and implements rate limiting to avoid server overload. Please use responsibly.
+### 📄 Technical Information
+- **Version**: 4.0.0
+- **License**: MIT License
+- **Language**: Python 3.8+
+- **Platforms**: Windows 10/11 (64-bit)
+- **Last Updated**: 2024
+
+**🍄 Happy Hacking! ✨**

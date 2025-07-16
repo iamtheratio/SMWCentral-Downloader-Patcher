@@ -29,7 +29,7 @@ def get_colors():
             # Navigation colors
             "nav_bg": "#60cdff",      # Lighter blue for dark mode (matches accent button)
             "nav_text": "#000000",    # Black text for dark mode
-            "toggle_bg": "#151515",   # ADDED: Dark gray background for toggle
+            "toggle_bg": "#151515",   # Dark gray background for toggle
             
             # Dashboard card colors
             "card_bg": "#1c1c1c",     # Dark card background
@@ -84,7 +84,7 @@ def get_colors():
             # Navigation colors
             "nav_bg": "#0078d4",      # Darker blue for light mode (matches accent button)  
             "nav_text": "#ffffff",    # White text for light mode
-            "toggle_bg": "#EEEEEE",   # ADDED: Light gray background for toggle
+            "toggle_bg": "#EEEEEE",   # Light gray background for toggle
             
             # Dashboard card colors
             "card_bg": "#f8f9fa",     # Light card background

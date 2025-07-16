@@ -54,8 +54,9 @@ class MigrationManager:
                         if field not in hack_data:
                             missing_v3_1_fields += 1
                     
-                    # If missing any v3.1 fields, we need migration
-                    if missing_v3_1_fields > 0:
+                    # If missing ALL v3.1 fields, we need migration
+                    # Changed from > 0 to >= 3 to be less strict
+                    if missing_v3_1_fields >= 3:
                         return True
                         
             return False  # All hacks have v3.1 format
@@ -559,6 +560,65 @@ class MigrationManager:
         
         # All attempts failed - return None (will use defaults)
         return None
+
+    def needs_multi_type_migration(self):
+        """Check if processed.json needs migration to support multiple types (v4.1)"""
+        if not os.path.exists(self.json_path):
+            return False
+            
+        try:
+            with open(self.json_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            
+            # Check if any hack has single hack_type but no hack_types array
+            for hack_id, hack_data in data.items():
+                if isinstance(hack_data, dict):
+                    # If we have hack_type but no hack_types, we need migration
+                    if "hack_type" in hack_data and "hack_types" not in hack_data:
+                        return True
+                        
+            return False  # All hacks have multi-type format
+            
+        except (json.JSONDecodeError, Exception):
+            return False  # Invalid file, let normal loading handle it
+
+    def migrate_to_multi_type_support(self, progress_callback=None):
+        """Migrate processed.json to support multiple types per hack"""
+        if not os.path.exists(self.json_path):
+            return
+        
+        # Load existing data
+        with open(self.json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        # Create backup
+        backup_path = f"{self.json_path}.pre-multi-type.backup"
+        import shutil
+        shutil.copy2(self.json_path, backup_path)
+        
+        migrated_count = 0
+        total_hacks = len([k for k, v in data.items() if isinstance(v, dict)])
+        
+        for hack_id, hack_data in data.items():
+            if isinstance(hack_data, dict):
+                # Convert single hack_type to hack_types array
+                if "hack_type" in hack_data and "hack_types" not in hack_data:
+                    single_type = hack_data["hack_type"]
+                    hack_data["hack_types"] = [single_type] if single_type else ["standard"]
+                    migrated_count += 1
+                
+                # Ensure backward compatibility - keep hack_type as primary type
+                if "hack_types" in hack_data and hack_data["hack_types"]:
+                    hack_data["hack_type"] = hack_data["hack_types"][0]
+                
+                if progress_callback:
+                    progress_callback(migrated_count, total_hacks)
+        
+        # Save updated data
+        with open(self.json_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        
+        return migrated_count
 
 # Global function for easy access
 def check_and_migrate(root, callback=None):

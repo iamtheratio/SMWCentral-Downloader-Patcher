@@ -33,6 +33,8 @@ class HackDataManager:
                         hack_data.setdefault("time_to_beat", 0)
                         hack_data.setdefault("exits", 0)
                         hack_data.setdefault("authors", [])
+                        # v4.0 NEW fields  
+                        hack_data.setdefault("obsolete", False)
                 return data
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
@@ -59,20 +61,38 @@ class HackDataManager:
             print(f"ERROR: Failed to save hack data: {e}")
             return False
     
-    def get_all_hacks(self):
-        """Get all hacks as a list of dictionaries"""
+    def get_all_hacks(self, include_obsolete=False):
+        """Get all hacks as a list of dictionaries
+        
+        Args:
+            include_obsolete (bool): If True, include obsolete hack versions. Default False.
+        """
         hacks = []
+        
         for hack_id, hack_data in self.data.items():
             if isinstance(hack_data, dict) and "title" in hack_data:
+                # Skip obsolete hacks unless explicitly requested
+                if not include_obsolete and hack_data.get("obsolete", False):
+                    continue
+                
+                title = hack_data.get("title", "Unknown")
+                
+                # With obsolete tracking, we may have multiple versions of the same hack
+                # When include_obsolete=True, we want to include all versions (obsolete and current)
+                # When include_obsolete=False, only current versions should be included
+                # The obsolete system handles version management, so duplicate titles are expected when including obsolete versions
+                
                 hack_info = {
                     "id": hack_id,
-                    "title": hack_data.get("title", "Unknown"),
-                    "hack_type": hack_data.get("hack_type", "unknown").title(),  # Capitalize for display
+                    "title": title,
+                    "hack_type": hack_data.get("hack_type", "unknown").title(),  # Keep for backward compatibility
+                    "hack_types": hack_data.get("hack_types", [hack_data.get("hack_type", "unknown")]),  # NEW: Include multi-type support
                     "difficulty": hack_data.get("current_difficulty", "Unknown"),  # Use current_difficulty only
                     "hall_of_fame": hack_data.get("hall_of_fame", False),
                     "sa1_compatibility": hack_data.get("sa1_compatibility", False),
                     "collaboration": hack_data.get("collaboration", False),
                     "demo": hack_data.get("demo", False),
+                    "obsolete": hack_data.get("obsolete", False),  # NEW: Include obsolete status
                     # Removed file_path for privacy - contains usernames
                     "completed": hack_data.get("completed", False),
                     "completed_date": hack_data.get("completed_date", ""),
