@@ -9,7 +9,7 @@ A powerful desktop application for downloading, organizing, and patching Super M
 ### 🔍 Advanced Hack Discovery
 - **Individual Download Page**: Browse and filter through thousands of hacks with advanced search options
 - **Smart Filtering**: Filter by difficulty, type, authors, completion status, and more
-- **Real-time Search**: Instant results as you type
+- **Comprehensive Search**: Button-triggered search with advanced filtering capabilities
 - **Detailed Previews**: View hack information, screenshots, and ratings before downloading
 
 ![Download Page](images/ss_app_download_v4.0.png)
@@ -29,6 +29,7 @@ A powerful desktop application for downloading, organizing, and patching Super M
 
 ### 🗂️ Powerful History Management
 - **Complete History**: View all downloaded hacks with detailed information
+- **Real-time Filtering**: Instant search results as you type in the name filter
 - **Advanced Sorting**: Sort by any column with visual indicators
 - **Inline Editing**: Edit hack details directly in the table
 - **Bulk Operations**: Update multiple hacks at once
