@@ -9,6 +9,7 @@ a = Analysis(
     datas=[
         ('config.json', '.'),
         ('README.md', '.'),
+        ('LICENSE', '.'),
         ('images', 'images'),
         ('assets', 'assets'),
     ],
