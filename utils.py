@@ -32,7 +32,7 @@ DIFFICULTY_LOOKUP = {
     "diff_5": "Expert",
     "diff_6": "Master",
     "diff_7": "Grandmaster",
-    "": "No Difficulty"  # ADDED: for hacks without difficulty
+    "": "No Difficulty"  # for hacks without difficulty
 }
 
 DIFFICULTY_KEYMAP = {
@@ -43,7 +43,7 @@ DIFFICULTY_KEYMAP = {
     "expert": "5",
     "master": "6",
     "grandmaster": "7",
-    "no difficulty": ""  # ADDED: for searching hacks without difficulty
+    "no difficulty": ""  # for searching hacks without difficulty
 }
 
 DIFFICULTY_SORTED = {
@@ -54,7 +54,7 @@ DIFFICULTY_SORTED = {
     "Expert": "05 - Expert",
     "Master": "06 - Master",
     "Grandmaster": "07 - Grandmaster",
-    "No Difficulty": "08 - No Difficulty"  # ADDED: for folder sorting
+    "No Difficulty": "08 - No Difficulty"  # for folder sorting
 }
 
 TYPE_KEYMAP = {
@@ -186,9 +186,6 @@ def safe_filename(name):
     result = re.sub(r'[<>:"/\\|?*]', '', result).strip()
     
     return result
-
-def sanitize_name(name):
-    return re.sub(r"[^\w\s-]", "", name).strip().replace(" ", "_")
 
 def title_case(text):
     """

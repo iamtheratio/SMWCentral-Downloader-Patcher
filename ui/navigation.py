@@ -2,8 +2,8 @@ import tkinter as tk
 from tkinter import ttk
 from colors import get_colors
 import sv_ttk
-from PIL import Image, ImageTk  # ADDED: Import PIL for image handling
-from utils import resource_path  # ADDED: Import resource path utility
+from PIL import Image, ImageTk  # Import PIL for image handling
+from utils import resource_path  # Import resource path utility
 
 class NavigationBar:
     """Handles the main navigation bar with tabs"""
@@ -16,7 +16,7 @@ class NavigationBar:
         self.tab_refs = []
         self.theme_frame = None
         self.moon_label = None
-        self.moon_image = None  # ADDED: Store image reference
+        self.moon_image = None  # Store image reference
         self.current_page = "Dashboard"
         
     def create(self):
@@ -60,7 +60,7 @@ class NavigationBar:
             self.nav_bar.tag_bind(tab_id, "<Enter>", lambda e: self.nav_bar.config(cursor="hand2"))
             self.nav_bar.tag_bind(tab_id, "<Leave>", lambda e: self.nav_bar.config(cursor=""))
         
-        # FIXED: Dynamic positioning for toggle
+        # Dynamic positioning for toggle
         if self.toggle_theme_callback:
             colors = get_colors()
             
@@ -79,7 +79,7 @@ class NavigationBar:
             theme_switch.pack(side="left")
             theme_switch.state(['selected'] if sv_ttk.get_theme() == "dark" else [])
             
-            # CHANGED: Load PNG image instead of emoji
+            # Load PNG image instead of emoji
             try:
                 # Load and resize the moon image
                 image = Image.open(resource_path("assets/moon.png"))  # Use resource_path for bundled executable
@@ -88,7 +88,7 @@ class NavigationBar:
                 
                 self.moon_label = tk.Label(
                     self.theme_frame,
-                    image=self.moon_image,  # CHANGED: Use image instead of text
+                    image=self.moon_image,  # Use image instead of text
                     bg=colors["toggle_bg"],
                     borderwidth=0,
                     highlightthickness=0
@@ -106,7 +106,7 @@ class NavigationBar:
             
             self.moon_label.pack(side="left", padx=(10, 12))
             
-            # ADDED: Bind to configure event to update position when window resizes
+            # Bind to configure event to update position when window resizes
             self.nav_bar.bind("<Configure>", self._update_toggle_position)
             
             # Initial position setup
@@ -140,14 +140,14 @@ class NavigationBar:
             for item in self.nav_bar.find_withtag("toggle_bg"):
                 self.nav_bar.itemconfig(item, fill=colors["toggle_bg"], outline=colors["toggle_bg"])
             
-            # FIXED: Update theme frame and moon label to match rectangle background
+            # Update theme frame and moon label to match rectangle background
             if self.theme_frame:
                 self.theme_frame.configure(bg=colors["toggle_bg"])
             
             if self.moon_label:
                 self.moon_label.configure(bg=colors["toggle_bg"], fg=colors["nav_text"])
     
-    # ADDED: Method to update toggle position dynamically
+    # Method to update toggle position dynamically
     def _update_toggle_position(self, event=None):
         """Update toggle position to stay on the right edge"""
         if hasattr(self, 'theme_frame') and self.theme_frame:
@@ -158,7 +158,7 @@ class NavigationBar:
             # Rectangle coordinates
             rect_width = 128
             rect_height = 100
-            rect_x = canvas_width - rect_width  # CHANGED: Removed -10 padding
+            rect_x = canvas_width - rect_width  # Removed -10 padding
             rect_y = (nav_height - rect_height) // 2
             
             # Delete old rectangle and create new one
@@ -173,7 +173,7 @@ class NavigationBar:
             )
             
             # Update toggle button position
-            toggle_x = canvas_width - 10  # CHANGED: Reduced from -20 to -10
+            toggle_x = canvas_width - 10  # Reduced from -20 to -10
             self.nav_bar.delete("toggle_window")
             self.nav_bar.create_window(
                 toggle_x, nav_height // 2, 

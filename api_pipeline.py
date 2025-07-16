@@ -9,7 +9,7 @@ from utils import (
     DIFFICULTY_LOOKUP, DIFFICULTY_KEYMAP,
     load_processed, save_processed, make_output_path,
     TYPE_KEYMAP, TYPE_DISPLAY_LOOKUP,
-    title_case, clean_hack_title  # ADDED: Import the new function
+    title_case, clean_hack_title  # Import the new function
 )
 from smwc_api_proxy import smwc_api_get, get_api_delay
 from patch_handler import PatchHandler
@@ -72,7 +72,7 @@ def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
             # Handle description search - direct text search
             params["f[description]"] = values
         elif key != "waiting" and values:
-            # FIXED: Special handling for different parameter types
+            # Special handling for different parameter types
             if key == "type":
                 # Type parameter always needs array format
                 if isinstance(values, list):
@@ -394,7 +394,7 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                             log(f"Updated: {title_clean} attribute {key} updated from {old_value} → {new_value}", "Information")
                         processed[hack_id][key] = new_value
                 
-                # ADDED: Update title if it doesn't match the properly formatted version
+                # Update title if it doesn't match the properly formatted version
                 # This ensures processed.json gets updated with proper title case formatting
                 # when running bulk download, even for hacks that already exist
                 current_title = existing_hack.get("title", "")
@@ -437,7 +437,7 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
             output_filename = f"{title_clean}{base_rom_ext}"
             output_path = os.path.join(make_output_path(output_dir, normalized_type, folder_name), output_filename)
 
-            # CHANGED: Pass log function to patch handler
+            # Pass log function to patch handler
             success = PatchHandler.apply_patch(patch_path, base_rom_path, output_path, log)
             if not success:
                 raise Exception("Patch application failed")
@@ -461,7 +461,7 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                         if log:
                             log(f"Updated: {title_clean} attribute {key} updated from {old_value} → {new_value}", "Information")
                 
-                # ADDED: Check for title changes and log them
+                # Check for title changes and log them
                 # This ensures we log when title formatting is updated during re-download
                 current_title = existing_hack.get("title", "")
                 proper_title = clean_hack_title(raw_title)
@@ -471,7 +471,7 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
             
             # Update processed data
             processed[hack_id] = {
-                "title": clean_hack_title(raw_title),  # CHANGED: Clean the title
+                "title": clean_hack_title(raw_title),  # Clean the title
                 "current_difficulty": display_diff,
                 "folder_name": folder_name,
                 "file_path": output_path,
@@ -484,7 +484,7 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 "exits": new_metadata.get("exits", 0),
                 "authors": new_metadata.get("authors", []),
                 "obsolete": new_metadata.get("obsolete", False),  # NEW: Track obsolete status
-                # ADDED: History tracking fields - preserve existing values
+                # History tracking fields - preserve existing values
                 "completed": existing_hack.get("completed", False),
                 "completed_date": existing_hack.get("completed_date", ""),
                 "personal_rating": existing_hack.get("personal_rating", 0),
@@ -509,13 +509,13 @@ def save_hack_to_processed_json(hack_data, file_path, hack_type):
     
     # Extract actual boolean values from SMWC API response
     processed_data = {
-        "title": clean_hack_title(hack_data.get("title", "Unknown")),  # CHANGED: Clean the title
+        "title": clean_hack_title(hack_data.get("title", "Unknown")),  # Clean the title
         "current_difficulty": hack_data.get("difficulty", "Unknown"),
         "folder_name": get_sorted_folder_name(hack_data.get("difficulty", "Unknown")),
         # Removed file_path for privacy - contains usernames
         "hack_type": hack_type.lower(),
         
-        # CHANGED: Use actual API metadata as booleans
+        # Use actual API metadata as booleans
         "hall_of_fame": bool(hack_data.get("hall_of_fame", False)),
         "sa1_compatibility": bool(hack_data.get("sa1", False)),
         "collaboration": bool(hack_data.get("collaboration", False)), 

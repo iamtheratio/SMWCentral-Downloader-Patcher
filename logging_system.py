@@ -122,7 +122,7 @@ class LoggingSystem:
     
     def clear_log(self):
         """Clear the log text AND history"""
-        # FIXED: Clear both the visible text AND the stored history
+        # Clear both the visible text AND the stored history
         self.history = []  # Clear stored log entries
         
         if self.log_text:

@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from api_pipeline import run_pipeline
 from ui import setup_ui, update_log_colors
-from utils import resource_path  # ADDED: Import resource path utility
+from utils import resource_path
 import sv_ttk
 import sys
 import platform
@@ -29,16 +29,16 @@ def apply_theme_to_titlebar(root):
 def apply_font_settings(root, style):
     default_font = ("Segoe UI", 9)
     
-    # FIXED: Force disable sv_ttk font management to prevent conflicts
+    # Force disable sv_ttk font management to prevent conflicts
     sv_ttk.USE_FONT_CONFIG = False
     
     # Configure all widgets before updating
     style.configure(".", font=default_font)
     for widget in ["TLabel", "TButton", "TCheckbutton", "TRadiobutton", 
-                  "TCombobox", "TEntry"]:  # REMOVED: "Treeview" from this list
+                  "TCombobox", "TEntry"]:  # "Treeview" from this list
         style.configure(widget, font=default_font)
 
-    # ADDED: Configure Treeview with larger font and row height for better readability
+    # Configure Treeview with larger font and row height for better readability
     style.configure("Treeview", 
                    font=("Segoe UI", 10),  # Larger font for table
                    rowheight=25)  # More padding
@@ -51,7 +51,7 @@ def apply_font_settings(root, style):
                    font=("Segoe UI", 10, "bold"),
                    padding=(20, 10))
     
-    # CHANGED: Configure the default Switch style to use toggle background
+    # Configure the default Switch style to use toggle background
     from colors import get_colors
     colors = get_colors()
     
@@ -69,7 +69,7 @@ def toggle_theme_callback(root):
     # Toggle theme first
     sv_ttk.toggle_theme()
     
-    # ADDED: Reapply font settings after theme change to ensure consistency
+    # Reapply font settings after theme change to ensure consistency
     apply_font_settings(root, style)
     
     # Get new colors immediately
@@ -373,7 +373,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     title_clean, base_rom_ext, config, log
                 )
                 
-                # ADDED: Detect duplicates and handle obsolete versions
+                # Detect duplicates and handle obsolete versions
                 current_title = clean_hack_title(hack_name)
                 should_process = detect_and_handle_duplicates(processed, hack_id, current_title, log)
                 

@@ -160,7 +160,7 @@ class HistoryPage:
                 self._log("❌ Failed to save pending changes - refresh cancelled", "Error")
                 return
         
-        # FIXED: Don't create new data manager - just reload the existing one's data
+        # Don't create new data manager - just reload the existing one's data
         try:
             old_count = len(self.data_manager.get_all_hacks())
             self.data_manager.data = self.data_manager._load_data()  # Reload from file
