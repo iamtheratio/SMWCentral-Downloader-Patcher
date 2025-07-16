@@ -86,24 +86,6 @@ A powerful desktop application for downloading, organizing, and patching Super M
 
 ![Settings Page](images/ss_app_settings_v4.0.png)
 
-## 🚀 Quick Start
-
-### First Time Setup
-1. **Download** the latest release from the [releases page](../../releases)
-2. **Extract** the files to your desired location
-3. **Run** `SMWC Downloader.exe`
-4. **Configure** your base ROM path and output directory in Settings
-5. **Start downloading** hacks from the Download page!
-
-### Configuration
-Before downloading hacks, you'll need to:
-
-1. **Set Base ROM Path**: Point to your clean Super Mario World ROM file
-2. **Set Output Directory**: Choose where patched hacks will be saved
-3. **Configure Preferences**: Adjust download settings and organization options
-
-The app will automatically create organized folders for different hack types and difficulties.
-
 ## � File Organization
 
 The application automatically organizes your hacks in a clean structure:
