@@ -1,4 +1,11 @@
-# utils.py
+"""
+SMWCentral Downloader & Patcher - Utility Functions
+Core utilities for file processing, difficulty mapping, and data management
+
+Copyright (c) 2025 iamtheratio
+Licensed under the MIT License - see LICENSE file for details
+"""
+
 import os
 import json
 import re

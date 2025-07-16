@@ -1,3 +1,11 @@
+"""
+Configuration Manager
+Handles application settings and user preferences
+
+Copyright (c) 2025 iamtheratio
+Licensed under the MIT License - see LICENSE file for details
+"""
+
 import json
 import os
 

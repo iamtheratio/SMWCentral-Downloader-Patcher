@@ -1,3 +1,11 @@
+"""
+SMWCentral Downloader & Patcher v4.0
+A desktop application for downloading and patching Super Mario World ROM hacks from SMWCentral
+
+Copyright (c) 2025 iamtheratio
+Licensed under the MIT License - see LICENSE file for details
+"""
+
 import tkinter as tk
 from tkinter import ttk
 from api_pipeline import run_pipeline
