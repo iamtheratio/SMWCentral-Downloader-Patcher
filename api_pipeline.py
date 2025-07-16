@@ -349,7 +349,8 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
             "sa1_compatibility": bool(raw_fields.get("sa1", False)), 
             "collaboration": bool(raw_fields.get("collab", False)),
             "demo": bool(raw_fields.get("demo", False)),
-            "authors": hack.get("authors", [])
+            "authors": hack.get("authors", []),
+            "obsolete": bool(raw_fields.get("obsolete", False))  # NEW: Track obsolete status
         }
 
         if hack_id in processed:
@@ -482,6 +483,7 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 "demo": new_metadata.get("demo", False),
                 "exits": new_metadata.get("exits", 0),
                 "authors": new_metadata.get("authors", []),
+                "obsolete": new_metadata.get("obsolete", False),  # NEW: Track obsolete status
                 # ADDED: History tracking fields - preserve existing values
                 "completed": existing_hack.get("completed", False),
                 "completed_date": existing_hack.get("completed_date", ""),
@@ -652,7 +654,8 @@ def download_and_patch_hack(hack_data, patch_handler, processed, log=None):
                     "output_path": result.get("output_path", ""),
                     "type": type_name,
                     "difficulty": difficulty_name,
-                    "authors": authors
+                    "authors": authors,
+                    "obsolete": False  # NEW: Default new hacks to not obsolete
                 }
                 
                 if log: log(f"✅ Successfully processed {hack_name}")

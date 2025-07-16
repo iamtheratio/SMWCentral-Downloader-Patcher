@@ -207,6 +207,63 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
             multi_type_enabled = config.get("multi_type_enabled", True)
             download_mode = config.get("multi_type_download_mode", "primary_only")
             
+            # Always update metadata that might have changed in SMWC API
+            metadata_updated = False
+            current_clean_title = clean_hack_title(hack_name)
+            if existing_hack.get("title") != current_clean_title:
+                old_title = existing_hack.get("title", "N/A")
+                existing_hack["title"] = current_clean_title
+                metadata_updated = True
+                if log: log(f"📝 Updated title from {old_title} -> {current_clean_title}", "Information")
+            
+            # Update other metadata
+            if existing_hack.get("current_difficulty") != display_diff:
+                old_diff = existing_hack.get("current_difficulty", "N/A")
+                existing_hack["current_difficulty"] = display_diff
+                metadata_updated = True
+                if log: log(f"📝 Updated difficulty from {old_diff} -> {display_diff}", "Information")
+            if existing_hack.get("folder_name") != folder_name:
+                old_folder = existing_hack.get("folder_name", "N/A")
+                existing_hack["folder_name"] = folder_name
+                metadata_updated = True
+                if log: log(f"📝 Updated folder from {old_folder} -> {folder_name}", "Information")
+            if existing_hack.get("hall_of_fame") != bool(raw_fields.get("hof", False)):
+                old_hof = existing_hack.get("hall_of_fame", False)
+                new_hof = bool(raw_fields.get("hof", False))
+                existing_hack["hall_of_fame"] = new_hof
+                metadata_updated = True
+                if log: log(f"📝 Updated hall_of_fame from {old_hof} -> {new_hof}", "Information")
+            if existing_hack.get("sa1_compatibility") != bool(raw_fields.get("sa1", False)):
+                old_sa1 = existing_hack.get("sa1_compatibility", False)
+                new_sa1 = bool(raw_fields.get("sa1", False))
+                existing_hack["sa1_compatibility"] = new_sa1
+                metadata_updated = True
+                if log: log(f"📝 Updated sa1_compatibility from {old_sa1} -> {new_sa1}", "Information")
+            if existing_hack.get("collaboration") != bool(raw_fields.get("collab", False)):
+                old_collab = existing_hack.get("collaboration", False)
+                new_collab = bool(raw_fields.get("collab", False))
+                existing_hack["collaboration"] = new_collab
+                metadata_updated = True
+                if log: log(f"📝 Updated collaboration from {old_collab} -> {new_collab}", "Information")
+            if existing_hack.get("demo") != bool(raw_fields.get("demo", False)):
+                old_demo = existing_hack.get("demo", False)
+                new_demo = bool(raw_fields.get("demo", False))
+                existing_hack["demo"] = new_demo
+                metadata_updated = True
+                if log: log(f"📝 Updated demo from {old_demo} -> {new_demo}", "Information")
+            if existing_hack.get("authors") != hack.get("authors", []):
+                old_authors = existing_hack.get("authors", [])
+                new_authors = hack.get("authors", [])
+                existing_hack["authors"] = new_authors
+                metadata_updated = True
+                if log: log(f"📝 Updated authors from {old_authors} -> {new_authors}", "Information")
+            current_exits = raw_fields.get("length", hack.get("length", 0)) or 0
+            if existing_hack.get("exits") != current_exits:
+                old_exits = existing_hack.get("exits", 0)
+                existing_hack["exits"] = current_exits
+                metadata_updated = True
+                if log: log(f"📝 Updated exits from {old_exits} -> {current_exits}", "Information")
+            
             if (multi_type_enabled and download_mode == "copy_all" and 
                 len(current_hack_types) > 1 and 
                 existing_hack.get("file_path") and 
@@ -241,16 +298,26 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     # Update processed data with new additional paths and hack_types
                     existing_hack["additional_paths"] = new_additional_paths
                     existing_hack["hack_types"] = current_hack_types
-                    save_processed(processed)
+                    metadata_updated = True
                     
                     if log: log(f"✅ Updated multi-type copies for: {hack_name}", "Information")
                     successful_downloads += 1
                 else:
-                    if log: log(f"✅ Skipped: {hack_name} (all multi-type copies exist)", "Debug")
+                    if log: log(f"✅ Skipped: {hack_name} (all multi-type copies exist)", "Information")
                     skipped_hacks += 1
             else:
-                if log: log(f"✅ Skipped: {hack_name}", "Debug")
+                # Update hack_types even for single-type hacks
+                if existing_hack.get("hack_types") != current_hack_types:
+                    existing_hack["hack_types"] = current_hack_types
+                    metadata_updated = True
+                
+                if log: log(f"✅ Skipped: {hack_name}", "Information")
                 skipped_hacks += 1
+            
+            # Save if any metadata was updated
+            if metadata_updated:
+                save_processed(processed)
+            
             continue
         
         try:
@@ -306,9 +373,33 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     title_clean, base_rom_ext, config, log
                 )
                 
+                # ADDED: Detect duplicates and handle obsolete versions
+                current_title = clean_hack_title(hack_name)
+                should_process = detect_and_handle_duplicates(processed, hack_id, current_title, log)
+                
+                if not should_process:
+                    if log: log(f"⚪ Skipping obsolete version: {hack_name} (ID {hack_id})", "Information")
+                    skipped_hacks += 1
+                    # Still need to save the processed data with obsolete marking
+                    save_processed(processed)
+                    continue
+                
+                # Check for any remaining duplicate warning (different from obsolete detection)
+                duplicate_id = None
+                for existing_id, existing_data in processed.items():
+                    if (isinstance(existing_data, dict) and 
+                        existing_data.get("title") == current_title and 
+                        existing_id != hack_id and
+                        not existing_data.get("obsolete", False)):  # Only warn about non-obsolete duplicates
+                        duplicate_id = existing_id
+                        break
+                
+                if duplicate_id:
+                    if log: log(f"⚠️ Potential duplicate detected: '{current_title}' already exists as ID {duplicate_id}, but downloading with new ID {hack_id}", "Warning")
+                
                 # Update processed data with multi-type support
                 processed[hack_id] = {
-                    "title": clean_hack_title(hack_name),
+                    "title": current_title,
                     "current_difficulty": display_diff,
                     "folder_name": folder_name,
                     "file_path": primary_output_path,  # Use primary path for backward compatibility
@@ -320,7 +411,8 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     "collaboration": bool(raw_fields.get("collab", False)),
                     "demo": bool(raw_fields.get("demo", False)),
                     "authors": hack.get("authors", []),
-                    "exits": raw_fields.get("length", hack.get("length", 0)) or 0
+                    "exits": raw_fields.get("length", hack.get("length", 0)) or 0,
+                    "obsolete": bool(raw_fields.get("obsolete", False))  # NEW: Track obsolete status
                 }
                 
                 if log: log(f"✅ Successfully processed: {hack_name}", "Information")
@@ -346,6 +438,59 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
     if progress_callback:
         progress_callback(total_hacks, total_hacks, "Complete!")
     if log: log(f"✅ Download complete! {successful_downloads} processed, {skipped_hacks} skipped, {errored_hacks} errored, out of {total_hacks} hacks.", "Information")
+
+def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=None):
+    """
+    Detect duplicate hack titles and mark older versions as obsolete.
+    Returns True if current hack should be processed, False if it should be skipped as obsolete.
+    """
+    duplicate_ids = []
+    
+    # Find all hacks with the same title
+    for hack_id, hack_data in processed.items():
+        if (isinstance(hack_data, dict) and 
+            hack_data.get("title") == current_title and 
+            hack_id != current_hack_id):
+            duplicate_ids.append(hack_id)
+    
+    if not duplicate_ids:
+        return True  # No duplicates, proceed normally
+    
+    if log: 
+        log(f"🔍 Found {len(duplicate_ids) + 1} versions of '{current_title}' (IDs: {', '.join(duplicate_ids + [current_hack_id])})", "Information")
+    
+    # For now, use a simple heuristic: higher ID numbers are usually newer
+    # In the future, we could use date fields or API metadata to determine this more accurately
+    all_ids = duplicate_ids + [current_hack_id]
+    all_ids_int = []
+    
+    try:
+        all_ids_int = [int(hack_id) for hack_id in all_ids]
+        all_ids_int.sort()
+        newest_id = str(max(all_ids_int))
+        
+        # Mark all others as obsolete
+        for hack_id in all_ids:
+            if hack_id in processed and isinstance(processed[hack_id], dict):
+                if hack_id == newest_id:
+                    # This is the newest version - ensure it's not obsolete
+                    processed[hack_id]["obsolete"] = False
+                    if log and hack_id == current_hack_id:
+                        log(f"✅ '{current_title}' (ID {hack_id}) marked as current version", "Information")
+                else:
+                    # This is an older version - mark as obsolete
+                    old_obsolete = processed[hack_id].get("obsolete", False)
+                    processed[hack_id]["obsolete"] = True
+                    if not old_obsolete and log:  # Only log if newly marked obsolete
+                        log(f"📦 '{current_title}' (ID {hack_id}) marked as obsolete (superseded by ID {newest_id})", "Information")
+        
+        return current_hack_id == newest_id
+        
+    except ValueError:
+        # If IDs aren't numeric, fall back to simple logic
+        if log:
+            log(f"⚠️ Cannot determine newest version of '{current_title}' - using current as active", "Warning")
+        return True
 
 def main():
     root = tk.Tk()
@@ -408,19 +553,32 @@ def main():
         from api_pipeline import load_processed, save_processed
         processed = load_processed()
         needs_multi_type_update = False
+        needs_obsolete_update = False
         
         for hack_id, hack_data in processed.items():
-            if isinstance(hack_data, dict) and "hack_type" in hack_data and "hack_types" not in hack_data:
-                # Convert single hack_type to hack_types array
-                single_type = hack_data["hack_type"]
-                hack_data["hack_types"] = [single_type] if single_type else ["standard"]
-                needs_multi_type_update = True
+            if isinstance(hack_data, dict):
+                # Multi-type migration
+                if "hack_type" in hack_data and "hack_types" not in hack_data:
+                    # Convert single hack_type to hack_types array
+                    single_type = hack_data["hack_type"]
+                    hack_data["hack_types"] = [single_type] if single_type else ["standard"]
+                    needs_multi_type_update = True
+                
+                # Obsolete field migration
+                if "obsolete" not in hack_data:
+                    hack_data["obsolete"] = False  # Default existing hacks to not obsolete
+                    needs_obsolete_update = True
         
-        if needs_multi_type_update:
+        if needs_multi_type_update or needs_obsolete_update:
             save_processed(processed)
-            print("✅ Updated processed.json for multi-type support")
+            updates = []
+            if needs_multi_type_update:
+                updates.append("multi-type support")
+            if needs_obsolete_update:
+                updates.append("obsolete tracking")
+            print(f"✅ Updated processed.json for {' and '.join(updates)}")
     except Exception as e:
-        print(f"Note: Could not update processed.json for multi-type support: {e}")
+        print(f"Note: Could not update processed.json for new features: {e}")
     
     root.mainloop()
 
