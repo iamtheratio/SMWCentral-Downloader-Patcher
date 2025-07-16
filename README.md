@@ -18,8 +18,8 @@ A powerful desktop application for downloading, organizing, and patching Super M
 - **Bulk Downloads**: Select and download multiple hacks simultaneously
 - **Smart Organization**: Automatically organizes hacks by type and difficulty
 - **Multi-Type Support**: Handles Standard, Kaizo, Puzzle, Tool-Assisted, and Pit hacks
-- **Resume Downloads**: Interrupted downloads automatically resume
-- **Duplicate Detection**: Prevents downloading the same hack twice
+- **Cancellable Downloads**: Stop download operations at any time
+- **Duplicate Detection**: Prevents downloading the same hack twice and automatically manages obsolete versions
 
 ### 📊 Comprehensive Analytics
 - **Collection Overview**: Visual dashboard showing your hack statistics
@@ -43,16 +43,6 @@ A powerful desktop application for downloading, organizing, and patching Super M
 - **Performance Options**: Adjust download delays and concurrent operations
 
 ![Settings Page](images/ss_app_settings_v4.0.png)
-
-## 🎮 Supported Hack Types
-
-| Type | Description |
-|------|-------------|
-| **Standard** | Traditional SMW platforming experiences |
-| **Kaizo** | Precision-based, challenging gameplay |
-| **Puzzle** | Logic and problem-solving focused hacks |
-| **Tool-Assisted** | Designed for TAS (Tool-Assisted Speedrun) |
-| **Pit** | Collaborative community challenge hacks |
 
 ## 🚀 Quick Start
 
@@ -79,20 +69,53 @@ The application automatically organizes your hacks in a clean structure:
 ```
 Output Directory/
 ├── Standard/
-│   ├── Newcomer/
-│   ├── Easy/
-│   ├── Normal/
-│   ├── Hard/
-│   └── Very Hard/
+│   ├── 01 - Newcomer/
+│   ├── 02 - Casual/
+│   ├── 03 - Skilled/
+│   ├── 04 - Advanced/
+│   ├── 05 - Expert/
+│   ├── 06 - Master/
+│   ├── 07 - Grandmaster/
+│   └── 08 - No Difficulty/
 ├── Kaizo/
-│   ├── Light/
-│   ├── Normal/
-│   ├── Hard/
-│   └── Very Hard/
+│   ├── 01 - Newcomer/
+│   ├── 02 - Casual/
+│   ├── 03 - Skilled/
+│   ├── 04 - Advanced/
+│   ├── 05 - Expert/
+│   ├── 06 - Master/
+│   ├── 07 - Grandmaster/
+│   └── 08 - No Difficulty/
 ├── Puzzle/
+│   ├── 01 - Newcomer/
+│   ├── 02 - Casual/
+│   ├── 03 - Skilled/
+│   ├── 04 - Advanced/
+│   ├── 05 - Expert/
+│   ├── 06 - Master/
+│   ├── 07 - Grandmaster/
+│   └── 08 - No Difficulty/
 ├── Tool-Assisted/
+│   ├── 01 - Newcomer/
+│   ├── 02 - Casual/
+│   ├── 03 - Skilled/
+│   ├── 04 - Advanced/
+│   ├── 05 - Expert/
+│   ├── 06 - Master/
+│   ├── 07 - Grandmaster/
+│   └── 08 - No Difficulty/
 └── Pit/
+    ├── 01 - Newcomer/
+    ├── 02 - Casual/
+    ├── 03 - Skilled/
+    ├── 04 - Advanced/
+    ├── 05 - Expert/
+    ├── 06 - Master/
+    ├── 07 - Grandmaster/
+    └── 08 - No Difficulty/
 ```
+
+**All hack types** use difficulty-based subfolders for consistent organization.
 
 ## � Technical Details
 
@@ -106,6 +129,7 @@ Output Directory/
 - **Input**: Supports .zip files containing .ips or .bps patches from SMWCentral
 - **Output**: Generates patched .smc/.sfc ROM files ready to play
 - **Database**: Uses JSON format for hack metadata and progress tracking
+- **Configuration**: Automatic migration system for seamless upgrades
 
 ### Key Files
 - **`config.json`**: Application configuration and settings
