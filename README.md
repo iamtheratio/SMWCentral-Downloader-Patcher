@@ -23,15 +23,6 @@ A comprehensive, professional-grade application for downloading, managing, and p
 ### Complete Multi-Type System
 v4.0 introduces full support for **all** SMWCentral hack categories:
 
-| Category | Description | Perfect For |
-|----------|-------------|-------------|
-| **Standard** | Traditional SMW platforming | Newcomers to ROM hacks |
-| **Kaizo** | Precision-based challenging gameplay | Players seeking extreme difficulty |
-| **Puzzle** | Logic and brain-teaser focused | Fans of problem-solving gameplay |
-| **Tool-Assisted** | Designed for TAS (Tool-Assisted Speedrun) | Technical players and speedrunners |
-| **Music** | Showcasing custom soundtracks | Music enthusiasts |
-| **Miscellaneous** | Experimental and unique concepts | Players wanting something different |
-
 ### Intelligent Version Management
 - **Obsolete Tracking**: Automatically identifies and manages outdated hack versions
 - **Version History**: Complete timeline of hack updates and improvements
