@@ -1,219 +1,166 @@
 # SMWCentral Downloader & Patcher v4.0
 
-A comprehensive, professional-grade application for downloading, managing, and playing Super Mario World hacks from SMWCentral. Designed for both newcomers and experienced hack enthusiasts, this tool provides everything you need to explore the vast world of SMW ROM hacks.
+A powerful desktop application for downloading, organizing, and patching Super Mario World ROM hacks from SMWCentral. Streamline your hack discovery and management with advanced filtering, bulk downloads, and comprehensive analytics.
 
-## 🌟 What Makes v4.0 Special
+![Dashboard](images/ss_app_dashboard_v4.0.png)
 
-**SMWCentral Downloader & Patcher v4.0** is a complete rewrite that transforms how you discover, download, and manage SMW hacks. Whether you're new to ROM hacks or a seasoned veteran, v4.0 provides a polished, intuitive experience that makes exploring thousands of hacks effortless.
+## ✨ Features
 
-### 🎯 Perfect for First-Time Users
-- **One-Click Setup**: Install and start downloading hacks immediately
-- **Guided Experience**: Intuitive interface guides you through every step
-- **Auto-Organization**: Hacks are automatically categorized and organized
-- **Smart Recommendations**: Discover hacks based on your preferences and skill level
+### 🔍 Advanced Hack Discovery
+- **Individual Download Page**: Browse and filter through thousands of hacks with advanced search options
+- **Smart Filtering**: Filter by difficulty, type, authors, completion status, and more
+- **Real-time Search**: Instant results as you type
+- **Detailed Previews**: View hack information, screenshots, and ratings before downloading
 
-### 🚀 Powerful for Advanced Users
-- **Bulk Operations**: Download and manage hundreds of hacks efficiently
-- **Advanced Analytics**: Deep insights into your hack collection and progress
-- **Custom Workflows**: Flexible filtering, sorting, and organization options
-- **Professional Tools**: Comprehensive patching, backup, and migration systems
+![Download Page](images/ss_app_download_v4.0.png)
 
-## 🎮 Comprehensive Hack Support
+### 📥 Intelligent Download System
+- **Bulk Downloads**: Select and download multiple hacks simultaneously
+- **Smart Organization**: Automatically organizes hacks by type and difficulty
+- **Multi-Type Support**: Handles Standard, Kaizo, Puzzle, Tool-Assisted, and Pit hacks
+- **Resume Downloads**: Interrupted downloads automatically resume
+- **Duplicate Detection**: Prevents downloading the same hack twice
 
-### Complete Multi-Type System
-v4.0 introduces full support for **all** SMWCentral hack categories:
+### 📊 Comprehensive Analytics
+- **Collection Overview**: Visual dashboard showing your hack statistics
+- **Progress Tracking**: Track completion status and personal ratings
+- **Type Distribution**: See your preferences across different hack categories
+- **Advanced Metrics**: Detailed analytics about your gaming habits
 
-| Category | Description | Perfect For |
-|----------|-------------|-------------|
-| **Standard** | Traditional SMW platforming | Newcomers to ROM hacks |
-| **Kaizo** | Precision-based challenging gameplay | Players seeking extreme difficulty |
-| **Puzzle** | Logic and brain-teaser focused | Fans of problem-solving gameplay |
-| **Tool-Assisted** | Designed for TAS (Tool-Assisted Speedrun) | Technical players and speedrunners |
-| **Music** | Showcasing custom soundtracks | Music enthusiasts |
-| **Miscellaneous** | Experimental and unique concepts | Players wanting something different |
+### 🗂️ Powerful History Management
+- **Complete History**: View all downloaded hacks with detailed information
+- **Advanced Sorting**: Sort by any column with visual indicators
+- **Inline Editing**: Edit hack details directly in the table
+- **Bulk Operations**: Update multiple hacks at once
+- **Export Options**: Export your collection data
 
-### Intelligent Version Management
-- **Obsolete Tracking**: Automatically identifies and manages outdated hack versions
-- **Version History**: Complete timeline of hack updates and improvements
-- **Smart Updates**: Notifications when newer versions of your hacks are available
-- **Legacy Support**: Maintains compatibility with older hack formats
+![History Page](images/ss_app_history_v4.0.png)
 
-## 📊 Professional Dashboard & Analytics
+### ⚙️ Professional Configuration
+- **Flexible Settings**: Configure base ROM paths, output directories, and preferences
+- **Theme Support**: Switch between light and dark themes
+- **Multi-Type Downloads**: Choose to download hacks to multiple type folders
+- **Performance Options**: Adjust download delays and concurrent operations
 
-### Real-Time Collection Insights
-- **Visual Analytics**: Beautiful charts showing your hack collection statistics
-- **Progress Tracking**: Completion rates, difficulty analysis, and personal goals
-- **Type Distribution**: Understanding your hack preferences and patterns
-- **Time Management**: Track time spent and optimize your gaming experience
+![Settings Page](images/ss_app_settings_v4.0.png)
 
-### Advanced Data Management
-- **Smart Categorization**: AI-powered organization of your hack library
-- **Personal Rating System**: Rate and review hacks with detailed feedback
-- **Custom Tags**: Create personal organization systems
-- **Backup & Sync**: Cloud-ready backup system for your hack database
+## 🎮 Supported Hack Types
 
-## 🔧 Professional-Grade Features
+| Type | Description |
+|------|-------------|
+| **Standard** | Traditional SMW platforming experiences |
+| **Kaizo** | Precision-based, challenging gameplay |
+| **Puzzle** | Logic and problem-solving focused hacks |
+| **Tool-Assisted** | Designed for TAS (Tool-Assisted Speedrun) |
+| **Pit** | Collaborative community challenge hacks |
 
-### Automated Download System
-- **Queue Management**: Download multiple hacks with intelligent queue system
-- **Resume Support**: Interrupted downloads automatically resume
-- **Bandwidth Control**: Manage download speeds to optimize your connection
-- **Error Recovery**: Robust error handling with automatic retry systems
+## 🚀 Quick Start
 
-### Advanced Patching Engine
-- **Multi-Format Support**: BPS, IPS, and other patch formats supported
-- **ROM Base Detection**: Automatically identifies and manages ROM bases
-- **Batch Patching**: Apply patches to multiple ROMs simultaneously
-- **Integrity Verification**: Ensures perfect patches every time
+### First Time Setup
+1. **Download** the latest release from the [releases page](../../releases)
+2. **Extract** the files to your desired location
+3. **Run** `SMWC Downloader.exe`
+4. **Configure** your base ROM path and output directory in Settings
+5. **Start downloading** hacks from the Download page!
 
-### Smart Organization System
-- **Auto-Sorting**: Hacks automatically organized by type, difficulty, and status
-- **Flexible Filtering**: Find exactly what you want with advanced search
-- **Custom Collections**: Create themed collections and playlists
-- **Quick Access**: Favorites and recently played systems
+### Configuration
+Before downloading hacks, you'll need to:
 
-## 💻 System Requirements & Installation
+1. **Set Base ROM Path**: Point to your clean Super Mario World ROM file
+2. **Set Output Directory**: Choose where patched hacks will be saved
+3. **Configure Preferences**: Adjust download settings and organization options
 
-### Minimum System Requirements
-- **OS**: Windows 10 (64-bit) or later
-- **RAM**: 4 GB (8 GB recommended)
-- **Storage**: 200 MB + space for hacks
-- **Network**: Broadband internet connection
-- **Display**: 1366x768 minimum (1920x1080 recommended)
+The app will automatically create organized folders for different hack types and difficulties.
 
-### Quick Installation
-1. **Download**: Get the latest installer from [Releases](../../releases)
-2. **Install**: Run the installer and follow the simple setup wizard
-3. **Launch**: Start from Start Menu or desktop shortcut
-4. **Enjoy**: Begin downloading and playing hacks immediately!
+## � File Organization
 
-## 🚀 Getting Started in 3 Minutes
-
-### For Complete Beginners
-1. **Launch the App**: Open SMWCentral Downloader & Patcher
-2. **Browse Hacks**: Click "Browse" and explore the hack library
-3. **Start Easy**: Filter by "Newcomer" difficulty for your first hacks
-4. **Download & Play**: Click any hack to download and auto-patch
-5. **Track Progress**: Mark hacks as completed and rate your favorites
-
-### For Experienced Users
-1. **Import Existing**: Use migration tools to import your current hack collection
-2. **Bulk Download**: Select multiple hacks and download in batches
-3. **Customize Organization**: Set up custom categories and filters
-4. **Analyze Collection**: Use Dashboard to understand your hack preferences
-5. **Advanced Features**: Explore bulk operations and custom workflows
-
-## 🎯 Key Workflows
-
-### Discovering New Hacks
-```
-Browse Tab → Apply Filters → Preview Details → Download → Auto-Organize
-```
-
-### Managing Your Collection
-```
-Dashboard → View Analytics → Update Progress → Rate Hacks → Export Data
-```
-
-### Bulk Operations
-```
-Select Multiple → Bulk Download → Auto-Patch → Organize → Update Status
-```
-
-## 🛠️ Professional Tools
-
-### Bulk Management System
-- **Mass Download**: Download dozens of hacks simultaneously
-- **Batch Processing**: Apply operations to multiple hacks at once
-- **Smart Queuing**: Intelligent download ordering and priority management
-- **Progress Monitoring**: Real-time tracking of all operations
-
-### Data Management
-- **Database Migration**: Seamlessly upgrade from older versions
-- **Import/Export**: Move your data between installations
-- **Backup Systems**: Automatic and manual backup options
-- **Data Integrity**: Built-in verification and repair tools
-
-### Advanced Configuration
-- **Custom Themes**: Light, dark, and custom visual themes
-- **Keyboard Shortcuts**: Fully customizable hotkey system
-- **Performance Tuning**: Optimize for your system specifications
-- **Privacy Controls**: Manage data collection and sharing preferences
-
-## 📁 Organized File Structure
-
-v4.0 creates a professional, organized directory structure:
+The application automatically organizes your hacks in a clean structure:
 
 ```
-SMWCentral Downloader & Patcher/
-├── 📁 Hack Library/
-│   ├── 🎯 Standard/
-│   │   ├── Newcomer/
-│   │   ├── Casual/
-│   │   └── [All Difficulties]/
-│   ├── 🔥 Kaizo/
-│   ├── 🧩 Puzzle/
-│   ├── 🎵 Music/
-│   ├── 🤖 Tool-Assisted/
-│   └── 📦 Miscellaneous/
-├── 🎮 Patched ROMs/
-│   ├── ✅ Completed/
-│   ├── 🎯 In Progress/
-│   └── ⭐ Favorites/
-├── 💾 Backups/
-│   ├── Database/
-│   └── Settings/
-├── 📊 Analytics/
-└── 🔧 Tools/
+Output Directory/
+├── Standard/
+│   ├── Newcomer/
+│   ├── Easy/
+│   ├── Normal/
+│   ├── Hard/
+│   └── Very Hard/
+├── Kaizo/
+│   ├── Light/
+│   ├── Normal/
+│   ├── Hard/
+│   └── Very Hard/
+├── Puzzle/
+├── Tool-Assisted/
+└── Pit/
 ```
 
-## 🔍 Troubleshooting & Support
+## � Technical Details
 
-### Common Solutions
-- **Download Issues**: Check network connection and restart application
-- **Patching Problems**: Verify ROM base integrity and available disk space
-- **Performance**: Close unnecessary applications and consider SSD upgrade
-- **Data Recovery**: Use built-in backup and recovery tools
+### Requirements
+- **OS**: Windows 10 or later
+- **Storage**: ~20 MB for application + space for your hack collection
+- **Network**: Internet connection for downloading hacks
+- **ROM**: Clean Super Mario World ROM file
+
+### File Formats
+- **Input**: Supports .zip files containing .ips or .bps patches from SMWCentral
+- **Output**: Generates patched .smc/.sfc ROM files ready to play
+- **Database**: Uses JSON format for hack metadata and progress tracking
+
+### Key Files
+- **`config.json`**: Application configuration and settings
+- **`processed.json`**: Database of downloaded hacks and metadata
+- **`README.md`**: This documentation file
+
+## 📝 Changelog
+
+### v4.0.0 - Major Release
+- **New**: Individual Download page with advanced filtering
+- **New**: Comprehensive Dashboard with analytics
+- **New**: Multi-type hack support system
+- **Enhanced**: History page with inline editing
+- **Enhanced**: Improved Settings with more options
+- **Enhanced**: Modern UI with light/dark theme support
+- **Fixed**: Numerous stability and performance improvements
+
+## 🆘 Troubleshooting
+
+### Common Issues
+
+**Downloads not working?**
+- Check your internet connection
+- Verify the hack is still available on SMWCentral
+- Make sure you have write permissions to the output directory
+
+**Patches failing?**
+- Ensure your base ROM is a clean, unmodified Super Mario World ROM
+- Check that you have enough disk space
+- Verify the ROM file isn't corrupted
+
+**Application won't start?**
+- Make sure you have the latest Windows updates
+- Try running as administrator
+- Check that your antivirus isn't blocking the application
 
 ### Getting Help
-- **Built-in Help**: Press F1 for context-sensitive help
-- **Error Logging**: Comprehensive logs help diagnose issues
-- **Community Support**: Active community forums and documentation
-- **Regular Updates**: Automatic updates keep everything working smoothly
+If you encounter issues:
+1. Check the application logs for error messages
+2. Try restarting the application
+3. Verify your configuration settings
+4. Create an issue on the GitHub repository with details
 
-## 🌟 Why Choose v4.0?
+## 🤝 Contributing
 
-### For New Users
-- **Zero Learning Curve**: Start downloading and playing hacks in minutes
-- **Safe & Reliable**: Professional-grade software with robust error handling
-- **Guided Discovery**: Smart recommendations help you find hacks you'll love
-- **Future-Proof**: Regular updates and long-term support guaranteed
+This project welcomes contributions! Whether it's bug reports, feature requests, or code contributions, your help makes this tool better for everyone.
 
-### For Power Users
-- **Maximum Efficiency**: Bulk operations and automation save hours of time
-- **Deep Analytics**: Professional insights into your hack collection
-- **Customization**: Endless configuration options for your perfect workflow
-- **Professional Tools**: Everything you need for serious hack management
+## 📄 License
 
-### For Everyone
-- **Beautiful Interface**: Modern, clean design that's a pleasure to use
-- **Rock-Solid Stability**: Extensively tested for reliability and performance
-- **Regular Updates**: Continuous improvements and new features
-- **Community-Driven**: Built by hack enthusiasts, for hack enthusiasts
-
-## 🎉 Start Your Hack Journey Today!
-
-SMWCentral Downloader & Patcher v4.0 represents the culmination of years of development and community feedback. Whether you're taking your first steps into the world of ROM hacks or you're a veteran looking for the ultimate management tool, v4.0 provides everything you need.
-
-**Download now and discover why thousands of players trust SMWCentral Downloader & Patcher for their hack adventures!**
+This project is licensed under the MIT License - see the LICENSE file for details.
 
 ---
 
-### 📄 Technical Information
-- **Version**: 4.0.0
-- **License**: MIT License
-- **Language**: Python 3.8+
-- **Platforms**: Windows 10/11 (64-bit)
-- **Last Updated**: 2024
+**Version**: 4.0.0  
+**Last Updated**: July 2025  
+**Platforms**: Windows 10/11
 
-**🍄 Happy Hacking! ✨**
+🍄 **Happy Hacking!** ✨
