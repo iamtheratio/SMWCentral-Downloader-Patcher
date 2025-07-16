@@ -4,6 +4,47 @@ A powerful desktop application for downloading, organizing, and patching Super M
 
 ![Dashboard](images/ss_app_dashboard_v4.0.png)
 
+## 📋 Table of Contents
+
+- [User Setup Guide](#-user-setup-guide)
+- [Features](#-features)
+- [File Organization](#-file-organization)
+- [Technical Details](#-technical-details)
+- [Changelog](#-changelog)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+- [License](#-license)
+
+## 🚀 User Setup Guide
+
+### Step 1: Download & Install
+1. **Download** the latest release from the [releases page](../../releases)
+2. **Extract** all files to a folder of your choice (e.g., `C:\SMWCentral Downloader\`)
+3. **Run** `SMWC Downloader.exe` to start the application
+
+### Step 2: First-Time Configuration
+1. **Navigate to Settings** (click the Settings tab at the top)
+2. **Set Base ROM Path**: 
+   - Click "Browse" next to "Base ROM Path"
+   - Select your clean Super Mario World ROM file (.smc or .sfc)
+   - ⚠️ **Important**: Use an unmodified, original SMW ROM
+3. **Set Output Directory**:
+   - Click "Browse" next to "Output Directory" 
+   - Choose where you want your patched hacks to be saved
+   - The app will create organized folders automatically
+
+### Step 3: Start Using
+1. **Go to Download page** to search and download individual hacks
+2. **Use Dashboard** to view your collection statistics
+3. **Check History** to manage your downloaded hacks
+4. **Explore Settings** for additional customization options
+
+### Quick Tips
+- 💡 Use filters on the Download page to find hacks by difficulty, type, or features
+- 💡 The app automatically organizes hacks into folders by type and difficulty
+- 💡 Toggle between light/dark themes using the moon icon in the top navigation
+- 💡 Use Ctrl+L to quickly clear the log output
+
 ## ✨ Features
 
 ### 🔍 Advanced Hack Discovery
@@ -70,50 +111,11 @@ The application automatically organizes your hacks in a clean structure:
 ```
 Output Directory/
 ├── Standard/
-│   ├── 01 - Newcomer/
-│   ├── 02 - Casual/
-│   ├── 03 - Skilled/
-│   ├── 04 - Advanced/
-│   ├── 05 - Expert/
-│   ├── 06 - Master/
-│   ├── 07 - Grandmaster/
-│   └── 08 - No Difficulty/
 ├── Kaizo/
-│   ├── 01 - Newcomer/
-│   ├── 02 - Casual/
-│   ├── 03 - Skilled/
-│   ├── 04 - Advanced/
-│   ├── 05 - Expert/
-│   ├── 06 - Master/
-│   ├── 07 - Grandmaster/
-│   └── 08 - No Difficulty/
 ├── Puzzle/
-│   ├── 01 - Newcomer/
-│   ├── 02 - Casual/
-│   ├── 03 - Skilled/
-│   ├── 04 - Advanced/
-│   ├── 05 - Expert/
-│   ├── 06 - Master/
-│   ├── 07 - Grandmaster/
-│   └── 08 - No Difficulty/
 ├── Tool-Assisted/
-│   ├── 01 - Newcomer/
-│   ├── 02 - Casual/
-│   ├── 03 - Skilled/
-│   ├── 04 - Advanced/
-│   ├── 05 - Expert/
-│   ├── 06 - Master/
-│   ├── 07 - Grandmaster/
-│   └── 08 - No Difficulty/
 └── Pit/
-    ├── 01 - Newcomer/
-    ├── 02 - Casual/
-    ├── 03 - Skilled/
-    ├── 04 - Advanced/
-    ├── 05 - Expert/
-    ├── 06 - Master/
-    ├── 07 - Grandmaster/
-    └── 08 - No Difficulty/
+    └── (Each type contains 8 difficulty folders: 01-Newcomer through 08-No Difficulty)
 ```
 
 **All hack types** use difficulty-based subfolders for consistent organization.
@@ -196,5 +198,3 @@ The only requirement is to include the original copyright notice in any copies o
 **Version**: 4.0.0  
 **Last Updated**: July 2025  
 **Platforms**: Windows 10/11
-
-🍄 **Happy Hacking!** ✨
