@@ -168,6 +168,40 @@ class SettingsPage:
         self.multi_type_enabled_var.trace("w", self._save_multi_type_settings)
         self.download_mode_var.trace("w", self._save_multi_type_settings)
         
+        # Update section
+        update_frame = ttk.Frame(multi_type_frame)
+        update_frame.pack(fill="x", pady=(12, 0))
+        
+        # Separator line
+        separator = ttk.Separator(update_frame, orient="horizontal")
+        separator.pack(fill="x", pady=(0, 12))
+        
+        # Update section label
+        ttk.Label(update_frame, text="Application Updates:", style="Custom.TLabel", font=("Segoe UI", 10, "bold")).pack(anchor="w", pady=(0, 8))
+        
+        # Check for updates button
+        self.check_updates_button = ttk.Button(
+            update_frame,
+            text="Check for Updates",
+            command=self._check_for_updates,
+            style="Custom.TButton"
+        )
+        self.check_updates_button.pack(anchor="w", pady=(0, 4))
+        
+        # Auto-check updates setting
+        self.auto_check_updates_var = tk.BooleanVar()
+        self.auto_check_updates_checkbox = ttk.Checkbutton(
+            update_frame,
+            text="Check for updates automatically on startup",
+            variable=self.auto_check_updates_var,
+            style="Custom.TCheckbutton",
+            command=self._save_auto_check_setting
+        )
+        self.auto_check_updates_checkbox.pack(anchor="w", pady=(4, 0))
+        
+        # Load auto-check setting
+        self._load_auto_check_setting()
+
         # Log section with level dropdown and clear button
         log_header_frame = ttk.Frame(self.frame)
         log_header_frame.pack(fill="x", pady=(0, 5))
@@ -254,3 +288,88 @@ class SettingsPage:
             
         except Exception as e:
             print(f"Error saving multi-type settings: {e}")
+    
+    def _check_for_updates(self):
+        """Check for updates manually"""
+        try:
+            # Import here to avoid circular imports
+            from updater import Updater, UpdateDialog
+            from main import VERSION
+            
+            # Disable button during check
+            self.check_updates_button.config(state="disabled", text="Checking...")
+            self.frame.update()
+            
+            def check_updates():
+                try:
+                    updater = Updater(VERSION.lstrip('v'))
+                    update_info = updater.check_for_updates(silent=True)  # Use silent=True to avoid duplicate dialogs
+                    
+                    # Schedule UI updates on the main thread
+                    def update_ui():
+                        try:
+                            # Re-enable button
+                            self.check_updates_button.config(state="normal", text="Check for Updates")
+                            
+                            if update_info:
+                                # Add current version to update info
+                                update_info['current_version'] = VERSION.lstrip('v')
+                                
+                                # Show update dialog
+                                root = self.parent.winfo_toplevel()
+                                dialog = UpdateDialog(root, update_info)
+                                dialog.show()
+                            else:
+                                # No update available
+                                messagebox.showinfo("No Updates", "You are already using the latest version!")
+                        except Exception as e:
+                            print(f"UI update error: {e}")
+                    
+                    # Schedule UI update on main thread
+                    root = self.parent.winfo_toplevel()
+                    root.after(0, update_ui)
+                        
+                except Exception as e:
+                    # Schedule error handling on main thread
+                    def handle_error():
+                        self.check_updates_button.config(state="normal", text="Check for Updates")
+                        messagebox.showerror("Update Check Failed", f"Failed to check for updates: {str(e)}")
+                        print(f"Update check error: {e}")  # Debug print
+                    
+                    root = self.parent.winfo_toplevel()
+                    root.after(0, handle_error)
+            
+            # Run check in background thread
+            import threading
+            thread = threading.Thread(target=check_updates, daemon=True)
+            thread.start()
+            
+        except Exception as e:
+            self.check_updates_button.config(state="normal", text="Check for Updates")
+            messagebox.showerror("Update Check Failed", f"Failed to check for updates: {str(e)}")
+            print(f"Outer update check error: {e}")  # Debug print
+    
+    def _save_auto_check_setting(self):
+        """Save auto-check updates setting"""
+        try:
+            from config_manager import ConfigManager
+            config = ConfigManager()
+            
+            auto_check = self.auto_check_updates_var.get()
+            config.set("auto_check_updates", auto_check)
+            
+        except Exception as e:
+            print(f"Error saving auto-check setting: {e}")
+    
+    def _load_auto_check_setting(self):
+        """Load auto-check updates setting"""
+        try:
+            from config_manager import ConfigManager
+            config = ConfigManager()
+            
+            auto_check = config.get("auto_check_updates", True)  # Default to True
+            self.auto_check_updates_var.set(auto_check)
+            
+        except Exception as e:
+            print(f"Error loading auto-check setting: {e}")
+            self.auto_check_updates_var.set(True)  # Default to True

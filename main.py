@@ -1,5 +1,5 @@
 """
-SMWCentral Downloader & Patcher v4.0
+SMWCentral Downloader & Patcher v4.1
 A desktop application for downloading and patching Super Mario World ROM hacks from SMWCentral
 
 Copyright (c) 2025 iamtheratio
@@ -15,8 +15,12 @@ import sv_ttk
 import sys
 import platform
 import pywinstyles
+import shutil
+import tempfile
+import requests
+import os
 
-VERSION = "v4.0"
+VERSION = "v4.1"
 
 def apply_theme_to_titlebar(root):
     if platform.system() != "Windows":
@@ -151,9 +155,6 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
     from api_pipeline import fetch_file_metadata, load_processed, save_processed, reset_cancel_flag, is_cancelled, extract_patches_from_zip, make_output_path, clean_hack_title, DIFFICULTY_LOOKUP, get_sorted_folder_name, title_case, safe_filename
     from patch_handler import PatchHandler
     from config_manager import ConfigManager
-    import tempfile
-    import requests
-    import os
     
     # Get config for paths
     config = ConfigManager()
@@ -296,7 +297,6 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     for hack_type, target_path in missing_copies:
                         try:
                             os.makedirs(os.path.dirname(target_path), exist_ok=True)
-                            import shutil
                             shutil.copy2(existing_hack["file_path"], target_path)
                             new_additional_paths.append(target_path)
                             if log: log(f"📄 Created copy in {hack_type.title()} folder", "Debug")
@@ -431,7 +431,6 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                 
             finally:
                 # Clean up temp directory
-                import shutil
                 try:
                     shutil.rmtree(temp_dir)
                 except:
@@ -587,6 +586,33 @@ def main():
             print(f"✅ Updated processed.json for {' and '.join(updates)}")
     except Exception as e:
         print(f"Note: Could not update processed.json for new features: {e}")
+    
+    # Check for updates in background after UI loads
+    def check_for_updates_after_startup():
+        """Check for updates after the UI has fully loaded"""
+        try:
+            from config_manager import ConfigManager
+            from updater import check_for_updates_background, show_update_dialog
+            
+            config = ConfigManager()
+            auto_check = config.get("auto_check_updates", True)
+            
+            if auto_check:
+                def handle_update(update_info):
+                    """Handle update info from background check"""
+                    def show_dialog():
+                        dialog = show_update_dialog(root, update_info)
+                    
+                    # Schedule dialog to show on main thread
+                    root.after(0, show_dialog)
+                
+                # Start background check
+                check_for_updates_background(VERSION.lstrip('v'), handle_update)
+        except Exception as e:
+            print(f"Failed to start background update check: {e}")
+    
+    # Schedule update check after UI loads
+    root.after(3000, check_for_updates_after_startup)  # Wait 3 seconds for UI to load
     
     root.mainloop()
 
