@@ -56,7 +56,9 @@ class ConfigManager:
         return {
             "base_rom_path": "",
             "output_dir": "",
-            "api_delay": 0.8
+            "api_delay": 0.8,
+            "multi_type_enabled": True,
+            "multi_type_download_mode": "primary_only"
         }
     
     def _clean_config(self, config):
