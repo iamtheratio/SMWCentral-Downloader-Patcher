@@ -44,14 +44,14 @@ class DownloadPage:
             print(f"[{level}] {message}")
     
     def create(self):
-        """Create the download page"""
+        """Create the download page with fixed bottom button layout"""
         self.frame = ttk.Frame(self.parent, padding=get_page_padding())
         
         # Create main container
         main_container = ttk.Frame(self.frame)
         main_container.pack(fill="both", expand=True)
         
-        # Create filters component FIRST
+        # Create filters component at the top - fixed size
         self.filters = DownloadFilters(
             main_container,
             callback_search=self._start_search,
@@ -60,20 +60,22 @@ class DownloadPage:
             callback_cancel=self._cancel_search
         )
         
-        # Create difficulty section SECOND
+        # Create difficulty section - fixed size
         self._create_difficulty_section(main_container)
         
-        # Create results component
+        # Create download button component at the bottom FIRST - fixed at bottom
+        button_frame = ttk.Frame(main_container)
+        button_frame.pack(side="bottom", fill="x", pady=(10, 0))
+        self.download_button_component = DownloadButton(
+            button_frame,
+            callback_download=self._download_selected,
+            callback_cancel=self._cancel_download
+        )
+        
+        # Create results component in the middle LAST - this will fill remaining space
         self.results = DownloadResults(
             main_container,
             callback_selection_change=self._update_selection_display
-        )
-        
-        # Create download button component
-        self.download_button_component = DownloadButton(
-            main_container,
-            callback_download=self._download_selected,
-            callback_cancel=self._cancel_download
         )
         
         return self.frame

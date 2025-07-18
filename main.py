@@ -502,7 +502,31 @@ def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=
 def main():
     root = tk.Tk()
     root.title("SMWC Downloader & Patcher")
-    root.geometry("1050x900")
+    
+    # Set responsive window geometry based on screen size
+    screen_width = root.winfo_screenwidth()
+    screen_height = root.winfo_screenheight()
+    
+    # Calculate optimal window size for different screen resolutions
+    if screen_height <= 768:  # Small displays (laptops, netbooks)
+        window_width = min(950, int(screen_width * 0.9))
+        window_height = min(700, int(screen_height * 0.85))
+    elif screen_height <= 1080:  # Standard displays
+        window_width = min(1050, int(screen_width * 0.8))
+        window_height = min(850, int(screen_height * 0.8))
+    else:  # Large displays
+        window_width = 1050
+        window_height = 900
+    
+    # Center the window on screen
+    x = (screen_width - window_width) // 2
+    y = (screen_height - window_height) // 2
+    
+    root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+    root.minsize(800, 600)  # Minimum size to ensure usability on smaller displays
+    
+    # Allow window to be resizable for responsive behavior
+    root.resizable(True, True)
     
     # Set application icon
     try:

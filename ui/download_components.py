@@ -293,13 +293,14 @@ class DownloadResults:
         self._create_results()
         
     def _create_results(self):
-        """Create the search results table"""
+        """Create the search results table with simple, responsive layout"""
         results_frame = ttk.LabelFrame(self.parent, text="Search Results", padding=get_labelframe_padding())
-        results_frame.pack(fill="both", expand=True, pady=(0, 10))
+        results_frame.pack(fill="x", expand=False, pady=(0, 10))  # Changed: fill="x" instead of "both", expand=False
         
-        # Create treeview for results (reduced height to show download button)
+        # Create treeview for results with a simple, reasonable height
         columns = ("select", "title", "type", "difficulty", "rating", "exits", "authors", "date")
-        self.tree = ttk.Treeview(results_frame, columns=columns, show="headings", height=10)
+        # Use a simple fixed height that works well across different screen sizes
+        self.tree = ttk.Treeview(results_frame, columns=columns, show="headings", height=8)
         
         # Configure headers and columns
         headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Exit(s)", "Author(s)", "Date"]
