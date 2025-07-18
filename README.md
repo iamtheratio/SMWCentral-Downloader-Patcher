@@ -1,6 +1,6 @@
-# SMWCentral Downloader & Patcher v4.0
+# SMWCentral Downloader & Patcher v4.1
 
-A powerful desktop application for downloading, organizing, and patching Super Mario World ROM hacks from SMWCentral. Streamline your hack discovery and management with advanced filtering, bulk downloads, and comprehensive analytics.
+A powerful desktop application for downloading, organizing, and patching Super Mario World ROM hacks from SMWCentral. Streamline your hack discovery and management with advanced filtering, bulk downloads, comprehensive analytics, and automatic updates.
 
 ![Dashboard](images/ss_app_dashboard_v4.0.png)
 
@@ -44,6 +44,8 @@ A powerful desktop application for downloading, organizing, and patching Super M
 - 💡 The app automatically organizes hacks into folders by type and difficulty
 - 💡 Toggle between light/dark themes using the moon icon in the top navigation
 - 💡 Use Ctrl+L to quickly clear the log output
+- 💡 The app automatically checks for updates - just click "Update Now" when prompted
+- 💡 Check Settings > "Check for Updates" to manually look for new versions
 
 ## ✨ Features
 
@@ -83,6 +85,14 @@ A powerful desktop application for downloading, organizing, and patching Super M
 - **Theme Support**: Switch between light and dark themes
 - **Multi-Type Downloads**: Choose to download hacks to multiple type folders
 - **Performance Options**: Adjust download delays and concurrent operations
+- **Auto-Update System**: Automatically checks for and installs application updates
+
+### 🔄 Automatic Updates
+- **Background Checks**: Quietly checks for new versions when you start the app
+- **One-Click Updates**: Download and install updates with a single click
+- **Safe Installation**: Creates backups and safely replaces files during updates
+- **Fast Restarts**: Lightning-quick app restart process (under 6 seconds total)
+- **Update History**: View update logs in Settings for transparency
 
 ![Settings Page](images/ss_app_settings_v4.0.png)
 
@@ -123,6 +133,15 @@ Output Directory/
 
 ## 📝 Changelog
 
+### v4.1.0 - Auto-Update Release
+- **New**: Automatic update system with background checking
+- **New**: One-click updates with safe installation process
+- **New**: Lightning-fast restart mechanism (95% faster app closing)
+- **New**: Update progress tracking and logging
+- **Enhanced**: Settings page now includes update management
+- **Enhanced**: Improved application startup and shutdown performance
+- **Fixed**: Various stability improvements and optimizations
+
 ### v4.0.0 - Major Release
 - **New**: Individual Download page with advanced filtering
 - **New**: Comprehensive Dashboard with analytics
@@ -151,6 +170,24 @@ Output Directory/
 - Try running as administrator
 - Check that your antivirus isn't blocking the application
 
+**Updates not working?**
+- Ensure you have internet connectivity
+- Check that your antivirus isn't blocking the update process
+- Try manually checking for updates from Settings
+- Restart the application if update checks seem stuck
+
+### How the Auto-Updater Works
+The application includes a sophisticated update system designed to be safe and user-friendly:
+
+1. **Background Checking**: Every time you start the app, it quietly checks GitHub for new releases
+2. **User Notification**: If an update is found, you'll see a popup with release notes and options
+3. **Safe Download**: The update is downloaded to a temporary location and verified
+4. **Backup & Replace**: Your current version is backed up before installing the new one
+5. **Quick Restart**: The app closes and reopens with the new version (takes about 5-6 seconds total)
+6. **Automatic Cleanup**: Temporary files and backups are cleaned up automatically
+
+The updater is designed to be **completely safe** - if anything goes wrong during the update process, your original version will be automatically restored.
+
 ### Getting Help
 If you encounter issues:
 1. Check the application logs for error messages
@@ -177,6 +214,6 @@ The only requirement is to include the original copyright notice in any copies o
 
 ---
 
-**Version**: 4.0.0  
+**Version**: 4.1.0  
 **Last Updated**: July 2025  
 **Platforms**: Windows 10/11
