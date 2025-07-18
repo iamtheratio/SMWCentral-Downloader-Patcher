@@ -338,7 +338,6 @@ class Updater:
         
         if os.path.exists(hidden_updater):
             # Use the hidden updater executable (industry standard approach)
-            self._add_log_message("🔄 Using hidden updater directory...")
             
             # Store the updater command for later execution
             self.updater_command = [
@@ -351,7 +350,6 @@ class Updater:
             return "standalone_updater"
         elif os.path.exists(standalone_updater):
             # Use the standalone updater executable (fallback for old distribution)
-            self._add_log_message("🔄 Using standalone updater...")
             
             # Store the updater command for later execution
             self.updater_command = [
@@ -364,7 +362,6 @@ class Updater:
             return "standalone_updater"
         else:
             # Fallback to batch script method
-            self._add_log_message("⚠️ Standalone updater not found, using batch script...")
             
             script_path = os.path.join(script_dir, "update.bat")
             backup_exe = current_exe + ".backup"
