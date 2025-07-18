@@ -48,13 +48,14 @@ class UpdaterError(Exception):
 class Updater:
     """Handles application updates from GitHub releases"""
     
-    def __init__(self, current_version, repo_owner="iamtheratio", repo_name="SMWCentral-Downloader---Patcher"):
+    def __init__(self, current_version, repo_owner="iamtheratio", repo_name="SMWCentral-Downloader---Patcher", parent=None):
         self.current_version = current_version
         self.repo_owner = repo_owner
         self.repo_name = repo_name
         self.github_api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
         self.check_in_progress = False
         self.update_in_progress = False
+        self.parent = parent  # Store parent for logging
         
     def check_for_updates(self, silent=False):
         """
@@ -371,66 +372,119 @@ class Updater:
             update_exe_abs = os.path.abspath(update_exe)
             backup_exe_abs = os.path.abspath(backup_exe)
             
-            # Create a more robust update script that handles PyInstaller peculiarities
+            # Create a robust update script following the proper workflow
             script_content = f'''@echo off
-setlocal
-echo Applying SMWCentral Downloader update...
+setlocal EnableDelayedExpansion
+echo Starting SMWCentral Downloader update process...
 
 REM Wait for the main application to fully exit
 echo Waiting for application to exit...
-timeout /t 5 /nobreak >nul
-
-REM Kill any remaining processes
-taskkill /f /im "{os.path.basename(current_exe_abs)}" >nul 2>&1
-
-REM Additional wait
 timeout /t 2 /nobreak >nul
 
-REM Backup current executable
-echo Creating backup...
+REM Kill any remaining processes (silent)
+taskkill /f /im "{os.path.basename(current_exe_abs)}" >nul 2>&1
+
+REM Additional short wait to ensure clean shutdown
+timeout /t 1 /nobreak >nul
+
+REM Step 1: Backup current executable
+echo Step 1: Creating backup of current application...
 if exist "{current_exe_abs}" (
     copy "{current_exe_abs}" "{backup_exe_abs}" >nul 2>&1
+    if exist "{backup_exe_abs}" (
+        echo Backup created successfully
+    ) else (
+        echo ERROR: Failed to create backup
+        echo Update aborted for safety
+        if exist "{update_exe_abs}" del "{update_exe_abs}" >nul 2>&1
+        pause
+        exit /b 1
+    )
+) else (
+    echo ERROR: Current executable not found at "{current_exe_abs}"
+    echo Update aborted
+    if exist "{update_exe_abs}" del "{update_exe_abs}" >nul 2>&1
+    pause
+    exit /b 1
 )
 
-REM Replace with new version
-echo Installing update...
-copy "{update_exe_abs}" "{current_exe_abs}" >nul 2>&1
+REM Step 2: Replace with new version (rename update_new.exe to SMWC Downloader.exe)
+echo Step 2: Installing new version...
+if exist "{update_exe_abs}" (
+    copy "{update_exe_abs}" "{current_exe_abs}" >nul 2>&1
+    if exist "{current_exe_abs}" (
+        echo New version installed successfully
+    ) else (
+        echo ERROR: Failed to install new version
+        goto :restore_backup
+    )
+) else (
+    echo ERROR: Update file not found at "{update_exe_abs}"
+    goto :restore_backup
+)
 
-REM Verify the update was successful
+REM Step 3: Verify the update was successful
+echo Step 3: Verifying update...
 if exist "{current_exe_abs}" (
-    echo Update successful! Starting application...
-    REM Change to the executable directory to ensure proper startup
-    cd /d "{script_dir}"
+    echo Update verification successful
     
-    REM Start the application with a longer delay to ensure file system operations complete
-    timeout /t 3 /nobreak >nul
+    REM Step 4: Start the new application
+    echo Step 4: Starting updated application...
+    cd /d "{script_dir}"
     start "" "{current_exe_abs}"
     
-    REM Wait for application to start before cleanup
-    timeout /t 10 /nobreak >nul
+    REM Short wait for application to start before cleanup
+    timeout /t 2 /nobreak >nul
     
-    REM Clean up backup and temporary update file
+    REM Step 5: Clean up backup and temporary files
+    echo Step 5: Cleaning up temporary files...
     if exist "{backup_exe_abs}" del "{backup_exe_abs}" >nul 2>&1
     if exist "{update_exe_abs}" del "{update_exe_abs}" >nul 2>&1
     
     echo Update completed successfully!
+    goto :cleanup
 ) else (
-    echo Update failed! Restoring backup...
-    if exist "{backup_exe_abs}" (
-        copy "{backup_exe_abs}" "{current_exe_abs}" >nul 2>&1
-        del "{backup_exe_abs}" >nul 2>&1
-    )
-    cd /d "{script_dir}"
-    start "" "{current_exe_abs}"
-    REM Clean up temporary update file
-    if exist "{update_exe_abs}" del "{update_exe_abs}" >nul 2>&1
+    echo ERROR: Update verification failed
+    goto :restore_backup
 )
 
+:restore_backup
+echo ERROR: Update failed - restoring backup...
+if exist "{backup_exe_abs}" (
+    REM Delete failed update attempt
+    if exist "{current_exe_abs}" del "{current_exe_abs}" >nul 2>&1
+    
+    REM Restore backup
+    copy "{backup_exe_abs}" "{current_exe_abs}" >nul 2>&1
+    if exist "{current_exe_abs}" (
+        echo Backup restored successfully
+        REM Clean up backup file
+        del "{backup_exe_abs}" >nul 2>&1
+        
+        REM Start the restored application
+        cd /d "{script_dir}"
+        start "" "{current_exe_abs}"
+        echo Original application restored and restarted
+    ) else (
+        echo CRITICAL ERROR: Failed to restore backup
+        echo Please manually rename "{backup_exe_abs}" to "{current_exe_abs}"
+        pause
+    )
+) else (
+    echo CRITICAL ERROR: Backup not found
+    echo Update process corrupted
+    pause
+)
+
+REM Clean up temporary update file
+if exist "{update_exe_abs}" del "{update_exe_abs}" >nul 2>&1
+
+:cleanup
 REM Clean up script itself
 del "{script_path}" >nul 2>&1
 '''
             
-            with open(script_path, 'w') as f:
+            with open(script_path, 'w', encoding='utf-8') as f:
                 f.write(script_content)
             
             return script_path
@@ -766,7 +820,7 @@ class UpdateDialog:
         
         log_header = ttk.Label(
             self.notes_frame, 
-            text="📋 Update Progress:", 
+            text="Update Progress:", 
             font=("Segoe UI", 14, "bold")
         )
         log_header.pack(anchor="w", pady=(0, 10))
@@ -926,126 +980,134 @@ class UpdateDialog:
             self.dialog.update_idletasks()
     
     def _restart_app(self):
-        """Restart the application with the update"""
+        """Restart the application with the update - optimized for fast exit"""
+        # Store parent reference for logging to main app
+        main_app_root = getattr(self, 'parent', None)
+        
+        # Quick logging to main app BEFORE starting restart process
+        if main_app_root and hasattr(main_app_root, 'log_text'):
+            try:
+                main_log = main_app_root.log_text
+                main_log.config(state="normal")
+                main_log.insert(tk.END, "🔄 UPDATE: Starting application restart...\n")
+                main_log.config(state="disabled")
+                main_log.see(tk.END)
+            except:
+                pass
+        
+        # Quick dialog update and immediate close
         self._add_log_message("🔄 Restarting with update...")
-        self.dialog.update()
+        self.result = "restart"
+        
+        # Get the restart mechanism ready
+        restart_command = None
+        restart_cwd = None
         
         # Check if we have an update script (for file replacement)
         if hasattr(self, 'update_script_path') and self.update_script_path:
-            self._add_log_message("🔄 Update will be applied on restart...")
-            
             # For PyInstaller executables, we need to handle this differently
             if getattr(sys, 'frozen', False):
-                # Get the current executable path
                 current_exe = sys.executable
                 current_dir = os.path.dirname(current_exe)
-                self._add_log_message(f"🔄 Current executable: {os.path.basename(current_exe)}")
-                self._add_log_message(f"🔄 Directory: {current_dir}")
-                
-                # Give UI time to update
-                self.dialog.update()
-                import time
-                time.sleep(0.5)
-                
-                # Close dialog first
-                self.result = "restart"
-                self.dialog.destroy()
                 
                 # Check if using standalone updater
                 if hasattr(self, 'updater_command'):
-                    self._add_log_message("🔄 Starting standalone updater...")
-                    subprocess.Popen(self.updater_command, 
-                                   creationflags=subprocess.CREATE_NO_WINDOW,
-                                   cwd=current_dir)
-                elif self.update_script_path == "standalone_updater":
-                    # This shouldn't happen but handle it gracefully
-                    self._add_log_message("🚨 Standalone updater command not found!")
-                    os._exit(1)
-                else:
+                    # Verify updater exists
+                    updater_exe = self.updater_command[0]
+                    if os.path.exists(updater_exe):
+                        restart_command = self.updater_command
+                        restart_cwd = current_dir
+                        if main_app_root and hasattr(main_app_root, 'log_text'):
+                            try:
+                                main_log = main_app_root.log_text
+                                main_log.config(state="normal")
+                                main_log.insert(tk.END, f"🔧 UPDATE: Using standalone updater\n")
+                                main_log.config(state="disabled")
+                            except:
+                                pass
+                elif self.update_script_path != "standalone_updater":
                     # Use batch script
-                    subprocess.Popen([self.update_script_path], 
-                                   creationflags=subprocess.CREATE_NO_WINDOW,
-                                   cwd=current_dir)
-                
-                # Exit immediately to allow update process to work
-                os._exit(0)
+                    if os.path.exists(self.update_script_path):
+                        restart_command = [self.update_script_path]
+                        restart_cwd = current_dir
+                        if main_app_root and hasattr(main_app_root, 'log_text'):
+                            try:
+                                main_log = main_app_root.log_text
+                                main_log.config(state="normal")
+                                main_log.insert(tk.END, f"🔧 UPDATE: Using batch script\n")
+                                main_log.config(state="disabled")
+                            except:
+                                pass
             else:
                 # Development mode
-                self._add_log_message("🔄 Development mode restart...")
-                
-                # Give UI time to update
-                self.dialog.update()
-                import time
-                time.sleep(0.5)
-                
-                # Close dialog and restart
-                self.result = "restart"
-                self.dialog.destroy()
-                
-                # Start the update script
-                subprocess.Popen([self.update_script_path])
-                os._exit(0)
+                if os.path.exists(self.update_script_path):
+                    restart_command = [self.update_script_path]
+                    restart_cwd = os.path.dirname(self.update_script_path)
         else:
             # No update script - direct restart
             if getattr(sys, 'frozen', False):
-                # PyInstaller executable - use safe restart method
+                # PyInstaller executable
                 current_exe = sys.executable
                 current_dir = os.path.dirname(current_exe)
-                self._add_log_message(f"🔄 Restarting: {os.path.basename(current_exe)}")
                 
-                # Create a simple restart launcher to avoid temp directory issues
-                launcher_script = os.path.join(current_dir, "restart_launcher.bat")
-                launcher_content = f'''@echo off
-echo Restarting SMWCentral Downloader...
+                if os.path.exists(current_exe):
+                    # Create minimal restart launcher
+                    launcher_script = os.path.join(current_dir, "restart_launcher.bat")
+                    launcher_content = f'''@echo off
 cd /d "{current_dir}"
-timeout /t 2 /nobreak >nul
+timeout /t 1 /nobreak >nul
 start "" "{current_exe}"
 del "%~f0"
 '''
-                
-                try:
-                    with open(launcher_script, 'w') as f:
-                        f.write(launcher_content)
-                    
-                    self._add_log_message("🔄 Created restart launcher...")
-                    
-                    # Give UI time to update
-                    self.dialog.update()
-                    import time
-                    time.sleep(0.5)
-                    
-                    # Close dialog and start launcher
-                    self.result = "restart"
-                    self.dialog.destroy()
-                    
-                    subprocess.Popen([launcher_script], 
-                                   creationflags=subprocess.CREATE_NO_WINDOW,
-                                   cwd=current_dir)
-                    
-                    os._exit(0)
-                    
-                except Exception as e:
-                    self._add_log_message(f"🚨 Launcher creation failed: {e}")
-                    # Fallback to direct restart
-                    self.result = "restart"
-                    self.dialog.destroy()
-                    subprocess.Popen([current_exe], cwd=current_dir)
-                    os._exit(0)
+                    try:
+                        with open(launcher_script, 'w') as f:
+                            f.write(launcher_content)
+                        restart_command = [launcher_script]
+                        restart_cwd = current_dir
+                    except:
+                        pass
             else:
                 # Python development mode
-                self._add_log_message("🔄 Restarting Python script...")
-                
-                # Give UI time to update
-                self.dialog.update()
-                import time
-                time.sleep(0.5)
-                
-                # Close dialog and restart
-                self.result = "restart"
-                self.dialog.destroy()
-                
-                subprocess.Popen([sys.executable] + sys.argv)
-                os._exit(0)
+                main_script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "main.py")
+                if os.path.exists(main_script):
+                    restart_command = [sys.executable, main_script]
+                    restart_cwd = os.path.dirname(main_script)
+        
+        # Log final message to main app
+        if main_app_root and hasattr(main_app_root, 'log_text'):
+            try:
+                main_log = main_app_root.log_text
+                main_log.config(state="normal")
+                main_log.insert(tk.END, "🔄 UPDATE: Exiting for restart...\n")
+                main_log.config(state="disabled")
+                main_log.see(tk.END)
+                main_app_root.update_idletasks()
+            except:
+                pass
+        
+        # Close dialog immediately
+        self.dialog.destroy()
+        
+        # Start the restart process
+        if restart_command:
+            try:
+                subprocess.Popen(restart_command, 
+                               creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, 'CREATE_NO_WINDOW') else 0,
+                               cwd=restart_cwd)
+            except Exception as e:
+                # If restart fails, try to log to main app if still alive
+                if main_app_root and hasattr(main_app_root, 'log_text'):
+                    try:
+                        main_log = main_app_root.log_text
+                        main_log.config(state="normal")
+                        main_log.insert(tk.END, f"❌ UPDATE ERROR: Restart failed: {str(e)}\n")
+                        main_log.config(state="disabled")
+                    except:
+                        pass
+                return
+        
+        # Exit immediately - no delays
+        os._exit(0)
     
     def _format_release_notes(self, text_widget):
         """Format GitHub markdown release notes for better display"""
@@ -1146,7 +1208,7 @@ del "%~f0"
         # Start download in thread
         def download_and_apply():
             try:
-                updater = Updater(self.update_info.get('current_version', '4.0'))
+                updater = Updater(self.update_info.get('current_version', '4.0'), parent=self.parent)
                 
                 # Download with progress callback
                 def progress_callback(progress):
@@ -1182,6 +1244,10 @@ del "%~f0"
                         
                         # Store the update script path for later use
                         self.update_script_path = getattr(updater, 'update_script_path', None)
+                        
+                        # Also store the updater command if it exists
+                        if hasattr(updater, 'updater_command'):
+                            self.updater_command = updater.updater_command
                         
                         # Switch to restart mode
                         self._switch_to_restart_mode()
