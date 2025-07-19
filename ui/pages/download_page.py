@@ -51,17 +51,8 @@ class DownloadPage:
         main_container = ttk.Frame(self.frame)
         main_container.pack(fill="both", expand=True)
         
-        # Create filters component at the top - fixed size
-        self.filters = DownloadFilters(
-            main_container,
-            callback_search=self._start_search,
-            callback_clear=self._clear_filters,
-            callback_time_period_update=self._update_time_period_state,
-            callback_cancel=self._cancel_search
-        )
-        
-        # Create difficulty section - fixed size
-        self._create_difficulty_section(main_container)
+        # Create collapsible search criteria section (filters + difficulty)
+        self._create_collapsible_search_section(main_container)
         
         # Create download button component at the bottom FIRST - fixed at bottom
         button_frame = ttk.Frame(main_container)
@@ -79,6 +70,65 @@ class DownloadPage:
         )
         
         return self.frame
+    
+    def _create_collapsible_search_section(self, parent):
+        """Create a collapsible section containing both filters and difficulty selection"""
+        # Main container for the collapsible section
+        search_section = ttk.Frame(parent)
+        search_section.pack(fill="x", pady=(0, 10))
+        
+        # Header with toggle button
+        header_frame = ttk.Frame(search_section)
+        header_frame.pack(fill="x", pady=(0, 5))
+        
+        # Toggle button for the entire search criteria section
+        self.search_toggle_button = ttk.Button(
+            header_frame,
+            text="▼ Search Criteria",
+            command=self._toggle_search_section,
+            style="Toolbutton"  # Flat button style
+        )
+        self.search_toggle_button.pack(side="left")
+        
+        # Content frame that will be hidden/shown
+        self.search_content = ttk.Frame(search_section)
+        self.search_content.pack(fill="x", pady=(5, 0))
+        
+        # Track expanded state
+        self.search_expanded = True  # Default to expanded
+        
+        # Create the actual content (filters + difficulty)
+        self._create_search_content()
+    
+    def _toggle_search_section(self):
+        """Toggle the visibility of the entire search criteria section"""
+        if self.search_expanded:
+            # Collapse: hide content and change arrow
+            self.search_content.pack_forget()
+            self.search_toggle_button.configure(text="► Search Criteria")
+            self.search_expanded = False
+        else:
+            # Expand: show content and change arrow
+            self.search_content.pack(fill="x", pady=(5, 0))
+            self.search_toggle_button.configure(text="▼ Search Criteria")
+            self.search_expanded = True
+        
+        # Force layout update to ensure results area adjusts properly
+        self.parent.update_idletasks()
+    
+    def _create_search_content(self):
+        """Create the search content (filters + difficulty) maintaining original appearance"""
+        # Create filters component - this will maintain its original LabelFrame appearance
+        self.filters = DownloadFilters(
+            self.search_content,
+            callback_search=self._start_search,
+            callback_clear=self._clear_filters,
+            callback_time_period_update=self._update_time_period_state,
+            callback_cancel=self._cancel_search
+        )
+        
+        # Create difficulty section - this will maintain its original LabelFrame appearance
+        self._create_difficulty_section(self.search_content)
     
     def _create_difficulty_section(self, parent):
         """Create the difficulty section exactly like bulk download"""

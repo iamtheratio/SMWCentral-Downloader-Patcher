@@ -41,6 +41,7 @@ A powerful desktop application for downloading, organizing, and patching Super M
 
 ### Quick Tips
 - 💡 Use filters on the Download page to find hacks by difficulty, type, or features
+- 💡 **Click "▼ Search Criteria"** to collapse/expand search filters and get more results viewing space
 - 💡 The app automatically organizes hacks into folders by type and difficulty
 - 💡 Toggle between light/dark themes using the moon icon in the top navigation
 - 💡 Use Ctrl+L to quickly clear the log output
@@ -52,6 +53,8 @@ A powerful desktop application for downloading, organizing, and patching Super M
 ### 🔍 Advanced Hack Discovery
 - **Individual Download Page**: Browse and filter through thousands of hacks with advanced search options
 - **Smart Filtering**: Filter by difficulty, type, authors, completion status, and more
+- **Collapsible Search Interface**: Toggle search criteria visibility to maximize results viewing space
+- **Responsive Layout**: Search results area automatically expands when search criteria is collapsed
 - **Comprehensive Search**: Button-triggered search with advanced filtering capabilities
 - **Detailed Previews**: View hack information, screenshots, and ratings before downloading
 
@@ -132,6 +135,14 @@ Output Directory/
 - **`README.md`**: This documentation file
 
 ## 📝 Changelog
+
+### v4.1.1 - UI Enhancement Release *(Latest)*
+- **New**: Collapsible search criteria section on Download page for better space utilization
+- **Enhanced**: Responsive search results area that expands when filters are collapsed
+- **Enhanced**: Improved button visibility and layout on smaller displays (laptops, netbooks)
+- **Enhanced**: Better space management and user interface efficiency
+- **Fixed**: Download & Patch button now always visible regardless of screen size
+- **Optimized**: Simplified layout calculations for more reliable UI behavior
 
 ### v4.1.0 - Auto-Update Release
 - **New**: Automatic update system with background checking
