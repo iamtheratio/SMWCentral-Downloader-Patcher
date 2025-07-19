@@ -193,3 +193,14 @@ class HackDataManager:
         ordered_difficulties.extend(remaining)
         
         return ordered_difficulties
+    
+    def add_user_hack(self, user_id, hack_data):
+        """Add a user-created hack entry"""
+        try:
+            self.data[user_id] = hack_data
+            self.unsaved_changes = True
+            self._schedule_delayed_save()
+            return True
+        except Exception as e:
+            print(f"Error adding user hack: {e}")
+            return False

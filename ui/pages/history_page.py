@@ -5,7 +5,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from hack_data_manager import HackDataManager
-from ui.history_components import InlineEditor, DateValidator, NotesValidator, TableFilters, HackHistoryInlineEditor
+from ui.history_components import InlineEditor, DateValidator, NotesValidator, HackHistoryInlineEditor
+from ui.components.table_filters import TableFilters
 from ui_constants import get_page_padding, get_section_padding
 from utils import get_sorted_folder_name, move_hack_to_new_difficulty, get_primary_type, format_types_display
 from colors import get_colors
