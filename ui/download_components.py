@@ -293,13 +293,14 @@ class DownloadResults:
         self._create_results()
         
     def _create_results(self):
-        """Create the search results table"""
+        """Create the search results table with simple, responsive layout"""
         results_frame = ttk.LabelFrame(self.parent, text="Search Results", padding=get_labelframe_padding())
-        results_frame.pack(fill="both", expand=True, pady=(0, 10))
+        results_frame.pack(fill="both", expand=True, pady=(0, 10))  # Changed: fill="both" and expand=True to fill available space
         
-        # Create treeview for results (reduced height to show download button)
+        # Create treeview for results - no fixed height so it can expand dynamically
         columns = ("select", "title", "type", "difficulty", "rating", "exits", "authors", "date")
-        self.tree = ttk.Treeview(results_frame, columns=columns, show="headings", height=10)
+        # Remove fixed height to allow dynamic expansion when search criteria is collapsed
+        self.tree = ttk.Treeview(results_frame, columns=columns, show="headings")
         
         # Configure headers and columns
         headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Exit(s)", "Author(s)", "Date"]

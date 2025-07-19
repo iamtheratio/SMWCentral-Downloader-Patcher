@@ -2,10 +2,10 @@
 
 
 a = Analysis(
-    ['main.py'],
+    ['standalone_updater.py'],
     pathex=[],
     binaries=[],
-    datas=[('assets', 'assets')],
+    datas=[],
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
@@ -22,18 +22,17 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='SMWC Downloader',
+    name='SMWC Updater',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
     upx=True,
     upx_exclude=[],
     runtime_tmpdir=None,
-    console=False,
+    console=True,
     disable_windowed_traceback=False,
     argv_emulation=False,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['assets\\icon.ico'],
 )
