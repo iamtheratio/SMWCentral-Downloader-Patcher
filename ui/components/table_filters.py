@@ -20,6 +20,7 @@ class TableFilters:
         self.sa1_filter = tk.StringVar(value="All")
         self.collaboration_filter = tk.StringVar(value="All")
         self.demo_filter = tk.StringVar(value="All")
+        self.user_content_filter = tk.StringVar(value="Any")  # Default to "Any" for dropdown
         
     def create_filter_ui(self, parent, data_manager):
         """Create filter UI elements"""
@@ -93,6 +94,15 @@ class TableFilters:
         
         # More dropdown filters...
         self._create_remaining_dropdowns(dropdowns_frame)
+        
+        # User Created Records filter (below dropdowns, left aligned)
+        user_records_frame = ttk.Frame(parent)
+        user_records_frame.pack(fill="x", pady=(8, 0))
+        ttk.Label(user_records_frame, text="User Created Records:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        user_records_combo = ttk.Combobox(user_records_frame, textvariable=self.user_content_filter,
+                                        values=["Any", "Yes", "No"], state="readonly", width=12)
+        user_records_combo.pack(anchor="w", pady=(2, 0))
+        user_records_combo.bind("<<ComboboxSelected>>", lambda e: self.apply_callback())
         
     def _create_remaining_dropdowns(self, parent):
         """Create completed and rating dropdowns"""
@@ -191,6 +201,7 @@ class TableFilters:
         self.sa1_filter.set("All")
         self.collaboration_filter.set("All")
         self.demo_filter.set("All")
+        self.user_content_filter.set("Any")  # Reset to "Any" for dropdown
         self.apply_callback()
         
     def refresh_dropdown_values(self, data_manager):
@@ -235,6 +246,17 @@ class TableFilters:
         difficulty_filter_value = self.difficulty_filter.get()
         if difficulty_filter_value != "All" and hack.get("difficulty") != difficulty_filter_value:
             return False
+            
+        # User Created Records filter - check if hack ID has "usr_" prefix
+        user_content_filter_value = self.user_content_filter.get()
+        if user_content_filter_value != "Any":
+            hack_id = hack.get("id", "")
+            is_user_created = str(hack_id).startswith("usr_")
+            
+            if user_content_filter_value == "Yes" and not is_user_created:
+                return False
+            elif user_content_filter_value == "No" and is_user_created:
+                return False
             
         # More filter checks...
         return self._check_remaining_filters(hack)
