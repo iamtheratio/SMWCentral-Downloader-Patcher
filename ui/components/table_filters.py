@@ -313,43 +313,23 @@ class AddHackDialog:
         info_frame = ttk.LabelFrame(main_frame, text="Hack Information", padding=15)
         info_frame.pack(fill="x", pady=(0, 15))
         
-        # Configure grid layout - 3 columns with equal weight
+        # Configure grid layout - 4 columns with equal weight
         info_frame.grid_columnconfigure(0, weight=1)
         info_frame.grid_columnconfigure(1, weight=1) 
         info_frame.grid_columnconfigure(2, weight=1)
+        info_frame.grid_columnconfigure(3, weight=1)
         
-        # Row 0: Title, Hall of Fame, Collaboration
-        # Title (spans full width of first column)
+        # Row 0: Title (spans full width)
         title_frame = ttk.Frame(info_frame)
-        title_frame.grid(row=0, column=0, sticky="ew", padx=(0, 10), pady=(0, 15))
+        title_frame.grid(row=0, column=0, columnspan=4, sticky="ew", padx=0, pady=(0, 15))
         ttk.Label(title_frame, text="Title:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
         self.title_var = tk.StringVar()
         ttk.Entry(title_frame, textvariable=self.title_var, font=("Segoe UI", 10)).pack(fill="x", pady=(5, 0))
         
-        # Hall of Fame (column 1)
-        hof_frame = ttk.Frame(info_frame)
-        hof_frame.grid(row=0, column=1, sticky="ew", padx=5, pady=(0, 15))
-        ttk.Label(hof_frame, text="Hall of Fame:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        self.hof_var = tk.StringVar(value="No")
-        hof_radio_frame = ttk.Frame(hof_frame)
-        hof_radio_frame.pack(anchor="w", pady=(5, 0))
-        ttk.Radiobutton(hof_radio_frame, text="Yes", variable=self.hof_var, value="Yes").pack(side="left", padx=(0, 10))
-        ttk.Radiobutton(hof_radio_frame, text="No", variable=self.hof_var, value="No").pack(side="left")
-        
-        # Collaboration (column 2)
-        collab_frame = ttk.Frame(info_frame)
-        collab_frame.grid(row=0, column=2, sticky="ew", padx=(10, 0), pady=(0, 15))
-        ttk.Label(collab_frame, text="Collaboration:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        self.collab_var = tk.StringVar(value="No")
-        collab_radio_frame = ttk.Frame(collab_frame)
-        collab_radio_frame.pack(anchor="w", pady=(5, 0))
-        ttk.Radiobutton(collab_radio_frame, text="Yes", variable=self.collab_var, value="Yes").pack(side="left", padx=(0, 10))
-        ttk.Radiobutton(collab_radio_frame, text="No", variable=self.collab_var, value="No").pack(side="left")
-        
-        # Row 1: Type, SA-1, Demo
+        # Row 1: Type, Difficulty, Exits, Authors
         # Type (column 0)
         type_frame = ttk.Frame(info_frame)
-        type_frame.grid(row=1, column=0, sticky="ew", padx=(0, 10), pady=(0, 15))
+        type_frame.grid(row=1, column=0, sticky="ew", padx=(0, 5), pady=(0, 15))
         ttk.Label(type_frame, text="Type:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
         self.type_var = tk.StringVar()
         type_combo = ttk.Combobox(type_frame, textvariable=self.type_var, state="readonly",
@@ -358,30 +338,9 @@ class AddHackDialog:
         type_combo.set("Kaizo")  # Default to Kaizo
         type_combo.pack(fill="x", pady=(5, 0))
         
-        # SA-1 (column 1 - perfectly aligned with Hall of Fame above)
-        sa1_frame = ttk.Frame(info_frame)
-        sa1_frame.grid(row=1, column=1, sticky="ew", padx=5, pady=(0, 15))
-        ttk.Label(sa1_frame, text="SA-1:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        self.sa1_var = tk.StringVar(value="No")
-        sa1_radio_frame = ttk.Frame(sa1_frame)
-        sa1_radio_frame.pack(anchor="w", pady=(5, 0))
-        ttk.Radiobutton(sa1_radio_frame, text="Yes", variable=self.sa1_var, value="Yes").pack(side="left", padx=(0, 10))
-        ttk.Radiobutton(sa1_radio_frame, text="No", variable=self.sa1_var, value="No").pack(side="left")
-        
-        # Demo (column 2 - aligned with Collaboration above)
-        demo_frame = ttk.Frame(info_frame)
-        demo_frame.grid(row=1, column=2, sticky="ew", padx=(10, 0), pady=(0, 15))
-        ttk.Label(demo_frame, text="Demo:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        self.demo_var = tk.StringVar(value="No")
-        demo_radio_frame = ttk.Frame(demo_frame)
-        demo_radio_frame.pack(anchor="w", pady=(5, 0))
-        ttk.Radiobutton(demo_radio_frame, text="Yes", variable=self.demo_var, value="Yes").pack(side="left", padx=(0, 10))
-        ttk.Radiobutton(demo_radio_frame, text="No", variable=self.demo_var, value="No").pack(side="left")
-        
-        # Row 2: Difficulty, Exits, Authors
-        # Difficulty (column 0)
+        # Difficulty (column 1)
         diff_frame = ttk.Frame(info_frame)
-        diff_frame.grid(row=2, column=0, sticky="ew", padx=(0, 10), pady=(0, 15))
+        diff_frame.grid(row=1, column=1, sticky="ew", padx=5, pady=(0, 15))
         ttk.Label(diff_frame, text="Difficulty:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
         self.difficulty_var = tk.StringVar()
         difficulty_combo = ttk.Combobox(diff_frame, textvariable=self.difficulty_var, state="readonly", 
@@ -390,19 +349,60 @@ class AddHackDialog:
         difficulty_combo.set("Newcomer")  # Default to Newcomer
         difficulty_combo.pack(fill="x", pady=(5, 0))
         
-        # Exits (column 1)
+        # Exits (column 2)
         exits_frame = ttk.Frame(info_frame)
-        exits_frame.grid(row=2, column=1, sticky="ew", padx=5, pady=(0, 15))
+        exits_frame.grid(row=1, column=2, sticky="ew", padx=5, pady=(0, 15))
         ttk.Label(exits_frame, text="Exits:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
         self.exits_var = tk.StringVar(value="0")
         ttk.Entry(exits_frame, textvariable=self.exits_var, font=("Segoe UI", 10)).pack(fill="x", pady=(5, 0))
         
-        # Authors (column 2)
+        # Authors (column 3)
         authors_frame = ttk.Frame(info_frame)
-        authors_frame.grid(row=2, column=2, sticky="ew", padx=(10, 0))
-        ttk.Label(authors_frame, text="Authors (comma-separated):", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        authors_frame.grid(row=1, column=3, sticky="ew", padx=(5, 0), pady=(0, 15))
+        ttk.Label(authors_frame, text="Authors:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
         self.authors_var = tk.StringVar()
         ttk.Entry(authors_frame, textvariable=self.authors_var, font=("Segoe UI", 10)).pack(fill="x", pady=(5, 0))
+        
+        # Row 2: Hall of Fame, SA-1, Collaboration, Demo (all 4 boolean fields)
+        # Hall of Fame (column 0)
+        hof_frame = ttk.Frame(info_frame)
+        hof_frame.grid(row=2, column=0, sticky="ew", padx=(0, 5), pady=(0, 15))
+        ttk.Label(hof_frame, text="Hall of Fame:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        self.hof_var = tk.StringVar(value="No")
+        hof_radio_frame = ttk.Frame(hof_frame)
+        hof_radio_frame.pack(anchor="w", pady=(5, 0))
+        ttk.Radiobutton(hof_radio_frame, text="Yes", variable=self.hof_var, value="Yes").pack(side="left", padx=(0, 10))
+        ttk.Radiobutton(hof_radio_frame, text="No", variable=self.hof_var, value="No").pack(side="left")
+        
+        # SA-1 (column 1)
+        sa1_frame = ttk.Frame(info_frame)
+        sa1_frame.grid(row=2, column=1, sticky="ew", padx=5, pady=(0, 15))
+        ttk.Label(sa1_frame, text="SA-1:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        self.sa1_var = tk.StringVar(value="No")
+        sa1_radio_frame = ttk.Frame(sa1_frame)
+        sa1_radio_frame.pack(anchor="w", pady=(5, 0))
+        ttk.Radiobutton(sa1_radio_frame, text="Yes", variable=self.sa1_var, value="Yes").pack(side="left", padx=(0, 10))
+        ttk.Radiobutton(sa1_radio_frame, text="No", variable=self.sa1_var, value="No").pack(side="left")
+        
+        # Collaboration (column 2)
+        collab_frame = ttk.Frame(info_frame)
+        collab_frame.grid(row=2, column=2, sticky="ew", padx=5, pady=(0, 15))
+        ttk.Label(collab_frame, text="Collaboration:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        self.collab_var = tk.StringVar(value="No")
+        collab_radio_frame = ttk.Frame(collab_frame)
+        collab_radio_frame.pack(anchor="w", pady=(5, 0))
+        ttk.Radiobutton(collab_radio_frame, text="Yes", variable=self.collab_var, value="Yes").pack(side="left", padx=(0, 10))
+        ttk.Radiobutton(collab_radio_frame, text="No", variable=self.collab_var, value="No").pack(side="left")
+        
+        # Demo (column 3)
+        demo_frame = ttk.Frame(info_frame)
+        demo_frame.grid(row=2, column=3, sticky="ew", padx=(5, 0), pady=(0, 15))
+        ttk.Label(demo_frame, text="Demo:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        self.demo_var = tk.StringVar(value="No")
+        demo_radio_frame = ttk.Frame(demo_frame)
+        demo_radio_frame.pack(anchor="w", pady=(5, 0))
+        ttk.Radiobutton(demo_radio_frame, text="Yes", variable=self.demo_var, value="Yes").pack(side="left", padx=(0, 10))
+        ttk.Radiobutton(demo_radio_frame, text="No", variable=self.demo_var, value="No").pack(side="left")
         
         # Personal Stats Section
         stats_frame = ttk.LabelFrame(main_frame, text="Personal Stats", padding=15)
