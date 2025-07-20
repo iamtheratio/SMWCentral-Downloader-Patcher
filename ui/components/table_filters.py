@@ -938,7 +938,7 @@ class AddHackDialog:
                 # Update each field individually
                 success = True
                 for field, value in updates.items():
-                    if not self.data_manager.update_hack(self.hack_id, field, value):
+                    if not self.data_manager.update_hack(str(self.hack_id), field, value):
                         success = False
                         break
             
