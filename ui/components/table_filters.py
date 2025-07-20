@@ -278,20 +278,34 @@ class TableFilters:
             
         dialog = AddHackDialog(None, self.data_manager, self.apply_callback)
         dialog.show()
+    
+    def show_edit_hack_dialog(self, hack_data, hack_id):
+        """Show dialog to edit an existing hack"""
+        if not self.data_manager:
+            messagebox.showerror("Error", "Data manager not available")
+            return
+            
+        dialog = AddHackDialog(None, self.data_manager, self.apply_callback, hack_data, hack_id)
+        dialog.show()
 
 
 class AddHackDialog:
-    """Dialog for adding a hack manually"""
+    """Dialog for adding a hack manually or editing an existing hack"""
     
-    def __init__(self, parent, data_manager, refresh_callback):
+    def __init__(self, parent, data_manager, refresh_callback, hack_data=None, hack_id=None):
         self.data_manager = data_manager
         self.refresh_callback = refresh_callback
         self.dialog = None
+        self.hack_data = hack_data  # For editing mode
+        self.hack_id = hack_id      # For editing mode
+        self.is_editing = hack_data is not None
+        self.is_user_hack = hack_id is not None and str(hack_id).startswith("usr_")
         
     def show(self):
-        """Show the add hack dialog"""
+        """Show the add/edit hack dialog"""
+        title = "Edit Hack" if self.is_editing else "Add Hack"
         self.dialog = tk.Toplevel()
-        self.dialog.title("Add Hack")
+        self.dialog.title(title)
         self.dialog.geometry("750x650")  # Made wider to fit Demo radio buttons
         self.dialog.resizable(False, False)
         self.dialog.grab_set()  # Make dialog modal
@@ -482,12 +496,133 @@ class AddHackDialog:
         self.notes_var = tk.StringVar()
         ttk.Entry(notes_frame, textvariable=self.notes_var, font=("Segoe UI", 10)).pack(fill="x", pady=(5, 0))
         
+        # Store widget references for field restrictions
+        self.type_combo = type_combo
+        self.difficulty_combo = difficulty_combo
+        
+        # Get references to entry widgets that were packed
+        title_widgets = title_frame.winfo_children()
+        self.title_entry = None
+        for widget in title_widgets:
+            if isinstance(widget, ttk.Entry):
+                self.title_entry = widget
+                break
+                
+        exits_widgets = exits_frame.winfo_children()
+        self.exits_entry = None
+        for widget in exits_widgets:
+            if isinstance(widget, ttk.Entry):
+                self.exits_entry = widget
+                break
+                
+        authors_widgets = authors_frame.winfo_children()
+        self.authors_entry = None
+        for widget in authors_widgets:
+            if isinstance(widget, ttk.Entry):
+                self.authors_entry = widget
+                break
+        
+        # Store radio button widgets for hack info
+        self.hack_info_radio_widgets = []
+        for frame in [hof_radio_frame, sa1_radio_frame, collab_radio_frame, demo_radio_frame]:
+            for widget in frame.winfo_children():
+                if isinstance(widget, ttk.Radiobutton):
+                    self.hack_info_radio_widgets.append(widget)
+        
         # Button frame
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill="x", pady=(20, 0))
         
         ttk.Button(button_frame, text="Cancel", command=self.dialog.destroy).pack(side="right", padx=(10, 0))
-        ttk.Button(button_frame, text="Save Hack", command=self._save_hack).pack(side="right")
+        
+        # Change button text based on mode
+        button_text = "Update Hack" if self.is_editing else "Save Hack"
+        ttk.Button(button_frame, text=button_text, command=self._save_hack).pack(side="right")
+        
+        # Populate fields if editing and apply restrictions
+        if self.is_editing:
+            self._populate_fields()
+            self._apply_field_restrictions()
+    
+    def _populate_fields(self):
+        """Populate form fields with hack data for editing"""
+        if not self.hack_data:
+            return
+            
+        # Populate hack information fields
+        self.title_var.set(self.hack_data.get("title", ""))
+        
+        # Map stored values to display values
+        stored_type = self.hack_data.get("hack_type", "standard")
+        display_type_mapping = {
+            "kaizo": "Kaizo",
+            "pit": "Pit", 
+            "puzzle": "Puzzle",
+            "standard": "Standard",
+            "toolassisted": "Tool-Assisted"
+        }
+        display_type = display_type_mapping.get(stored_type, stored_type.title())
+        self.type_var.set(display_type)
+        
+        stored_difficulty = self.hack_data.get("current_difficulty", "newcomer")
+        display_difficulty = stored_difficulty.title()
+        self.difficulty_var.set(display_difficulty)
+        
+        self.exits_var.set(str(self.hack_data.get("exits", 0)))
+        
+        # Handle authors array
+        authors = self.hack_data.get("authors", [])
+        if isinstance(authors, list):
+            authors_text = ", ".join(authors)
+        else:
+            authors_text = str(authors) if authors else ""
+        self.authors_var.set(authors_text)
+        
+        # Boolean fields
+        self.hof_var.set("Yes" if self.hack_data.get("hall_of_fame", False) else "No")
+        self.sa1_var.set("Yes" if self.hack_data.get("sa1_compatibility", False) else "No")
+        self.collab_var.set("Yes" if self.hack_data.get("collaboration", False) else "No")
+        self.demo_var.set("Yes" if self.hack_data.get("demo", False) else "No")
+        
+        # Personal stats fields
+        self.completed_var.set("Yes" if self.hack_data.get("completed", False) else "No")
+        self.completed_date_var.set(self.hack_data.get("completed_date", ""))
+        self.rating_var.set(self.hack_data.get("personal_rating", 0))
+        self._update_star_display(self.rating_var.get())
+        
+        # Time to beat - convert seconds to display format
+        time_seconds = self.hack_data.get("time_to_beat", 0)
+        if time_seconds > 0:
+            time_display = self._format_time_display(time_seconds)
+            self.time_to_beat_var.set(time_display)
+        else:
+            self.time_to_beat_var.set("")
+            
+        self.notes_var.set(self.hack_data.get("notes", ""))
+    
+    def _apply_field_restrictions(self):
+        """Apply field restrictions based on hack type (user vs downloaded)"""
+        if self.is_user_hack:
+            # User hack - all fields editable (already default state)
+            return
+            
+        # Downloaded hack - disable hack information fields, keep personal stats editable
+        
+        # Disable hack information entry widgets
+        if self.title_entry:
+            self.title_entry.configure(state="disabled")
+        if self.exits_entry:
+            self.exits_entry.configure(state="disabled")  
+        if self.authors_entry:
+            self.authors_entry.configure(state="disabled")
+        
+        # Disable comboboxes
+        self.type_combo.configure(state="disabled")
+        self.difficulty_combo.configure(state="disabled")
+        
+        # Disable radio buttons for hack info
+        for widget in self.hack_info_radio_widgets:
+            widget.configure(state="disabled")
     
     def _set_rating(self, rating):
         """Set the rating and update star display"""
@@ -744,16 +879,9 @@ class AddHackDialog:
             messagebox.showerror("Validation Error", error_message)
             return
             
-        # Get next user ID
-        user_id = self._get_next_user_id()
-        
         # Parse authors
         authors_text = self.authors_var.get().strip()
         authors = [author.strip() for author in authors_text.split(",")] if authors_text else []
-        
-        # Convert capitalized values to lowercase for storage consistency
-        difficulty_storage = self.difficulty_var.get().lower()
-        type_storage = self.type_var.get().lower().replace("-", "")  # Remove hyphens for consistency
         
         # Parse time to beat using the same logic as history page
         time_str = self.time_to_beat_var.get().strip()
@@ -764,38 +892,103 @@ class AddHackDialog:
             except ValueError:
                 time_seconds = 0  # Fall back to 0 if parsing fails (should be caught by validation)
         
-        # Create hack data
-        hack_data = {
-            "title": self.title_var.get().strip(),
-            "current_difficulty": difficulty_storage,
-            "folder_name": difficulty_storage,
-            "hack_type": type_storage,
-            "hack_types": [type_storage],
-            "hall_of_fame": self.hof_var.get() == "Yes",
-            "sa1_compatibility": self.sa1_var.get() == "Yes",
-            "collaboration": self.collab_var.get() == "Yes",
-            "demo": self.demo_var.get() == "Yes",
-            "authors": authors,
-            "exits": int(self.exits_var.get()) if self.exits_var.get().strip() else 0,
-            "completed": self.completed_var.get() == "Yes",
-            "completed_date": self.completed_date_var.get().strip(),
-            "personal_rating": self.rating_var.get(),  # Now using IntVar directly
-            "time_to_beat": time_seconds,  # Store as seconds like history page
-            "notes": self.notes_var.get().strip(),
-            "obsolete": False,
-            "file_path": "",  # No file path for user-added hacks
-            "additional_paths": []
-        }
-        
-        # Add to data manager
-        success = self.data_manager.add_user_hack(user_id, hack_data)
-        
-        if success:
-            messagebox.showinfo("Success", f"Hack '{hack_data['title']}' added successfully with ID {user_id}")
-            self.refresh_callback()  # Refresh the table
-            self.dialog.destroy()
+        if self.is_editing:
+            # Update existing hack
+            if self.is_user_hack:
+                # User hack - update all fields
+                # Convert capitalized values to lowercase for storage consistency
+                difficulty_storage = self.difficulty_var.get().lower()
+                type_storage = self.type_var.get().lower().replace("-", "")  # Remove hyphens for consistency
+                
+                # Update each field individually
+                updates = {
+                    "title": self.title_var.get().strip(),
+                    "current_difficulty": difficulty_storage,
+                    "folder_name": difficulty_storage,
+                    "hack_type": type_storage,
+                    "hack_types": [type_storage],
+                    "hall_of_fame": self.hof_var.get() == "Yes",
+                    "sa1_compatibility": self.sa1_var.get() == "Yes",
+                    "collaboration": self.collab_var.get() == "Yes",
+                    "demo": self.demo_var.get() == "Yes",
+                    "authors": authors,
+                    "exits": int(self.exits_var.get()) if self.exits_var.get().strip() else 0,
+                    "completed": self.completed_var.get() == "Yes",
+                    "completed_date": self.completed_date_var.get().strip(),
+                    "personal_rating": self.rating_var.get(),
+                    "time_to_beat": time_seconds,
+                    "notes": self.notes_var.get().strip()
+                }
+                
+                success = True
+                for field, value in updates.items():
+                    if not self.data_manager.update_hack(self.hack_id, field, value):
+                        success = False
+                        break
+            else:
+                # Downloaded hack - only update personal stats
+                updates = {
+                    "completed": self.completed_var.get() == "Yes",
+                    "completed_date": self.completed_date_var.get().strip(),
+                    "personal_rating": self.rating_var.get(),
+                    "time_to_beat": time_seconds,
+                    "notes": self.notes_var.get().strip()
+                }
+                
+                # Update each field individually
+                success = True
+                for field, value in updates.items():
+                    if not self.data_manager.update_hack(self.hack_id, field, value):
+                        success = False
+                        break
+            
+            if success:
+                messagebox.showinfo("Success", f"Hack '{self.hack_data['title']}' updated successfully")
+                self.refresh_callback()  # Refresh the table
+                self.dialog.destroy()
+            else:
+                messagebox.showerror("Error", "Failed to update hack")
         else:
-            messagebox.showerror("Error", "Failed to add hack")
+            # Add new hack
+            # Get next user ID
+            user_id = self._get_next_user_id()
+            
+            # Convert capitalized values to lowercase for storage consistency
+            difficulty_storage = self.difficulty_var.get().lower()
+            type_storage = self.type_var.get().lower().replace("-", "")  # Remove hyphens for consistency
+            
+            # Create hack data
+            hack_data = {
+                "title": self.title_var.get().strip(),
+                "current_difficulty": difficulty_storage,
+                "folder_name": difficulty_storage,
+                "hack_type": type_storage,
+                "hack_types": [type_storage],
+                "hall_of_fame": self.hof_var.get() == "Yes",
+                "sa1_compatibility": self.sa1_var.get() == "Yes",
+                "collaboration": self.collab_var.get() == "Yes",
+                "demo": self.demo_var.get() == "Yes",
+                "authors": authors,
+                "exits": int(self.exits_var.get()) if self.exits_var.get().strip() else 0,
+                "completed": self.completed_var.get() == "Yes",
+                "completed_date": self.completed_date_var.get().strip(),
+                "personal_rating": self.rating_var.get(),  # Now using IntVar directly
+                "time_to_beat": time_seconds,  # Store as seconds like history page
+                "notes": self.notes_var.get().strip(),
+                "obsolete": False,
+                "file_path": "",  # No file path for user-added hacks
+                "additional_paths": []
+            }
+            
+            # Add to data manager
+            success = self.data_manager.add_user_hack(user_id, hack_data)
+            
+            if success:
+                messagebox.showinfo("Success", f"Hack '{hack_data['title']}' added successfully with ID {user_id}")
+                self.refresh_callback()  # Refresh the table
+                self.dialog.destroy()
+            else:
+                messagebox.showerror("Error", "Failed to add hack")
     
     def _get_next_user_id(self):
         """Get the next available user ID"""
