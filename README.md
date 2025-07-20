@@ -1,4 +1,4 @@
-# SMWCentral Downloader & Patcher v4.1
+# SMWCentral Downloader & Patcher v4.2
 
 A powerful desktop application for downloading, organizing, and patching Super Mario World ROM hacks from SMWCentral. Streamline your hack discovery and management with advanced filtering, bulk downloads, comprehensive analytics, and automatic updates.
 
@@ -36,12 +36,13 @@ A powerful desktop application for downloading, organizing, and patching Super M
 ### Step 3: Start Using
 1. **Go to Download page** to search and download individual hacks
 2. **Use Dashboard** to view your collection statistics
-3. **Check History** to manage your downloaded hacks
+3. **Check History** to manage your downloaded hacks and add manual entries
 4. **Explore Settings** for additional customization options
 
 ### Quick Tips
 - 💡 Use filters on the Download page to find hacks by difficulty, type, or features
 - 💡 **Click "▼ Search Criteria"** to collapse/expand search filters and get more results viewing space
+- 💡 **Click "Add Hack"** in History to manually track hacks you've played elsewhere
 - 💡 The app automatically organizes hacks into folders by type and difficulty
 - 💡 Toggle between light/dark themes using the moon icon in the top navigation
 - 💡 Use Ctrl+L to quickly clear the log output
@@ -75,9 +76,12 @@ A powerful desktop application for downloading, organizing, and patching Super M
 
 ### 🗂️ Powerful History Management
 - **Complete History**: View all downloaded hacks with detailed information
+- **Manual Entry**: Add hacks manually to track your progress without ROM files
 - **Real-time Filtering**: Instant search results as you type in the name filter
 - **Advanced Sorting**: Sort by any column with visual indicators
 - **Inline Editing**: Edit hack details directly in the table
+- **Full CRUD Support**: Create, read, update, and delete hack entries
+- **Duplicate Prevention**: Smart duplicate detection with user confirmation
 - **Bulk Operations**: Update multiple hacks at once
 - **Export Options**: Export your collection data
 
@@ -136,7 +140,19 @@ Output Directory/
 
 ## 📝 Changelog
 
-### v4.1.1 - UI Enhancement Release *(Latest)*
+### v4.2.0 - Manual Hack Management Release *(Latest)*
+- **New**: Add Hack dialog for manually adding hacks to your history
+- **New**: Edit manually added hacks with full CRUD operations
+- **New**: Delete functionality for user-created hack entries (usr_ prefix)
+- **New**: Duplicate title validation with user confirmation dialog
+- **New**: Support for personal hack tracking without ROM files
+- **Enhanced**: History page now supports both downloaded and manually added hacks
+- **Enhanced**: Improved button spacing and layout in edit dialogs
+- **Enhanced**: Better data integrity with proper difficulty capitalization
+- **Fixed**: Dialog button order and spacing for consistent UX
+- **Fixed**: Data loading issues when editing hacks
+
+### v4.1.1 - UI Enhancement Release
 - **New**: Collapsible search criteria section on Download page for better space utilization
 - **Enhanced**: Responsive search results area that expands when filters are collapsed
 - **Enhanced**: Improved button visibility and layout on smaller displays (laptops, netbooks)
@@ -225,6 +241,6 @@ The only requirement is to include the original copyright notice in any copies o
 
 ---
 
-**Version**: 4.1.0  
+**Version**: 4.2.0  
 **Last Updated**: July 2025  
 **Platforms**: Windows 10/11

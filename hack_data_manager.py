@@ -8,13 +8,22 @@ from datetime import datetime
 class HackDataManager:
     """Manages hack data from processed.json with history tracking"""
     
-    def __init__(self, json_path="processed.json"):
+    def __init__(self, json_path="processed.json", logger=None):
         self.json_path = json_path
+        self.logger = logger
         self.data = self._load_data()
         self.unsaved_changes = False
         self.last_save_time = 0
         self.save_delay = 2.0  # Wait 2 seconds before auto-saving
         self._save_timer = None
+    
+    def _log(self, message, level="Information"):
+        """Helper method to log messages if logger is available"""
+        if self.logger:
+            self.logger.log(message, level)
+        # Fall back to print for backward compatibility during transition
+        else:
+            print(f"[{level}] {message}")
     
     def _load_data(self):
         """Load data from processed.json"""
@@ -44,7 +53,7 @@ class HackDataManager:
         try:
             # Validate we have data to save
             if not self.data:
-                print("WARNING: Attempting to save empty data - operation cancelled")
+                self._log("⚠️ Attempting to save empty data - operation cancelled", "Error")
                 return False
                 
             # Create backup of current file before saving
@@ -55,10 +64,10 @@ class HackDataManager:
             
             with open(self.json_path, "w", encoding="utf-8") as f:
                 json.dump(self.data, f, indent=2)
-            print(f"SUCCESS: Saved {len(self.data)} hack records to {self.json_path}")
+            self._log(f"💾 Saved {len(self.data)} hack records to {self.json_path}", "Information")
             return True
         except Exception as e:
-            print(f"ERROR: Failed to save hack data: {e}")
+            self._log(f"❌ Failed to save hack data: {e}", "Error")
             return False
     
     def get_all_hacks(self, include_obsolete=False):
@@ -107,11 +116,11 @@ class HackDataManager:
     def update_hack(self, hack_id, field, value):
         """Update a specific field for a hack with delayed saving for performance"""
         if hack_id not in self.data:
-            print(f"ERROR: Hack ID {hack_id} not found in data")
+            self._log(f"❌ Hack ID {hack_id} not found in data", "Error")
             return False
             
         if not isinstance(self.data[hack_id], dict):
-            print(f"ERROR: Hack {hack_id} data is not a dictionary")
+            self._log(f"❌ Hack {hack_id} data is not a dictionary", "Error")
             return False
             
         try:
@@ -127,10 +136,10 @@ class HackDataManager:
             self.unsaved_changes = True
             self._schedule_delayed_save()
             
-            print(f"SUCCESS: Updated {field} for hack {hack_id}: '{old_value}' → '{value}' (will save in {self.save_delay}s)")
+            self._log(f"🔄 Updated {field} for hack {hack_id}: '{old_value}' → '{value}' (will save in {self.save_delay}s)", "Debug")
             return True
         except Exception as e:
-            print(f"ERROR: Exception updating hack {hack_id} field {field}: {e}")
+            self._log(f"❌ Exception updating hack {hack_id} field {field}: {e}", "Error")
             return False
     
     def _schedule_delayed_save(self):
@@ -148,9 +157,9 @@ class HackDataManager:
         if self.unsaved_changes:
             if self.save_data():
                 self.unsaved_changes = False
-                print(f"AUTO-SAVE: Successfully saved batched changes to {self.json_path}")
+                self._log(f"💾 Successfully saved batched changes to {self.json_path}", "Information")
             else:
-                print("AUTO-SAVE: Failed to save batched changes")
+                self._log("❌ Failed to save batched changes", "Error")
     
     def force_save(self):
         """Force immediate save of any pending changes"""
@@ -162,7 +171,7 @@ class HackDataManager:
             success = self.save_data()
             if success:
                 self.unsaved_changes = False
-                print(f"FORCED SAVE: Successfully saved pending changes to {self.json_path}")
+                self._log(f"💾 Successfully saved pending changes to {self.json_path}", "Information")
             return success
         return True
     
@@ -202,5 +211,28 @@ class HackDataManager:
             self._schedule_delayed_save()
             return True
         except Exception as e:
-            print(f"Error adding user hack: {e}")
+            self._log(f"❌ Error adding user hack: {e}", "Error")
+            return False
+    
+    def delete_hack(self, hack_id):
+        """Delete a hack entry (typically for user-created hacks)"""
+        try:
+            hack_id = str(hack_id)
+            if hack_id in self.data:
+                # Get hack data for potential file cleanup
+                hack_data = self.data[hack_id]
+                
+                # Remove from data
+                del self.data[hack_id]
+                self.unsaved_changes = True
+                self._schedule_delayed_save()
+                
+                # For user hacks, we might want to delete associated files
+                # but for now, just remove from JSON data
+                return True
+            else:
+                self._log(f"❌ Hack ID {hack_id} not found for deletion", "Error")
+                return False
+        except Exception as e:
+            self._log(f"❌ Error deleting hack {hack_id}: {e}", "Error")
             return False

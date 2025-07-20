@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
+from utils import resource_path
 
 class TableFilters:
     """Manages table filtering logic"""
@@ -284,8 +285,14 @@ class TableFilters:
         if not self.data_manager:
             messagebox.showerror("Error", "Data manager not available")
             return
+        
+        # Get the raw hack data from the data manager instead of using filtered display data
+        raw_hack_data = self.data_manager.data.get(str(hack_id))
+        if not raw_hack_data:
+            messagebox.showerror("Error", f"Hack data not found for ID {hack_id}")
+            return
             
-        dialog = AddHackDialog(None, self.data_manager, self.apply_callback, hack_data, hack_id)
+        dialog = AddHackDialog(None, self.data_manager, self.apply_callback, raw_hack_data, hack_id)
         dialog.show()
 
 
@@ -309,6 +316,12 @@ class AddHackDialog:
         self.dialog.geometry("750x650")  # Made wider to fit Demo radio buttons
         self.dialog.resizable(False, False)
         self.dialog.grab_set()  # Make dialog modal
+        
+        # Set application icon
+        try:
+            self.dialog.iconbitmap(resource_path("assets/icon.ico"))
+        except tk.TclError:
+            pass  # Ignore if icon can't be loaded
         
         # Center the dialog
         self.dialog.update_idletasks()
@@ -533,11 +546,20 @@ class AddHackDialog:
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill="x", pady=(20, 0))
         
-        ttk.Button(button_frame, text="Cancel", command=self.dialog.destroy).pack(side="right", padx=(10, 0))
+        # Pack buttons from right to left (since side="right" reverses order)
+        # Delete button first (will appear rightmost)
+        if self.is_editing and self.hack_id and str(self.hack_id).startswith("usr_"):
+            ttk.Button(button_frame, text="Delete", command=self._delete_hack).pack(side="right")
         
-        # Change button text based on mode
-        button_text = "Update Hack" if self.is_editing else "Save Hack"
-        ttk.Button(button_frame, text=button_text, command=self._save_hack).pack(side="right")
+        # Cancel button second (will appear in middle)
+        ttk.Button(button_frame, text="Cancel", command=self.dialog.destroy).pack(side="right", padx=(0, 10))
+        
+        # Update/Save button last (will appear leftmost)
+        button_text = "Update" if self.is_editing else "Save Hack"
+        ttk.Button(button_frame, text=button_text, command=self._save_hack).pack(side="right", padx=(0, 10))
+        
+        # Bind Enter key to trigger save/update button
+        self.dialog.bind('<Return>', lambda e: self._save_hack())
         
         # Populate fields if editing and apply restrictions
         if self.is_editing:
@@ -896,15 +918,15 @@ class AddHackDialog:
             # Update existing hack
             if self.is_user_hack:
                 # User hack - update all fields
-                # Convert capitalized values to lowercase for storage consistency
-                difficulty_storage = self.difficulty_var.get().lower()
+                # Keep proper capitalization for difficulty, convert type to lowercase for consistency
+                difficulty_storage = self.difficulty_var.get()  # Keep original capitalization
                 type_storage = self.type_var.get().lower().replace("-", "")  # Remove hyphens for consistency
                 
                 # Update each field individually
                 updates = {
                     "title": self.title_var.get().strip(),
                     "current_difficulty": difficulty_storage,
-                    "folder_name": difficulty_storage,
+                    "folder_name": difficulty_storage.lower(),  # folder_name can stay lowercase
                     "hack_type": type_storage,
                     "hack_types": [type_storage],
                     "hall_of_fame": self.hof_var.get() == "Yes",
@@ -943,25 +965,30 @@ class AddHackDialog:
                         break
             
             if success:
-                messagebox.showinfo("Success", f"Hack '{self.hack_data['title']}' updated successfully")
+                # Success - just close dialog and refresh, no popup needed
                 self.refresh_callback()  # Refresh the table
                 self.dialog.destroy()
             else:
                 messagebox.showerror("Error", "Failed to update hack")
         else:
             # Add new hack
+            # Check for duplicate titles first
+            new_title = self.title_var.get().strip()
+            if self._check_duplicate_title(new_title):
+                return  # User cancelled, don't proceed
+            
             # Get next user ID
             user_id = self._get_next_user_id()
             
-            # Convert capitalized values to lowercase for storage consistency
-            difficulty_storage = self.difficulty_var.get().lower()
+            # Keep proper capitalization for difficulty, convert type to lowercase for consistency
+            difficulty_storage = self.difficulty_var.get()  # Keep original capitalization
             type_storage = self.type_var.get().lower().replace("-", "")  # Remove hyphens for consistency
             
             # Create hack data
             hack_data = {
-                "title": self.title_var.get().strip(),
+                "title": new_title,
                 "current_difficulty": difficulty_storage,
-                "folder_name": difficulty_storage,
+                "folder_name": difficulty_storage.lower(),  # folder_name can stay lowercase
                 "hack_type": type_storage,
                 "hack_types": [type_storage],
                 "hall_of_fame": self.hof_var.get() == "Yes",
@@ -990,6 +1017,32 @@ class AddHackDialog:
             else:
                 messagebox.showerror("Error", "Failed to add hack")
     
+    def _check_duplicate_title(self, title):
+        """Check if title already exists and show warning dialog. Returns True if user cancelled."""
+        # Search through all hacks for matching titles
+        matching_hacks = []
+        for hack_id, hack_data in self.data_manager.data.items():
+            if isinstance(hack_data, dict) and hack_data.get("title", "").lower() == title.lower():
+                matching_hacks.append((hack_id, hack_data.get("title", "")))
+        
+        if matching_hacks:
+            # Show warning dialog
+            from tkinter import messagebox
+            result = messagebox.askokcancel(
+                "Duplicate Title Warning",
+                f"WARNING: Hack '{title}' already exists in History.\n\n"
+                f"Found {len(matching_hacks)} existing hack(s) with this title:\n" +
+                "\n".join([f"• {hack_title} (ID: {hack_id})" for hack_id, hack_title in matching_hacks[:3]]) +
+                (f"\n... and {len(matching_hacks) - 3} more" if len(matching_hacks) > 3 else "") +
+                "\n\nProceed to create duplicate anyway?",
+                icon="warning"
+            )
+            
+            if not result:  # User clicked Cancel
+                return True  # Return True to indicate cancellation
+        
+        return False  # Return False to proceed with saving
+    
     def _get_next_user_id(self):
         """Get the next available user ID"""
         existing_user_ids = []
@@ -1007,3 +1060,31 @@ class AddHackDialog:
             next_id += 1
             
         return f"usr_{next_id}"
+    
+    def _delete_hack(self):
+        """Delete a user-created hack after confirmation"""
+        if not self.hack_id or not str(self.hack_id).startswith("usr_"):
+            messagebox.showerror("Error", "Only manually added hacks can be deleted")
+            return
+        
+        # Get hack title for confirmation
+        hack_title = self.title_var.get().strip() if hasattr(self, 'title_var') else str(self.hack_id)
+        
+        # Show confirmation dialog
+        result = messagebox.askyesno(
+            "Delete Hack", 
+            f"Are you sure you want to delete '{hack_title}'?\n\nThis action cannot be undone.",
+            icon="warning"
+        )
+        
+        if result:
+            # Attempt to delete the hack
+            success = self.data_manager.delete_hack(self.hack_id)
+            
+            if success:
+                messagebox.showinfo("Success", f"Hack '{hack_title}' has been deleted.")
+                self.refresh_callback()  # Refresh the table
+                self.dialog.destroy()
+            else:
+                messagebox.showerror("Error", f"Failed to delete hack '{hack_title}'")
+        # If user clicked No, do nothing

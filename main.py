@@ -1,5 +1,5 @@
 """
-SMWCentral Downloader & Patcher v4.1
+SMWCentral Downloader & Patcher v4.2
 A desktop application for downloading and patching Super Mario World ROM hacks from SMWCentral
 
 Copyright (c) 2025 iamtheratio
@@ -20,7 +20,7 @@ import tempfile
 import requests
 import os
 
-VERSION = "v4.1"
+VERSION = "v4.2"
 
 def apply_theme_to_titlebar(root):
     if platform.system() != "Windows":

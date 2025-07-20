@@ -23,8 +23,8 @@ class HistoryPage:
     def __init__(self, parent, logger=None):
         self.parent = parent
         self.frame = None
-        self.data_manager = HackDataManager()
         self.logger = logger  # Add logger support
+        self.data_manager = HackDataManager(logger=logger)
         
         # v3.1 NEW: Pagination state
         self.current_page = 1
@@ -156,7 +156,8 @@ class HistoryPage:
         if hasattr(self.data_manager, 'unsaved_changes') and self.data_manager.unsaved_changes:
             self._log("💾 Saving pending changes before refresh to prevent data loss...", "Information")
             if self.data_manager.force_save():
-                self._log("✅ Successfully saved pending changes before refresh", "Success")
+                # Don't show success message here as it's redundant with add/edit confirmations
+                pass
             else:
                 self._log("❌ Failed to save pending changes - refresh cancelled", "Error")
                 return
