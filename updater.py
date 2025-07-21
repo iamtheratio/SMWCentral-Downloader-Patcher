@@ -110,18 +110,42 @@ class Updater:
             self.check_in_progress = False
     
     def _get_download_url(self, release_data):
-        """Extract the correct download URL from release assets"""
-        assets = release_data.get('assets', [])
+        """Extract the correct download URL from release assets based on platform"""
+        import platform
         
-        # Look for .zip files first (preferred)
+        assets = release_data.get('assets', [])
+        current_platform = platform.system().lower()
+        
+        # Platform-specific asset matching
+        platform_patterns = {
+            'darwin': ['macos', 'mac', 'darwin'],  # macOS
+            'windows': ['win', 'windows'],          # Windows
+            'linux': ['linux']                     # Linux (future support)
+        }
+        
+        # Look for platform-specific assets first
+        if current_platform in platform_patterns:
+            patterns = platform_patterns[current_platform]
+            for asset in assets:
+                asset_name_lower = asset['name'].lower()
+                if any(pattern in asset_name_lower for pattern in patterns):
+                    if asset_name_lower.endswith(('.zip', '.dmg', '.exe')):
+                        return asset['browser_download_url']
+        
+        # Fallback: Look for .zip files first (cross-platform)
         for asset in assets:
             if asset['name'].endswith('.zip'):
                 return asset['browser_download_url']
         
-        # Fallback to any executable
-        for asset in assets:
-            if asset['name'].endswith('.exe'):
-                return asset['browser_download_url']
+        # Fallback: Platform-specific executables
+        if current_platform == 'darwin':
+            for asset in assets:
+                if asset['name'].endswith('.dmg'):
+                    return asset['browser_download_url']
+        elif current_platform == 'windows':
+            for asset in assets:
+                if asset['name'].endswith('.exe'):
+                    return asset['browser_download_url']
         
         # If no suitable asset found, use the zipball URL
         return release_data.get('zipball_url')

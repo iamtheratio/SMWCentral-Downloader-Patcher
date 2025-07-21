@@ -1,6 +1,6 @@
 requests
 patch
-pywinstyles>=1.0.0
+pywinstyles>=1.0.0; sys_platform == "win32"
 sv-ttk
 pillow>=8.0.0
 ips_util
