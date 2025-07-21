@@ -15,7 +15,8 @@ from colors import get_colors
 try:
     from main import VERSION
 except ImportError:
-    VERSION = "v4.0"  # Updated version
+    from version_manager import get_version
+    VERSION = get_version()
 
 class HistoryPage:
     """Simplified hack history page with extracted components"""

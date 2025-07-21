@@ -1,5 +1,5 @@
 """
-SMWCentral Downloader & Patcher v4.3
+SMWCentral Downloader & Patcher
 A desktop application for downloading and patching Super Mario World ROM hacks from SMWCentral
 
 Copyright (c) 2025 iamtheratio
