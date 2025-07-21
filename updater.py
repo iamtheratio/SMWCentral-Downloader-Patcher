@@ -1545,7 +1545,11 @@ def check_for_updates_background(current_version, callback=None):
                 callback(update_info)
                 
         except Exception as e:
-            print(f"Background update check failed: {e}")
+            # Suppress errors during shutdown to prevent threading cleanup issues
+            if not ("interpreter is shutting down" in str(e).lower() or 
+                    "dummy thread" in str(e).lower() or
+                    "cannot schedule new futures" in str(e).lower()):
+                print(f"Background update check failed: {e}")
     
     thread = Thread(target=check, daemon=True)
     thread.start()

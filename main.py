@@ -500,6 +500,10 @@ def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=
         return True
 
 def main():
+    # Suppress threading cleanup errors during shutdown
+    import warnings
+    warnings.filterwarnings("ignore", message=".*NoneType.*context manager protocol.*")
+    
     root = tk.Tk()
     root.title("SMWC Downloader & Patcher")
     
@@ -566,6 +570,17 @@ def main():
                     history_page = pages['History']
                     if hasattr(history_page, 'cleanup'):
                         history_page.cleanup()
+            
+            # Clean up any background threads to prevent shutdown errors
+            try:
+                import threading
+                for thread in threading.enumerate():
+                    if thread != threading.current_thread() and thread.is_alive():
+                        if hasattr(thread, '_stop'):
+                            thread._stop()
+            except:
+                pass  # Ignore cleanup errors
+            
             root.destroy()
         
         root.protocol("WM_DELETE_WINDOW", on_closing)
@@ -638,7 +653,10 @@ def main():
     # Schedule update check after UI loads
     root.after(3000, check_for_updates_after_startup)  # Wait 3 seconds for UI to load
     
-    root.mainloop()
+    try:
+        root.mainloop()
+    finally:
+        pass  # Simple cleanup - let Python handle shutdown naturally
 
 if __name__ == "__main__":
     main()

@@ -1040,9 +1040,10 @@ class AddHackDialog:
             success = self.data_manager.add_user_hack(user_id, hack_data)
             
             if success:
-                messagebox.showinfo("Success", f"Hack '{hack_data['title']}' added successfully with ID {user_id}")
-                self.refresh_callback()  # Refresh the table
+                # Destroy dialog first to prevent brief reappearance
                 self.dialog.destroy()
+                self.refresh_callback()  # Refresh the table
+                messagebox.showinfo("Success", f"Hack '{hack_data['title']}' added successfully with ID {user_id}")
             else:
                 messagebox.showerror("Error", "Failed to add hack")
     
@@ -1099,11 +1100,15 @@ class AddHackDialog:
         # Get hack title for confirmation
         hack_title = self.title_var.get().strip() if hasattr(self, 'title_var') else str(self.hack_id)
         
-        # Show confirmation dialog
+        # Hide dialog immediately before showing confirmation to prevent flash
+        self.dialog.withdraw()
+        
+        # Show confirmation dialog with main window as parent
         result = messagebox.askyesno(
             "Delete Hack", 
             f"Are you sure you want to delete '{hack_title}'?\n\nThis action cannot be undone.",
-            icon="warning"
+            icon="warning",
+            parent=self.dialog.master  # Use main window as parent instead of edit dialog
         )
         
         if result:
@@ -1111,9 +1116,15 @@ class AddHackDialog:
             success = self.data_manager.delete_hack(self.hack_id)
             
             if success:
-                messagebox.showinfo("Success", f"Hack '{hack_title}' has been deleted.")
-                self.refresh_callback()  # Refresh the table
+                # Destroy dialog completely
                 self.dialog.destroy()
+                self.refresh_callback()  # Refresh the table
+                messagebox.showinfo("Success", f"Hack '{hack_title}' has been deleted.")
             else:
+                # Show dialog again if deletion failed
+                self.dialog.deiconify()
                 messagebox.showerror("Error", f"Failed to delete hack '{hack_title}'")
+        else:
+            # User clicked No - show dialog again
+            self.dialog.deiconify()
         # If user clicked No, do nothing
