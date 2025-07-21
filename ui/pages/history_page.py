@@ -179,8 +179,8 @@ class HistoryPage:
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        # Get filtered data
-        all_hacks = self.data_manager.get_all_hacks()
+        # Get filtered data - include obsolete hacks so table filters can handle them
+        all_hacks = self.data_manager.get_all_hacks(include_obsolete=True)
         self.filtered_data = self.filters.apply_filters(all_hacks)
         
         # Apply sorting

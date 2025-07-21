@@ -129,6 +129,9 @@ class DownloadPage:
         
         # Create difficulty section - this will maintain its original LabelFrame appearance
         self._create_difficulty_section(self.search_content)
+        
+        # Create search buttons below difficulty section
+        self.filters.create_search_buttons(self.search_content)
     
     def _create_difficulty_section(self, parent):
         """Create the difficulty section exactly like bulk download"""
