@@ -14,16 +14,24 @@ from utils import resource_path
 import sv_ttk
 import sys
 import platform
-import pywinstyles
 import shutil
 import tempfile
 import requests
 import os
 
+# Platform-specific imports
+try:
+    if platform.system() == "Windows":
+        import pywinstyles
+    else:
+        pywinstyles = None
+except ImportError:
+    pywinstyles = None
+
 VERSION = "v4.3"
 
 def apply_theme_to_titlebar(root):
-    if platform.system() != "Windows":
+    if platform.system() != "Windows" or pywinstyles is None:
         return
         
     version = sys.getwindowsversion()
