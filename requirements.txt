@@ -6,3 +6,4 @@ pillow>=8.0.0
 ips_util
 python-bps
 packaging
+customtkinter
