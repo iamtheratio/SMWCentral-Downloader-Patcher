@@ -1,4 +1,4 @@
-# SMWCentral Downloader & Patcher v4.2
+# SMWCentral Downloader & Patcher v4.3
 
 A powerful desktop application for downloading, organizing, and patching Super Mario World ROM hacks from SMWCentral. Streamline your hack discovery and management with advanced filtering, bulk downloads, comprehensive analytics, and automatic updates.
 
@@ -58,6 +58,7 @@ A powerful desktop application for downloading, organizing, and patching Super M
 - **Responsive Layout**: Search results area automatically expands when search criteria is collapsed
 - **Comprehensive Search**: Button-triggered search with advanced filtering capabilities
 - **Detailed Previews**: View hack information, screenshots, and ratings before downloading
+- **Improved UI Layout**: Reorganized filter controls for better usability and workflow
 
 ![Download Page](images/ss_app_download_v4.0.png)
 
@@ -84,6 +85,7 @@ A powerful desktop application for downloading, organizing, and patching Super M
 - **Duplicate Prevention**: Smart duplicate detection with user confirmation
 - **Bulk Operations**: Update multiple hacks at once
 - **Export Options**: Export your collection data
+- **Obsolete Filtering**: Filter to show/hide obsolete hack versions for better collection management
 
 ![History Page](images/ss_app_history_v4.0.png)
 
@@ -140,7 +142,14 @@ Output Directory/
 
 ## 📝 Changelog
 
-### v4.2.0 - Manual Hack Management Release *(Latest)*
+### v4.3.0 - UI Polish & Obsolete Filter Release *(Latest)*
+- **New**: Obsolete Records filter in History page to show/hide superseded hack versions
+- **Enhanced**: Download page layout improvements - search buttons repositioned for better workflow
+- **Enhanced**: Select All/Deselect All button moved to right side for improved accessibility  
+- **Improved**: Button positioning and user interface flow on Download page
+- **Improved**: History page data loading to support obsolete record filtering
+
+### v4.2.0 - Manual Hack Management Release
 - **New**: Add Hack dialog for manually adding hacks to your history
 - **New**: Edit manually added hacks with full CRUD operations
 - **New**: Delete functionality for user-created hack entries (usr_ prefix)
@@ -241,6 +250,6 @@ The only requirement is to include the original copyright notice in any copies o
 
 ---
 
-**Version**: 4.2.0  
+**Version**: 4.3.0  
 **Last Updated**: July 2025  
 **Platforms**: Windows 10/11

@@ -20,7 +20,7 @@ import tempfile
 import requests
 import os
 
-VERSION = "v4.2"
+VERSION = "v4.3"
 
 def apply_theme_to_titlebar(root):
     if platform.system() != "Windows":
