@@ -20,6 +20,12 @@ processed.json.pre-v*.backup*
 processed.json.*backup*
 PADDING_GUIDE.md
 
+# Development files
+*.log
+*.tmp
+.DS_Store
+test_canvas.py
+
 # VS Code
 .vscode/
 *.code-workspace
