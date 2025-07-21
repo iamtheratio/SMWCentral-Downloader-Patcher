@@ -24,7 +24,7 @@ class DashboardPage:
         self.parent_frame = parent_frame
         self.logger = logger
         self.frame = None
-        self.data_manager = HackDataManager()
+        self.data_manager = HackDataManager(logger=logger)
         self.analytics = DashboardAnalytics(self.data_manager)
         self.analytics_data = {}
         self.date_filter = "last_week"
@@ -147,7 +147,7 @@ class DashboardPage:
             self.logger.log("Refreshing dashboard data...", level="info")
         
         # Reload data
-        self.data_manager = HackDataManager()
+        self.data_manager = HackDataManager(logger=self.logger)
         self.analytics = DashboardAnalytics(self.data_manager)
         self._load_analytics_data()
         

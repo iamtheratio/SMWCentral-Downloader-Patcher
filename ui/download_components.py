@@ -41,6 +41,9 @@ class DownloadFilters:
         self.time_combo = None
         self.is_searching = False
         
+        # Entry widgets for Enter key binding
+        self.entry_widgets = []
+        
         # Create the filters
         self._create_filters()
         
@@ -58,6 +61,10 @@ class DownloadFilters:
         # Third row: Description, Include Waiting, Search buttons
         self._create_row3(filter_frame)
         
+        # Bind Enter key to all entry widgets to trigger search
+        for entry_widget in self.entry_widgets:
+            entry_widget.bind('<Return>', lambda e: self.callback_search())
+        
         # Time period can now work independently with API-based date sorting
         # No need for complex state tracking
         
@@ -70,7 +77,9 @@ class DownloadFilters:
         name_frame = ttk.Frame(row1_frame)
         name_frame.pack(side="left", fill="x", expand=True)
         ttk.Label(name_frame, text="Name:").pack(anchor="w")
-        ttk.Entry(name_frame, textvariable=self.name_var, width=40).pack(fill="x", pady=(2, 0))
+        name_entry = ttk.Entry(name_frame, textvariable=self.name_var, width=40)
+        name_entry.pack(fill="x", pady=(2, 0))
+        self.entry_widgets.append(name_entry)
         
         # Collab radio buttons
         collab_frame = ttk.Frame(row1_frame)
@@ -113,13 +122,17 @@ class DownloadFilters:
         tags_frame = ttk.Frame(row2_frame)
         tags_frame.pack(side="left", padx=(15, 0))
         ttk.Label(tags_frame, text="Tag(s):").pack(anchor="w")
-        ttk.Entry(tags_frame, textvariable=self.tags_var, width=15).pack(pady=(2, 0))
+        tags_entry = ttk.Entry(tags_frame, textvariable=self.tags_var, width=15)
+        tags_entry.pack(pady=(2, 0))
+        self.entry_widgets.append(tags_entry)
         
         # Authors field
         authors_frame = ttk.Frame(row2_frame)
         authors_frame.pack(side="left", padx=(15, 0))
         ttk.Label(authors_frame, text="Author(s):").pack(anchor="w")
-        ttk.Entry(authors_frame, textvariable=self.authors_var, width=15).pack(pady=(2, 0))
+        authors_entry = ttk.Entry(authors_frame, textvariable=self.authors_var, width=15)
+        authors_entry.pack(pady=(2, 0))
+        self.entry_widgets.append(authors_entry)
         
         # Time Period dropdown
         time_frame = ttk.Frame(row2_frame)
@@ -162,7 +175,9 @@ class DownloadFilters:
         description_frame = ttk.Frame(row3_frame)
         description_frame.pack(side="left")
         ttk.Label(description_frame, text="Description:").pack(anchor="w")
-        ttk.Entry(description_frame, textvariable=self.description_var, width=95).pack(pady=(2, 0))
+        description_entry = ttk.Entry(description_frame, textvariable=self.description_var, width=95)
+        description_entry.pack(pady=(2, 0))
+        self.entry_widgets.append(description_entry)
         
         # Include Waiting checkbox
         waiting_frame = ttk.Frame(row3_frame)

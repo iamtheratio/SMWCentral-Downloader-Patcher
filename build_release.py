@@ -1,5 +1,5 @@
 """
-SMWCentral Downloader v4.1 - Professional Build System
+SMWCentral Downloader v4.2 - Professional Build System
 Creates industry-standard release package with hidden updater directory structure.
 """
 
@@ -94,7 +94,7 @@ def create_release_packages():
     updater_exe = os.path.join("dist", "SMWC Updater.exe")
     
     # Create main package directory
-    package_dir = os.path.join(release_dir, "SMWC_Downloader_v4.1")
+    package_dir = os.path.join(release_dir, "SMWC_Downloader_v4.2")
     os.makedirs(package_dir)
     
     # Create updater subdirectory (hidden updater structure)
@@ -105,13 +105,20 @@ def create_release_packages():
     shutil.copy2(main_exe, package_dir)
     shutil.copy2(updater_exe, updater_subdir)
     
-    # Create empty config.json
-    empty_config = {}
+    # Create config.json with sensible defaults (paths remain empty for user setup)
+    default_config = {
+        "base_rom_path": "",
+        "output_dir": "",
+        "api_delay": 0.8,
+        "multi_type_enabled": True,
+        "multi_type_download_mode": "primary_only",
+        "auto_check_updates": True
+    }
     with open(os.path.join(package_dir, "config.json"), "w") as f:
-        json.dump(empty_config, f, indent=2)
+        json.dump(default_config, f, indent=2)
     
     # Create README.md
-    readme_content = """# SMWCentral Downloader & Patcher v4.1
+    readme_content = """# SMWCentral Downloader & Patcher v4.2
 
 A desktop application for downloading and patching Super Mario World ROM hacks from SMWCentral.
 
@@ -124,6 +131,9 @@ A desktop application for downloading and patching Super Mario World ROM hacks f
 ## Features
 
 - Download and patch Super Mario World ROM hacks from SMWCentral
+- **NEW**: Manual hack entry system - track hacks you've played elsewhere
+- **NEW**: Full CRUD operations for managing your hack collection
+- **NEW**: Duplicate detection with smart conflict resolution
 - Automatic update system with industry-standard architecture
 - Dark/Light theme support
 - Comprehensive hack management and filtering
@@ -152,7 +162,7 @@ Licensed under the MIT License
         f.write(readme_content)
     
     # Create zip package with proper name
-    zip_path = os.path.join(release_dir, "SMWC_Downloader_v4.1.zip")
+    zip_path = os.path.join(release_dir, "SMWC_Downloader_v4.2.zip")
     with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zip_file:
         for root, dirs, files in os.walk(package_dir):
             for file in files:
@@ -171,7 +181,7 @@ Licensed under the MIT License
 
 def main():
     """Main build process"""
-    print("🏭 SMWCentral Downloader v4.1 - Professional Build System")
+    print("🏭 SMWCentral Downloader v4.2 - Professional Build System")
     print("=" * 60)
     
     # Step 1: Build executables

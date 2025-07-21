@@ -5,7 +5,8 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from hack_data_manager import HackDataManager
-from ui.history_components import InlineEditor, DateValidator, NotesValidator, TableFilters, HackHistoryInlineEditor
+from ui.history_components import InlineEditor, DateValidator, NotesValidator, HackHistoryInlineEditor
+from ui.components.table_filters import TableFilters
 from ui_constants import get_page_padding, get_section_padding
 from utils import get_sorted_folder_name, move_hack_to_new_difficulty, get_primary_type, format_types_display
 from colors import get_colors
@@ -22,8 +23,8 @@ class HistoryPage:
     def __init__(self, parent, logger=None):
         self.parent = parent
         self.frame = None
-        self.data_manager = HackDataManager()
         self.logger = logger  # Add logger support
+        self.data_manager = HackDataManager(logger=logger)
         
         # v3.1 NEW: Pagination state
         self.current_page = 1
@@ -155,7 +156,8 @@ class HistoryPage:
         if hasattr(self.data_manager, 'unsaved_changes') and self.data_manager.unsaved_changes:
             self._log("💾 Saving pending changes before refresh to prevent data loss...", "Information")
             if self.data_manager.force_save():
-                self._log("✅ Successfully saved pending changes before refresh", "Success")
+                # Don't show success message here as it's redundant with add/edit confirmations
+                pass
             else:
                 self._log("❌ Failed to save pending changes - refresh cancelled", "Error")
                 return
@@ -302,7 +304,7 @@ class HistoryPage:
             self.notes_editor.start_edit(hack_id, item, event, "notes", "#8", NotesValidator.validate)
     
     def _on_item_double_click(self, event):
-        """Handle double click - show hack details"""
+        """Handle double click - show edit hack dialog"""
         item = self.tree.identify("item", event.x, event.y)
         if not item:
             return
@@ -312,10 +314,10 @@ class HistoryPage:
             return
         hack_id = tags[0]
         
-        # Find hack data and show details
+        # Find hack data and show edit dialog
         for hack in self.filtered_data:
             if str(hack.get("id")) == str(hack_id):
-                self._show_hack_details(hack)
+                self.filters.show_edit_hack_dialog(hack, hack_id)
                 break
     
     def _on_mouse_motion(self, event):
