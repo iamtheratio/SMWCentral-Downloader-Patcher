@@ -1,5 +1,7 @@
 import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
+from tkinter import ttk
+from tkinter import filedialog
+from tkinter import messagebox
 from colors import get_colors
 from datetime import datetime
 import sys

@@ -1,5 +1,6 @@
 import tkinter as tk
-from tkinter import ttk, filedialog
+from tkinter import ttk
+from tkinter import filedialog
 from colors import get_colors
 import sys
 import os
