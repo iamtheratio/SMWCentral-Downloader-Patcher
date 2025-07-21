@@ -335,7 +335,10 @@ class AddHackDialog:
         title = "Edit Hack" if self.is_editing else "Add Hack"
         self.dialog = tk.Toplevel()
         self.dialog.title(title)
-        self.dialog.geometry("750x650")  # Made wider to fit Demo radio buttons
+        
+        # Hide the window initially to prevent flickering during positioning
+        self.dialog.withdraw()
+        
         self.dialog.resizable(False, False)
         self.dialog.grab_set()  # Make dialog modal
         
@@ -345,13 +348,17 @@ class AddHackDialog:
         except tk.TclError:
             pass  # Ignore if icon can't be loaded
         
-        # Center the dialog
-        self.dialog.update_idletasks()
+        # Create the form first
+        self._create_form()
+        
+        # Calculate center position and set geometry
+        self.dialog.update_idletasks()  # Ensure proper size calculation
         x = (self.dialog.winfo_screenwidth() // 2) - (750 // 2)  # Updated for new width
         y = (self.dialog.winfo_screenheight() // 2) - (650 // 2)
-        self.dialog.geometry(f"750x650+{x}+{y}")  # Updated for new width
+        self.dialog.geometry(f"750x650+{x}+{y}")  # Set size and position together
         
-        self._create_form()
+        # Now show the dialog in the correct position
+        self.dialog.deiconify()
         
     def _create_form(self):
         """Create the form layout"""
