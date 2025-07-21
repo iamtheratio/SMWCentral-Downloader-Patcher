@@ -2,7 +2,7 @@
 
 A powerful desktop application for downloading, organizing, and patching Super Mario World ROM hacks from SMWCentral. Streamline your hack discovery and management with advanced filtering, bulk downloads, comprehensive analytics, and automatic updates.
 
-![Dashboard](images/ss_app_dashboard_v4.0.png)
+![Dashboard](images/ss_app_dashboard_v4.3.png)
 
 ## 📋 Table of Contents
 
@@ -60,7 +60,7 @@ A powerful desktop application for downloading, organizing, and patching Super M
 - **Detailed Previews**: View hack information, screenshots, and ratings before downloading
 - **Improved UI Layout**: Reorganized filter controls for better usability and workflow
 
-![Download Page](images/ss_app_download_v4.0.png)
+![Download Page](images/ss_app_download_v4.3.png)
 
 ### 📥 Intelligent Download System
 - **Bulk Downloads**: Select and download multiple hacks simultaneously
@@ -75,6 +75,8 @@ A powerful desktop application for downloading, organizing, and patching Super M
 - **Type Distribution**: See your preferences across different hack categories
 - **Advanced Metrics**: Detailed analytics about your gaming habits
 
+![History Page](images/ss_app_history_v4.3.png)
+
 ### 🗂️ Powerful History Management
 - **Complete History**: View all downloaded hacks with detailed information
 - **Manual Entry**: Add hacks manually to track your progress without ROM files
@@ -87,7 +89,7 @@ A powerful desktop application for downloading, organizing, and patching Super M
 - **Export Options**: Export your collection data
 - **Obsolete Filtering**: Filter to show/hide obsolete hack versions for better collection management
 
-![History Page](images/ss_app_history_v4.0.png)
+![Add Hack Dialog](images/ss_app_add_hack_v4.3.png)
 
 ### ⚙️ Professional Configuration
 - **Flexible Settings**: Configure base ROM paths, output directories, and preferences
@@ -103,7 +105,7 @@ A powerful desktop application for downloading, organizing, and patching Super M
 - **Fast Restarts**: Lightning-quick app restart process (under 6 seconds total)
 - **Update History**: View update logs in Settings for transparency
 
-![Settings Page](images/ss_app_settings_v4.0.png)
+![Settings Page](images/ss_app_settings_v4.3.png)
 
 ## � File Organization
 
