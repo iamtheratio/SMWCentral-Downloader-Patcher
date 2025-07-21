@@ -87,9 +87,7 @@ A powerful desktop application for downloading, organizing, and patching Super M
 - **Export Options**: Export your collection data
 - **Obsolete Filtering**: Filter to show/hide obsolete hack versions for better collection management
 
-![Add Hack Dialog](images/ss_app_add_hack_v4.3.png)
-
-![History Page](images/ss_app_history_v4.3.png)
+![Add Hack Dialog](images/ss_app_history_addhack_v4.3.png)
 
 ### ⚙️ Professional Configuration
 - **Flexible Settings**: Configure base ROM paths, output directories, and preferences
