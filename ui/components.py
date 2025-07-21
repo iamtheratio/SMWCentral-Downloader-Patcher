@@ -240,25 +240,27 @@ class DifficultySection:
                 style="Custom.TCheckbutton"
             ).pack(side="left", padx=(0, 15))
         
-        # Select All button underneath
+        # Select All button on the right side, aligned with the No Difficulty checkbox
         self.select_all_button = ttk.Button(
-            self.frame,
+            diff_frame,
             text="Select All",
             command=self._toggle_difficulties,
             style="Custom.TButton"
         )
-        self.select_all_button.pack(anchor="w")
+        self.select_all_button.pack(side="right", padx=(15, 0))
         
         return self.frame
     
     def _toggle_difficulties(self):
-        """Toggle all difficulties on or off"""
-        # Check current state - if any are checked, uncheck all; otherwise check all
-        any_checked = any(var.get() for var in self.difficulty_vars.values())
-        new_state = not any_checked
-        
-        for var in self.difficulty_vars.values():
-            var.set(new_state)
+        """Toggle all difficulties on or off based on button text"""
+        if self.select_all_button.cget("text") == "Select All":
+            # Select all difficulties
+            for var in self.difficulty_vars.values():
+                var.set(True)
+        else:
+            # Deselect all difficulties
+            for var in self.difficulty_vars.values():
+                var.set(False)
         
         # Update button text
         self._update_button_text()
@@ -267,9 +269,8 @@ class DifficultySection:
         """Update the Select All button text based on current state"""
         if self.select_all_button:
             any_checked = any(var.get() for var in self.difficulty_vars.values())
-            all_checked = all(var.get() for var in self.difficulty_vars.values())
             
-            if all_checked:
+            if any_checked:
                 self.select_all_button.configure(text="Deselect All")
             else:
                 self.select_all_button.configure(text="Select All")

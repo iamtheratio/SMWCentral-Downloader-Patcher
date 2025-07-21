@@ -38,6 +38,7 @@ class DownloadFilters:
         
         # UI components and state
         self.search_button = None
+        self.clear_button = None
         self.time_combo = None
         self.is_searching = False
         
@@ -167,7 +168,7 @@ class DownloadFilters:
             ttk.Radiobutton(sa1_radio_frame, text=option, variable=self.sa1_var, value=option).pack(side="left", padx=(0, 5))
     
     def _create_row3(self, parent):
-        """Create third row: Description, Include Waiting, Search buttons"""
+        """Create third row: Description, Include Waiting"""
         row3_frame = ttk.Frame(parent)
         row3_frame.pack(fill="x", pady=(0, 0))
         
@@ -188,14 +189,15 @@ class DownloadFilters:
             text="Include Waiting",
             variable=self.include_waiting_var
         ).pack(pady=(2, 0))
+    
+    def create_search_buttons(self, parent):
+        """Create search buttons - to be called separately after filters"""
+        button_frame = ttk.Frame(parent)
+        button_frame.pack(fill="x", pady=(10, 0))
         
-        # Search buttons
-        button_frame = ttk.Frame(row3_frame)
-        button_frame.pack(side="right")
-        ttk.Label(button_frame, text="").pack(anchor="w")  # Empty label for alignment
-        
+        # Right-align the buttons
         button_container = ttk.Frame(button_frame)
-        button_container.pack(pady=(2, 0))
+        button_container.pack(side="right")
         
         self.search_button = ttk.Button(
             button_container, 
@@ -205,12 +207,14 @@ class DownloadFilters:
         )
         self.search_button.pack(side="left")
         
-        clear_button = ttk.Button(
+        self.clear_button = ttk.Button(
             button_container,
             text="Clear Filters",
             command=self.callback_clear
         )
-        clear_button.pack(side="left", padx=(10, 0))
+        self.clear_button.pack(side="left", padx=(10, 0))
+        
+        return button_frame
     
     def _handle_search_cancel(self):
         """Handle search/cancel button clicks"""
@@ -225,10 +229,11 @@ class DownloadFilters:
     def set_searching_state(self, is_searching):
         """Update the search button state"""
         self.is_searching = is_searching
-        if is_searching:
-            self.search_button.configure(text="Cancel", state="normal")
-        else:
-            self.search_button.configure(text="Search Hacks", state="normal")
+        if self.search_button:  # Check if button exists
+            if is_searching:
+                self.search_button.configure(text="Cancel", state="normal")
+            else:
+                self.search_button.configure(text="Search Hacks", state="normal")
     
     def clear_all(self):
         """Clear all filter inputs"""
@@ -720,6 +725,8 @@ class DownloadButton:
                 self.callback_cancel()
         else:
             # Not downloading - start download
+            # Clear any completion message when starting new download
+            self.clear_completion_message()
             self.callback_download()
     
     def update_state(self, selected_count):
@@ -743,6 +750,16 @@ class DownloadButton:
             self.download_button.configure(state="normal")
             self.progress_label.configure(text="")
             self.is_downloading = False
+    
+    def set_completion_message(self, message="✅ All downloads completed!"):
+        """Set a completion message that stays visible until next download"""
+        if not self.is_downloading and self.progress_label:
+            self.progress_label.configure(text=message)
+    
+    def clear_completion_message(self):
+        """Clear the completion message"""
+        if not self.is_downloading and self.progress_label:
+            self.progress_label.configure(text="")
     
     def update_progress(self, current, total, hack_name=""):
         """Update progress display during download"""

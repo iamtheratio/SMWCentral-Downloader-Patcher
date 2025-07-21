@@ -129,6 +129,9 @@ class DownloadPage:
         
         # Create difficulty section - this will maintain its original LabelFrame appearance
         self._create_difficulty_section(self.search_content)
+        
+        # Create search buttons below difficulty section
+        self.filters.create_search_buttons(self.search_content)
     
     def _create_difficulty_section(self, parent):
         """Create the difficulty section exactly like bulk download"""
@@ -573,8 +576,9 @@ class DownloadPage:
             except Exception as e:
                 self._log(f"❌ Failed to download: {str(e)}", "Error")
             finally:
-                # Re-enable button
+                # Re-enable button and show completion message
                 self.frame.after(0, lambda: self.download_button_component.set_downloading(False))
+                self.frame.after(0, lambda: self.download_button_component.set_completion_message("✅ All downloads completed!"))
                 self.frame.after(0, lambda: self._update_selection_display())
         
         # Start download in background thread
@@ -588,8 +592,9 @@ class DownloadPage:
             cancel_operation()
             self._log("🛑 Download cancellation requested by user", "Information")
             
-            # Reset button state
+            # Reset button state and clear any messages
             self.download_button_component.set_downloading(False)
+            self.download_button_component.clear_completion_message()
             self._update_selection_display()
         except ImportError:
             self._log("❌ Could not import cancel_operation - cancellation not available", "Error")

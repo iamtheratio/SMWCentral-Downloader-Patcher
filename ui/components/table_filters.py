@@ -21,6 +21,7 @@ class TableFilters:
         self.collaboration_filter = tk.StringVar(value="All")
         self.demo_filter = tk.StringVar(value="All")
         self.user_content_filter = tk.StringVar(value="Any")  # Default to "Any" for dropdown
+        self.obsolete_filter = tk.StringVar(value="No")  # Default to "No" for obsolete records
         
     def create_filter_ui(self, parent, data_manager):
         """Create filter UI elements"""
@@ -95,14 +96,27 @@ class TableFilters:
         # More dropdown filters...
         self._create_remaining_dropdowns(dropdowns_frame)
         
-        # User Created Records filter (below dropdowns, left aligned)
-        user_records_frame = ttk.Frame(parent)
-        user_records_frame.pack(fill="x", pady=(8, 0))
+        # User Created Records and Obsolete Records filters (below dropdowns)
+        bottom_filters_frame = ttk.Frame(parent)
+        bottom_filters_frame.pack(fill="x", pady=(8, 0))
+        
+        # User Created Records filter (left side)
+        user_records_frame = ttk.Frame(bottom_filters_frame)
+        user_records_frame.pack(side="left", padx=(0, 30))
         ttk.Label(user_records_frame, text="User Created Records:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         user_records_combo = ttk.Combobox(user_records_frame, textvariable=self.user_content_filter,
                                         values=["Any", "Yes", "No"], state="readonly", width=12)
         user_records_combo.pack(anchor="w", pady=(2, 0))
         user_records_combo.bind("<<ComboboxSelected>>", lambda e: self.apply_callback())
+        
+        # Obsolete Records filter (right side)
+        obsolete_records_frame = ttk.Frame(bottom_filters_frame)
+        obsolete_records_frame.pack(side="left")
+        ttk.Label(obsolete_records_frame, text="Obsolete Records:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        obsolete_records_combo = ttk.Combobox(obsolete_records_frame, textvariable=self.obsolete_filter,
+                                            values=["Any", "Yes", "No"], state="readonly", width=12)
+        obsolete_records_combo.pack(anchor="w", pady=(2, 0))
+        obsolete_records_combo.bind("<<ComboboxSelected>>", lambda e: self.apply_callback())
         
     def _create_remaining_dropdowns(self, parent):
         """Create completed and rating dropdowns"""
@@ -202,6 +216,7 @@ class TableFilters:
         self.collaboration_filter.set("All")
         self.demo_filter.set("All")
         self.user_content_filter.set("Any")  # Reset to "Any" for dropdown
+        self.obsolete_filter.set("No")  # Reset to "No" for obsolete records
         self.apply_callback()
         
     def refresh_dropdown_values(self, data_manager):
@@ -256,6 +271,16 @@ class TableFilters:
             if user_content_filter_value == "Yes" and not is_user_created:
                 return False
             elif user_content_filter_value == "No" and is_user_created:
+                return False
+        
+        # Obsolete Records filter - check if hack is obsolete
+        obsolete_filter_value = self.obsolete_filter.get()
+        if obsolete_filter_value != "Any":
+            is_obsolete = hack.get("obsolete", False)
+            
+            if obsolete_filter_value == "Yes" and not is_obsolete:
+                return False
+            elif obsolete_filter_value == "No" and is_obsolete:
                 return False
             
         # More filter checks...
