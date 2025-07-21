@@ -105,10 +105,17 @@ def create_release_packages():
     shutil.copy2(main_exe, package_dir)
     shutil.copy2(updater_exe, updater_subdir)
     
-    # Create empty config.json
-    empty_config = {}
+    # Create config.json with sensible defaults (paths remain empty for user setup)
+    default_config = {
+        "base_rom_path": "",
+        "output_dir": "",
+        "api_delay": 0.8,
+        "multi_type_enabled": True,
+        "multi_type_download_mode": "primary_only",
+        "auto_check_updates": True
+    }
     with open(os.path.join(package_dir, "config.json"), "w") as f:
-        json.dump(empty_config, f, indent=2)
+        json.dump(default_config, f, indent=2)
     
     # Create README.md
     readme_content = """# SMWCentral Downloader & Patcher v4.2
