@@ -725,6 +725,8 @@ class DownloadButton:
                 self.callback_cancel()
         else:
             # Not downloading - start download
+            # Clear any completion message when starting new download
+            self.clear_completion_message()
             self.callback_download()
     
     def update_state(self, selected_count):
@@ -748,6 +750,16 @@ class DownloadButton:
             self.download_button.configure(state="normal")
             self.progress_label.configure(text="")
             self.is_downloading = False
+    
+    def set_completion_message(self, message="✅ All downloads completed!"):
+        """Set a completion message that stays visible until next download"""
+        if not self.is_downloading and self.progress_label:
+            self.progress_label.configure(text=message)
+    
+    def clear_completion_message(self):
+        """Clear the completion message"""
+        if not self.is_downloading and self.progress_label:
+            self.progress_label.configure(text="")
     
     def update_progress(self, current, total, hack_name=""):
         """Update progress display during download"""
