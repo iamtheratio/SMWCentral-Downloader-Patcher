@@ -173,9 +173,9 @@ class MigrationManager:
                     messagebox.showerror(
                         "Upgrade Failed", 
                         f"An error occurred during the upgrade:\n\n{error_msg}\n\n"
-                        "Your original database file was preserved. Please contact support for assistance."
+                        "Your original database file was preserved. The application will continue with your existing data."
                     ),
-                    root.quit()
+                    callback() if callback else None  # Continue instead of quitting
                 ])
         
         thread = threading.Thread(target=migration_thread, daemon=True)

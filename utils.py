@@ -12,6 +12,7 @@ import re
 import shutil
 import tkinter as tk
 import sys
+import platform
 
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller"""
@@ -493,15 +494,35 @@ def move_hack_to_new_difficulty(output_dir, hack_type, old_diff, new_diff, filen
     return False
 
 # Processed tracking
-def load_processed(path="processed.json"):
+def load_processed(path=None):
+    if path is None:
+        path = get_user_data_path("processed.json")
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
-def save_processed(data, path="processed.json"):
+def save_processed(data, path=None):
+    if path is None:
+        path = get_user_data_path("processed.json")
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+def get_user_data_path(filename):
+    """Get platform-specific user data directory for storing app files"""
+    system = platform.system()
+    home = os.path.expanduser("~")
+    
+    if system == "Darwin":  # macOS
+        app_data_dir = os.path.join(home, "Library", "Application Support", "SMWC Downloader")
+    elif system == "Windows":
+        app_data_dir = os.path.join(os.environ.get("APPDATA", home), "SMWC Downloader")
+    else:  # Linux and others
+        app_data_dir = os.path.join(home, ".smwc-downloader")
+    
+    return os.path.join(app_data_dir, filename)
 
 # Get base directory (project root)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))

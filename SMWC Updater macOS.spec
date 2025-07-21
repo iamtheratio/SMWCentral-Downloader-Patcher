@@ -32,7 +32,7 @@ exe = EXE(
     runtime_tmpdir=None,
     console=True,
     disable_windowed_traceback=False,
-    argv_emulation=False,
+    argv_emulation=True,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
@@ -43,5 +43,13 @@ app = BUNDLE(
     name='SMWC Updater.app',
     icon=None,
     bundle_identifier='com.iamtheratio.smwc-updater',
-    version='4.3.0'
+    version='4.3.0',
+    info_plist={
+        'LSBackgroundOnly': False,
+        'NSHighResolutionCapable': True,
+        'CFBundleDisplayName': 'SMWC Updater',
+        'CFBundleShortVersionString': '4.3.0',
+        'CFBundleVersion': '4.3.0',
+        'NSRequiresAquaSystemAppearance': False,
+    },
 )

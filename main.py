@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 SMWCentral Downloader & Patcher
 A desktop application for downloading and patching Super Mario World ROM hacks from SMWCentral
@@ -18,6 +19,7 @@ import shutil
 import tempfile
 import requests
 import os
+from PIL import Image, ImageTk
 
 # Platform-specific imports
 try:
@@ -111,6 +113,10 @@ def toggle_theme_callback(root):
         if root.navigation.nav_bar:
             root.navigation.nav_bar.configure(bg=colors["nav_bg"])
             root.navigation._update_tab_styles(root.navigation.current_page)
+            
+            # Force the color to persist after theme change
+            root.after(50, lambda: root.navigation.nav_bar.configure(bg=colors["nav_bg"]))
+            root.after(150, lambda: root.navigation.nav_bar.configure(bg=colors["nav_bg"]))
             
             # Update toggle background rectangle
             for item in root.navigation.nav_bar.find_withtag("toggle_bg"):
@@ -508,58 +514,67 @@ def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=
         return True
 
 def main():
-    # Suppress threading cleanup errors during shutdown
-    import warnings
-    warnings.filterwarnings("ignore", message=".*NoneType.*context manager protocol.*")
-    
-    root = tk.Tk()
-    root.title("SMWC Downloader & Patcher")
-    
-    # Set responsive window geometry based on screen size
-    screen_width = root.winfo_screenwidth()
-    screen_height = root.winfo_screenheight()
-    
-    # Calculate optimal window size for different screen resolutions
-    if screen_height <= 768:  # Small displays (laptops, netbooks)
-        window_width = min(950, int(screen_width * 0.9))
-        window_height = min(700, int(screen_height * 0.85))
-    elif screen_height <= 1080:  # Standard displays
-        window_width = min(1050, int(screen_width * 0.8))
-        window_height = min(850, int(screen_height * 0.8))
-    else:  # Large displays
-        window_width = 1050
-        window_height = 900
-    
-    # Center the window on screen
-    x = (screen_width - window_width) // 2
-    y = (screen_height - window_height) // 2
-    
-    root.geometry(f"{window_width}x{window_height}+{x}+{y}")
-    root.minsize(800, 600)  # Minimum size to ensure usability on smaller displays
-    
-    # Allow window to be resizable for responsive behavior
-    root.resizable(True, True)
-    
-    # Set application icon
+    """Main application entry point"""
     try:
-        root.iconbitmap(resource_path("assets/icon.ico"))
-    except tk.TclError:
-        print("Could not load application icon. Make sure the file exists.")
+        # Suppress threading cleanup errors during shutdown
+        import warnings
+        warnings.filterwarnings("ignore", message=".*NoneType.*context manager protocol.*")
+        
+        root = tk.Tk()
+        root.title("SMWC Downloader & Patcher")
+        
+        # Set responsive window geometry based on screen size
+        screen_width = root.winfo_screenwidth()
+        screen_height = root.winfo_screenheight()
+        
+        # Calculate optimal window size for different screen resolutions
+        if screen_height <= 768:  # Small displays (laptops, netbooks)
+            window_width = min(950, int(screen_width * 0.9))
+            window_height = min(700, int(screen_height * 0.85))
+        elif screen_height <= 1080:  # Standard displays
+            window_width = min(1050, int(screen_width * 0.8))
+            window_height = min(850, int(screen_height * 0.8))
+        else:  # Large displays
+            window_width = 1050
+            window_height = 900
+        
+        # Center the window on screen
+        x = (screen_width - window_width) // 2
+        y = (screen_height - window_height) // 2
     
-    # Initial setup
-    style = ttk.Style()
-    # MOVED: Set USE_FONT_CONFIG to False BEFORE setting theme
-    sv_ttk.USE_FONT_CONFIG = False
-    sv_ttk.set_theme("dark")
-    
-    # Configure fonts after theme
-    apply_font_settings(root, style)
-    
-    # Apply title bar theme immediately after dark theme is set
-    apply_theme_to_titlebar(root)
-    
-    # Check for migration before setting up UI
-    def setup_after_migration():
+        root.geometry(f"{window_width}x{window_height}+{x}+{y}")
+        root.minsize(800, 600)  # Minimum size to ensure usability on smaller displays
+        
+        # Allow window to be resizable for responsive behavior
+        root.resizable(True, True)
+        
+        # Set application icon
+        try:
+            icon_path = resource_path("assets/icon.ico")
+            root.iconbitmap(icon_path)
+            
+            # Additional macOS title bar icon attempt
+            if platform.system() == "Darwin":
+                try:
+                    # Try to set window manager icon for title bar
+                    root.tk.call('wm', 'iconbitmap', root._w, icon_path)
+                except:
+                    pass
+        except tk.TclError:
+            pass  # Ignore icon loading errors
+        
+        # Initial setup
+        style = ttk.Style()
+        # MOVED: Set USE_FONT_CONFIG to False BEFORE setting theme
+        sv_ttk.USE_FONT_CONFIG = False
+        sv_ttk.set_theme("dark")
+        
+        # Configure fonts after theme
+        apply_font_settings(root, style)
+        
+        # Apply title bar theme immediately after dark theme is set
+        apply_theme_to_titlebar(root)
+        
         # Setup UI and run - pass version to setup_ui
         download_button = setup_ui(root, run_pipeline_wrapper, toggle_theme_callback, VERSION)
         
@@ -592,79 +607,78 @@ def main():
             root.destroy()
         
         root.protocol("WM_DELETE_WINDOW", on_closing)
-    
-    # Import and run migration check
-    try:
-        from migration_manager import check_and_migrate
-        if not check_and_migrate(root, setup_after_migration):
-            return  # User cancelled migration, app should close
-    except ImportError:
-        # If migration manager doesn't exist, just setup normally
-        setup_after_migration()
-    
-    # Quick multi-type migration check (silent, fast)
-    try:
-        from api_pipeline import load_processed, save_processed
-        processed = load_processed()
-        needs_multi_type_update = False
-        needs_obsolete_update = False
         
-        for hack_id, hack_data in processed.items():
-            if isinstance(hack_data, dict):
-                # Multi-type migration
-                if "hack_type" in hack_data and "hack_types" not in hack_data:
-                    # Convert single hack_type to hack_types array
-                    single_type = hack_data["hack_type"]
-                    hack_data["hack_types"] = [single_type] if single_type else ["standard"]
-                    needs_multi_type_update = True
-                
-                # Obsolete field migration
-                if "obsolete" not in hack_data:
-                    hack_data["obsolete"] = False  # Default existing hacks to not obsolete
-                    needs_obsolete_update = True
-        
-        if needs_multi_type_update or needs_obsolete_update:
-            save_processed(processed)
-            updates = []
-            if needs_multi_type_update:
-                updates.append("multi-type support")
-            if needs_obsolete_update:
-                updates.append("obsolete tracking")
-            print(f"✅ Updated processed.json for {' and '.join(updates)}")
-    except Exception as e:
-        print(f"Note: Could not update processed.json for new features: {e}")
-    
-    # Check for updates in background after UI loads
-    def check_for_updates_after_startup():
-        """Check for updates after the UI has fully loaded"""
+        # Import and run migration check
         try:
-            from config_manager import ConfigManager
-            from updater import check_for_updates_background, show_update_dialog
+            from migration_manager import check_and_migrate
+            migration_result = check_and_migrate(root, lambda: None)
+            if not migration_result:
+                return  # User cancelled migration, app should close
+        except ImportError:
+            pass  # No migration manager
+        
+        # Quick multi-type migration check (silent, fast)
+        try:
+            from api_pipeline import load_processed, save_processed
+            processed = load_processed()
+            needs_multi_type_update = False
+            needs_obsolete_update = False
             
-            config = ConfigManager()
-            auto_check = config.get("auto_check_updates", True)
-            
-            if auto_check:
-                def handle_update(update_info):
-                    """Handle update info from background check"""
-                    def show_dialog():
-                        dialog = show_update_dialog(root, update_info)
+            for hack_id, hack_data in processed.items():
+                if isinstance(hack_data, dict):
+                    # Multi-type migration
+                    if "hack_type" in hack_data and "hack_types" not in hack_data:
+                        # Convert single hack_type to hack_types array
+                        single_type = hack_data["hack_type"]
+                        hack_data["hack_types"] = [single_type] if single_type else ["standard"]
+                        needs_multi_type_update = True
                     
-                    # Schedule dialog to show on main thread
-                    root.after(0, show_dialog)
+                    # Obsolete field migration
+                    if "obsolete" not in hack_data:
+                        hack_data["obsolete"] = False  # Default existing hacks to not obsolete
+                        needs_obsolete_update = True
+            
+            if needs_multi_type_update or needs_obsolete_update:
+                save_processed(processed)
+        except Exception:
+            pass  # Ignore migration errors
+        
+        # Check for updates in background after UI loads
+        def check_for_updates_after_startup():
+            """Check for updates after the UI has fully loaded"""
+            try:
+                from config_manager import ConfigManager
+                from updater import check_for_updates_background, show_update_dialog
                 
-                # Start background check
-                check_for_updates_background(VERSION.lstrip('v'), handle_update)
-        except Exception as e:
-            print(f"Failed to start background update check: {e}")
-    
-    # Schedule update check after UI loads
-    root.after(3000, check_for_updates_after_startup)  # Wait 3 seconds for UI to load
-    
-    try:
+                config = ConfigManager()
+                auto_check = config.get("auto_check_updates", True)
+                
+                if auto_check:
+                    def handle_update(update_info):
+                        """Handle update info from background check"""
+                        def show_dialog():
+                            dialog = show_update_dialog(root, update_info)
+                        
+                        # Schedule dialog to show on main thread
+                        root.after(0, show_dialog)
+                    
+                    # Start background check
+                    check_for_updates_background(VERSION.lstrip('v'), handle_update)
+            except Exception:
+                pass  # Ignore update check errors
+        
+        # Schedule update check after UI loads
+        root.after(3000, check_for_updates_after_startup)  # Wait 3 seconds for UI to load
+        
         root.mainloop()
-    finally:
-        pass  # Simple cleanup - let Python handle shutdown naturally
+    
+    except Exception as main_error:
+        try:
+            import tkinter.messagebox as msgbox
+            msgbox.showerror("Application Error", f"A fatal error occurred:\n\n{main_error}")
+        except:
+            pass
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()

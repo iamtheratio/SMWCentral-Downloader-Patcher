@@ -6,6 +6,7 @@ import tkinter as tk
 from tkinter import ttk
 import sys
 import os
+import platform
 
 # Add paths for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -80,27 +81,49 @@ class DashboardPage:
         # Configure canvas scrolling
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
-        # Mouse wheel scrolling - robust recursive approach
+        # Mouse wheel scrolling - different approach for macOS trackpad
         def _on_mousewheel(event):
-            self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
+            """Handle mouse wheel scrolling"""
+            if platform.system() == "Darwin":  # macOS
+                # Try different approaches for macOS
+                delta = event.delta
+                self.canvas.yview_scroll(-delta, "units")
+            else:  # Windows/Linux
+                self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
         
-        def bind_to_mousewheel(widget):
-            """Recursively bind mouse wheel to widget and all its children"""
+        def _on_trackpad(event):
+            """Alternative trackpad handler for macOS"""
+            self.canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
+        
+        # Try multiple binding approaches for macOS trackpad
+        widgets_to_bind = [self.canvas, self.scrollable_frame, self.frame, self.parent_frame]
+        
+        for widget in widgets_to_bind:
+            # Standard mouse wheel
             widget.bind("<MouseWheel>", _on_mousewheel)
-            for child in widget.winfo_children():
-                bind_to_mousewheel(child)
+            
+            # macOS specific bindings
+            if platform.system() == "Darwin":
+                # Try different event types for macOS trackpad
+                widget.bind("<Button-4>", lambda e: self.canvas.yview_scroll(-1, "units"))
+                widget.bind("<Button-5>", lambda e: self.canvas.yview_scroll(1, "units"))
+                # Additional macOS trackpad events
+                try:
+                    widget.bind("<Shift-MouseWheel>", _on_trackpad)
+                    widget.bind("<Control-MouseWheel>", _on_mousewheel)
+                except:
+                    pass
+            
+            # Ensure widget can receive events
+            try:
+                widget.bind("<Button-1>", lambda e, w=widget: w.focus_set())
+                widget.bind("<Enter>", lambda e, w=widget: w.focus_set())
+            except:
+                pass
         
-        def bind_mousewheel_recursive():
-            """Bind mouse wheel to all widgets in the scrollable frame"""
-            self.canvas.bind("<MouseWheel>", _on_mousewheel)
-            self.frame.bind("<MouseWheel>", _on_mousewheel)
-            bind_to_mousewheel(self.scrollable_frame)
-        
-        # Bind initially
-        bind_mousewheel_recursive()
-        
-        # Store the function to re-bind after content updates
-        self._bind_mousewheel_recursive = bind_mousewheel_recursive
+        # Make sure canvas is focused and can scroll
+        self.canvas.focus_set()
+        self.canvas.configure(takefocus=True)
         
         # Pack canvas and scrollbar
         self.canvas.pack(side="left", fill="both", expand=True)
@@ -136,10 +159,6 @@ class DashboardPage:
         # Ensure scroll region is properly set after content creation
         self.scrollable_frame.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
-        
-        # Re-bind mouse wheel to all new content
-        if hasattr(self, '_bind_mousewheel_recursive'):
-            self._bind_mousewheel_recursive()
     
     def _refresh_dashboard(self):
         """Refresh dashboard data and UI"""

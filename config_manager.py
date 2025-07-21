@@ -8,8 +8,27 @@ Licensed under the MIT License - see LICENSE file for details
 
 import json
 import os
+import platform
 
-CONFIG_PATH = "config.json"
+def get_config_path():
+    """Get the appropriate config path for the current platform"""
+    if platform.system() == "Darwin":  # macOS
+        # Use ~/Library/Application Support/SMWCDownloader/
+        config_dir = os.path.expanduser("~/Library/Application Support/SMWCDownloader")
+        os.makedirs(config_dir, exist_ok=True)
+        return os.path.join(config_dir, "config.json")
+    elif platform.system() == "Windows":
+        # Use %APPDATA%/SMWCDownloader/
+        config_dir = os.path.join(os.environ.get("APPDATA", ""), "SMWCDownloader")
+        os.makedirs(config_dir, exist_ok=True)
+        return os.path.join(config_dir, "config.json")
+    else:
+        # Linux - use ~/.config/smwc-downloader/
+        config_dir = os.path.expanduser("~/.config/smwc-downloader")
+        os.makedirs(config_dir, exist_ok=True)
+        return os.path.join(config_dir, "config.json")
+
+CONFIG_PATH = get_config_path()
 
 class ConfigManager:
     """Handles application configuration saving and loading"""

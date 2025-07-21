@@ -3,6 +3,10 @@
 SMWCentral Downloader - macOS Build System
 Creates macOS .app bundles and DMG installer packages.
 Version is automatically pulled from main.py
+
+NOTE: Uses --onedir mode instead of --onefile to fix the macOS issue where
+apps built with PyInstaller --onefile open, close, then reopen after a delay.
+This is a known PyInstaller limitation on macOS.
 """
 
 import os
@@ -93,6 +97,27 @@ def build_macos_executables():
     updater_size = get_app_size(updater_app)
     print(f"[OK] Main app built: {main_size:.1f}MB")
     print(f"[OK] Updater built: {updater_size:.1f}MB")
+    
+    # Fix macOS app bundle issues
+    print("🔧 Fixing macOS app bundle...")
+    import sys
+    result = subprocess.run([sys.executable, "fix_macos_app.py"], capture_output=True, text=True)
+    if result.returncode != 0:
+        print(f"⚠️ App fix completed with warnings: {result.stderr}")
+    else:
+        print("✅ App bundle fixed successfully")
+    
+    # Code sign the apps to prevent Team ID mismatch errors
+    print("🔑 Code signing app bundles...")
+    for app_path in [main_app, updater_app]:
+        result = subprocess.run([
+            "codesign", "--force", "--deep", "--sign", "-", app_path
+        ], capture_output=True, text=True)
+        
+        if result.returncode == 0:
+            print(f"✅ Code signed: {os.path.basename(app_path)}")
+        else:
+            print(f"⚠️ Code signing failed for {os.path.basename(app_path)}: {result.stderr}")
     
     return True
 

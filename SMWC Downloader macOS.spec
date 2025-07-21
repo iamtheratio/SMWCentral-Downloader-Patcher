@@ -32,7 +32,7 @@ exe = EXE(
     runtime_tmpdir=None,
     console=False,
     disable_windowed_traceback=False,
-    argv_emulation=False,
+    argv_emulation=True,
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
@@ -43,5 +43,15 @@ app = BUNDLE(
     name='SMWC Downloader.app',
     icon='assets/icon.ico',
     bundle_identifier='com.iamtheratio.smwc-downloader',
-    version='4.3.0'
+    version='4.3.0',
+    info_plist={
+        'LSBackgroundOnly': False,
+        'NSHighResolutionCapable': True,
+        'CFBundleDisplayName': 'SMWC Downloader & Patcher',
+        'CFBundleName': 'SMWC Downloader & Patcher',
+        'LSApplicationCategoryType': 'public.app-category.utilities',
+        'NSAppTransportSecurity': {
+            'NSAllowsArbitraryLoads': True
+        }
+    }
 )

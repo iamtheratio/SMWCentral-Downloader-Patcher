@@ -2,12 +2,16 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import sys
 import os
+import platform
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from hack_data_manager import HackDataManager
 from ui.history_components import InlineEditor, DateValidator, NotesValidator, HackHistoryInlineEditor
 from ui.components.table_filters import TableFilters
 from ui_constants import get_page_padding, get_section_padding
+
+# Platform-specific cursor
+HOVER_CURSOR = "pointinghand" if platform.system() == "Darwin" else "hand2"
 from utils import get_sorted_folder_name, move_hack_to_new_difficulty, get_primary_type, format_types_display
 from colors import get_colors
 
@@ -327,7 +331,7 @@ class HistoryPage:
         column = self.tree.identify("column", event.x, event.y)
         
         if item and column in ["#1", "#5", "#6", "#7"]:
-            self.tree.config(cursor="hand2")
+            self.tree.config(cursor=HOVER_CURSOR)
             
             # ENHANCED: Show rating preview on hover
             if column == "#5":  # Rating column
@@ -376,7 +380,7 @@ class HistoryPage:
         
         # Optional: Update tooltip or status to show preview
         # For now, just ensure the cursor indicates interactivity
-        self.tree.config(cursor="hand2")
+        self.tree.config(cursor=HOVER_CURSOR)
     
     def _toggle_completed(self, hack_id):
         """Toggle completed status for a hack"""
