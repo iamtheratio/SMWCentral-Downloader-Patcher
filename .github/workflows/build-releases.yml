@@ -58,7 +58,7 @@ jobs:
       id: create_windows_archive
 
     - name: Upload Windows artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: windows-build
         path: ${{ steps.create_windows_archive.outputs.WINDOWS_ARCHIVE }}
@@ -192,7 +192,7 @@ jobs:
       id: create_macos_dmg
 
     - name: Upload macOS artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: macos-build
         path: ${{ steps.create_macos_dmg.outputs.MACOS_DMG }}
@@ -293,7 +293,7 @@ jobs:
       id: create_linux_archive
 
     - name: Upload Linux artifact
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: linux-build
         path: ${{ steps.create_linux_archive.outputs.LINUX_ARCHIVE }}
@@ -314,7 +314,7 @@ jobs:
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
 
     - name: Create Release
       id: create_release
