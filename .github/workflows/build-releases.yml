@@ -48,12 +48,22 @@ jobs:
     - name: Build Windows executable
       run: |
         pyinstaller "SMWC Downloader.spec" --clean --noconfirm
+        pyinstaller "SMWC Updater.spec" --clean --noconfirm
         
     - name: Create Windows archive
       run: |
         $version = "${{ steps.get_version.outputs.VERSION }}"
         $archiveName = "SMWC-Downloader-$version-Windows-x64.zip"
-        Compress-Archive -Path "dist\*" -DestinationPath $archiveName
+        
+        # Create a temporary directory for packaging
+        New-Item -ItemType Directory -Path package -Force
+        Copy-Item "dist\SMWC Downloader.exe" -Destination package\
+        Copy-Item "dist\SMWC Updater.exe" -Destination package\
+        Copy-Item "config.json" -Destination package\
+        Copy-Item "README.md" -Destination package\
+        
+        # Create archive
+        Compress-Archive -Path "package\*" -DestinationPath $archiveName
         echo "WINDOWS_ARCHIVE=$archiveName" >> $env:GITHUB_OUTPUT
       id: create_windows_archive
 
@@ -99,6 +109,7 @@ jobs:
     - name: Build macOS application
       run: |
         pyinstaller "SMWC Downloader macOS.spec" --clean --noconfirm
+        pyinstaller "SMWC Updater macOS.spec" --clean --noconfirm
 
     - name: Sign macOS app (if certificates available)
       if: ${{ env.APPLE_CERTIFICATE_BASE64 != '' }}
@@ -119,6 +130,9 @@ jobs:
         # Create a temporary directory for DMG contents
         mkdir -p dmg_contents
         cp -R "dist/SMWC Downloader.app" dmg_contents/
+        cp -R "dist/SMWC Updater.app" dmg_contents/
+        cp config.json dmg_contents/
+        cp README.md dmg_contents/
         
         # Create symbolic link to Applications
         ln -s /Applications dmg_contents/Applications
@@ -221,6 +235,49 @@ jobs:
     - name: Build Linux executable
       run: |
         pyinstaller "SMWC Downloader Linux.spec" --clean --noconfirm
+        
+        # Create updater spec for Linux
+        cat > "SMWC Updater Linux.spec" << 'EOF'
+        # -*- mode: python ; coding: utf-8 -*-
+
+        a = Analysis(
+            ['standalone_updater.py'],
+            pathex=[],
+            binaries=[],
+            datas=[],
+            hiddenimports=[],
+            hookspath=[],
+            hooksconfig={},
+            runtime_hooks=[],
+            excludes=[],
+            noarchive=False,
+            optimize=0,
+        )
+        pyz = PYZ(a.pure)
+
+        exe = EXE(
+            pyz,
+            a.scripts,
+            a.binaries,
+            a.datas,
+            [],
+            name='smwc-updater',
+            debug=False,
+            bootloader_ignore_signals=False,
+            strip=False,
+            upx=False,
+            upx_exclude=[],
+            runtime_tmpdir=None,
+            console=False,
+            disable_windowed_traceback=False,
+            argv_emulation=False,
+            target_arch=None,
+            codesign_identity=None,
+            entitlements_file=None,
+        )
+        EOF
+        
+        pyinstaller "SMWC Updater Linux.spec" --clean --noconfirm
 
     - name: Create Linux archive
       run: |
@@ -230,6 +287,8 @@ jobs:
         # Create a temporary directory for packaging
         mkdir -p package
         cp dist/smwc-downloader package/
+        cp dist/smwc-updater package/
+        cp config.json package/
         cp README.md package/
         
         # Create archive
