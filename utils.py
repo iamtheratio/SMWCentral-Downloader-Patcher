@@ -31,21 +31,36 @@ def set_window_icon(window):
             # On Linux, use PNG icon with iconphoto
             try:
                 from PIL import Image, ImageTk
-                icon_path = resource_path("assets/icons/smwc-downloader-64x64.png")
-                if os.path.exists(icon_path):
-                    icon_image = Image.open(icon_path)
+                # Try multiple icon sizes for better compatibility
+                icon_sizes = ["64x64", "48x48", "32x32"]
+                for size in icon_sizes:
+                    icon_path = resource_path(f"assets/icons/smwc-downloader-{size}.png")
+                    if os.path.exists(icon_path):
+                        icon_image = Image.open(icon_path)
+                        icon_photo = ImageTk.PhotoImage(icon_image)
+                        window.iconphoto(True, icon_photo)
+                        # Keep a reference to prevent garbage collection
+                        if not hasattr(window, '_icon_ref'):
+                            window._icon_ref = icon_photo
+                        return
+                        
+                # If no PNG icons found, try the default from assets root
+                fallback_icon = resource_path("assets/icon.ico")
+                if os.path.exists(fallback_icon):
+                    # Try to convert .ico to usable format on Linux
+                    icon_image = Image.open(fallback_icon)
                     icon_photo = ImageTk.PhotoImage(icon_image)
                     window.iconphoto(True, icon_photo)
-                    # Keep a reference to prevent garbage collection
-                    if not hasattr(window, '_icon_ref'):
-                        window._icon_ref = icon_photo
+                    window._icon_ref = icon_photo
                     return
-            except (ImportError, Exception):
+            except (ImportError, Exception) as e:
+                print(f"Linux icon loading failed: {e}")  # Debug info
                 pass
         
         # Fallback to .ico for Windows/macOS or if PNG method fails
         window.iconbitmap(resource_path("assets/icon.ico"))
-    except (tk.TclError, AttributeError):
+    except (tk.TclError, AttributeError) as e:
+        print(f"Icon setting failed: {e}")  # Debug info
         pass  # Fallback silently if icon not found or not supported
 
 # Difficulty mappings

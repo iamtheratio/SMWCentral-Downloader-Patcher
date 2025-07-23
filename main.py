@@ -668,20 +668,9 @@ def main():
         # Allow window to be resizable for responsive behavior
         root.resizable(True, True)
 
-        # Set application icon
-        try:
-            icon_path = resource_path("assets/icon.ico")
-            root.iconbitmap(icon_path)
-
-            # Additional macOS title bar icon attempt
-            if platform.system() == "Darwin":
-                try:
-                    # Try to set window manager icon for title bar
-                    root.tk.call('wm', 'iconbitmap', root._w, icon_path)
-                except Exception:
-                    pass
-        except tk.TclError:
-            pass  # Ignore icon loading errors
+        # Set application icon using our cross-platform function
+        from utils import set_window_icon
+        set_window_icon(root)
 
         # Initial setup
         style = ttk.Style()
