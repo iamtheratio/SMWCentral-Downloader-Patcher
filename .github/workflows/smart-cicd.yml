@@ -146,6 +146,7 @@ jobs:
             target_arch=None,
             codesign_identity=None,
             entitlements_file=None,
+            icon='assets/icons/smwc-downloader-64x64.png',
         )
         EOF
         pyinstaller "SMWC Downloader Linux.spec" --clean --noconfirm
@@ -232,6 +233,7 @@ jobs:
             target_arch=None,
             codesign_identity=None,
             entitlements_file=None,
+            icon='assets/icons/smwc-downloader-64x64.png',
         )
         EOF
         # Build updater
