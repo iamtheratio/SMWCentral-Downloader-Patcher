@@ -227,8 +227,13 @@ jobs:
         VERSION="${{ steps.get_version.outputs.VERSION }}"
         ARCHIVE_NAME="SMWC-Downloader-$VERSION-Linux-x64.tar.gz"
         
-        # Create archive with executable and readme
-        tar -czf "$ARCHIVE_NAME" -C dist smwc-downloader README.md
+        # Create a temporary directory for packaging
+        mkdir -p package
+        cp dist/smwc-downloader package/
+        cp README.md package/
+        
+        # Create archive
+        tar -czf "$ARCHIVE_NAME" -C package .
         
         echo "LINUX_ARCHIVE=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
       id: create_linux_archive
