@@ -209,8 +209,6 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
         return
 
     if log:
-
-
         log(f"🎯 Starting download of {len(selected_hacks)} selected hacks...", "Information")
 
     # Reset cancellation flag
@@ -238,8 +236,6 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
         title_clean = title_case(safe_filename(hack_name))
 
         if log:
-
-
             log(f"📥 [{i}/{total_hacks}] Processing: {hack_name}", "Information")
 
         # Update progress callback if provided
@@ -384,8 +380,6 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     metadata_updated = True
 
                     if log:
-
-
                         log(f"✅ Updated multi-type copies for: {hack_name}", "Information")
                     successful_downloads += 1
                 else:
@@ -400,8 +394,6 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     metadata_updated = True
 
                 if log:
-
-
                     log(f"✅ Skipped: {hack_name}", "Information")
                 skipped_hacks += 1
 
@@ -488,11 +480,11 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                 duplicate_id = None
                 for existing_id, existing_data in processed.items():
                     if (isinstance(existing_data, dict) and
-                        existing_data.get("title") == current_title \
-                        and existing_id != hack_id \
-                        and not existing_data.get("obsolete", False)):
+                            existing_data.get("title") == current_title and
+                            existing_id != hack_id and
+                            not existing_data.get("obsolete", False)):
 
-                         # Only warn about non-obsolete duplicates
+                        # Only warn about non-obsolete duplicates
                         duplicate_id = existing_id
                         break
 
@@ -520,8 +512,6 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                 }
 
                 if log:
-
-
                     log(f"✅ Successfully processed: {hack_name}", "Information")
                 successful_downloads += 1
 
@@ -549,6 +539,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
 
         log(f"✅ Download complete! {successful_downloads} processed, {skipped_hacks} skipped, {errored_hacks} errored, out of {total_hacks} hacks.", "Information")
 
+
 def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=None):
     """
     Detect duplicate hack titles and mark older versions as obsolete.
@@ -559,8 +550,8 @@ def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=
     # Find all hacks with the same title
     for hack_id, hack_data in processed.items():
         if (isinstance(hack_data, dict) and
-            hack_data.get("title") == current_title \
-            and hack_id != current_hack_id):
+                hack_data.get("title") == current_title and
+                hack_id != current_hack_id):
             duplicate_ids.append(hack_id)
 
     if not duplicate_ids:
@@ -593,7 +584,7 @@ def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=
                     processed[hack_id]["obsolete"] = True
                     if not old_obsolete and log:
 
-                         # Only log if newly marked obsolete
+                        # Only log if newly marked obsolete
                         log(f"📦 '{current_title}' (ID {hack_id}) marked as obsolete (superseded by ID {newest_id})", "Information")
 
         return current_hack_id == newest_id
@@ -603,6 +594,7 @@ def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=
         if log:
             log(f"⚠️ Cannot determine newest version of '{current_title}' - using current as active", "Warning")
         return True
+
 
 def main():
     """Main application entry point"""
@@ -617,7 +609,7 @@ def main():
         # Calculate optimal window size for different screen resolutions
         if screen_height <= 768:
 
-             # Small displays (laptops, netbooks)
+            # Small displays (laptops, netbooks)
             window_width = min(950, int(screen_width * 0.9))
             window_height = min(700, int(screen_height * 0.85))
         elif screen_height <= 1080:  # Standard displays
