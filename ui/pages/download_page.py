@@ -576,9 +576,16 @@ class DownloadPage:
             except Exception as e:
                 self._log(f"❌ Failed to download: {str(e)}", "Error")
             finally:
-                # Re-enable button and show completion message
+                # Re-enable button and show appropriate completion message
                 self.frame.after(0, lambda: self.download_button_component.set_downloading(False))
-                self.frame.after(0, lambda: self.download_button_component.set_completion_message("✅ All downloads completed!"))
+                
+                # Check if download was cancelled to show appropriate message
+                from api_pipeline import is_cancelled
+                if is_cancelled():
+                    self.frame.after(0, lambda: self.download_button_component.set_completion_message("🛑 Download process cancelled!"))
+                else:
+                    self.frame.after(0, lambda: self.download_button_component.set_completion_message("✅ All downloads completed!"))
+                
                 self.frame.after(0, lambda: self._update_selection_display())
         
         # Start download in background thread
@@ -588,10 +595,10 @@ class DownloadPage:
     def _cancel_download(self):
         """Cancel the current download operation"""
         try:
-            from api_pipeline import cancel_operation
+            from api_pipeline import cancel_pipeline
             from download_state_manager import set_download_active
             
-            cancel_operation()
+            cancel_pipeline()
             self._log("🛑 Download cancellation requested by user", "Information")
             
             # Unlock history editing since download is cancelled
@@ -602,7 +609,7 @@ class DownloadPage:
             self.download_button_component.clear_completion_message()
             self._update_selection_display()
         except ImportError:
-            self._log("❌ Could not import cancel_operation - cancellation not available", "Error")
+            self._log("❌ Could not import cancel_pipeline - cancellation not available", "Error")
         except Exception as e:
             self._log(f"❌ Error during download cancellation: {str(e)}", "Error")
     

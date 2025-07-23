@@ -236,8 +236,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
         # Check for cancellation
         if is_cancelled():
             if log:
-
-                log("❌ Download cancelled by user", "warning")
+                log("❌ Download cancelled by user", "Warning")
             break
 
         hack_id = str(hack.get("id"))
@@ -250,6 +249,12 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
         # Update progress callback if provided
         if progress_callback:
             progress_callback(i, total_hacks, hack_name)
+
+        # Check for cancellation again after progress callback
+        if is_cancelled():
+            if log:
+                log("❌ Download cancelled by user", "Warning")
+            break
 
         # Get difficulty info
         raw_fields = hack.get("raw_fields", {})
@@ -438,17 +443,35 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
 
                 # Download the hack
                 if log:
-
                     log(f"⬇️ Downloading {hack_name}...", "Information")
+                
+                # Check for cancellation before download
+                if is_cancelled():
+                    if log:
+                        log("❌ Download cancelled by user", "Warning")
+                    break
+                
                 r = requests.get(download_url)
                 r.raise_for_status()  # Raise exception for bad status codes
                 with open(zip_path, "wb") as f:
                     f.write(r.content)
 
+                # Check for cancellation after download, before processing
+                if is_cancelled():
+                    if log:
+                        log("❌ Download cancelled by user", "Warning")
+                    break
+
                 # Extract patch file
                 patch_path = extract_patches_from_zip(zip_path, temp_dir, title_clean)
                 if not patch_path:
                     raise Exception("Patch file (.ips or .bps) not found in archive")
+
+                # Check for cancellation before patching
+                if is_cancelled():
+                    if log:
+                        log("❌ Download cancelled by user", "Warning")
+                    break
 
                 # Determine hack types for output path - support multiple types
                 from multi_type_utils import get_hack_types_from_raw_data, handle_multi_type_download
@@ -466,6 +489,12 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                 success = PatchHandler.apply_patch(patch_path, base_rom_path, primary_output_path, log)
                 if not success:
                     raise Exception("Patch application failed")
+
+                # Check for cancellation after patching
+                if is_cancelled():
+                    if log:
+                        log("❌ Download cancelled by user", "Warning")
+                    break
 
                 # Handle multi-type downloads
                 additional_paths = handle_multi_type_download(
