@@ -3,8 +3,14 @@ from tkinter import ttk
 from colors import get_colors
 import sv_ttk
 import platform
-from PIL import Image, ImageTk  # Import PIL for image handling
 from utils import resource_path  # Import resource path utility
+
+# Try to import PIL, but handle gracefully if not available
+try:
+    from PIL import Image, ImageTk
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 class NavigationBar:
     """Handles the main navigation bar with tabs"""
@@ -89,22 +95,26 @@ class NavigationBar:
             theme_switch.pack(side="left")
             theme_switch.state(['selected'] if sv_ttk.get_theme() == "dark" else [])
             
-            # Load PNG image instead of emoji
+            # Load PNG image instead of emoji (if PIL is available)
             try:
-                # Load and resize the moon image
-                image = Image.open(resource_path("assets/moon.png"))  # Use resource_path for bundled executable
-                image = image.resize((20, 20), Image.Resampling.LANCZOS)  # Resize to 20x20 pixels
-                self.moon_image = ImageTk.PhotoImage(image)
-                
-                self.moon_label = tk.Label(
-                    self.theme_frame,
-                    image=self.moon_image,  # Use image instead of text
-                    bg=colors["toggle_bg"],
-                    borderwidth=0,
-                    highlightthickness=0
-                )
+                if PIL_AVAILABLE:
+                    # Load and resize the moon image
+                    image = Image.open(resource_path("assets/moon.png"))  # Use resource_path for bundled executable
+                    image = image.resize((20, 20), Image.Resampling.LANCZOS)  # Resize to 20x20 pixels
+                    self.moon_image = ImageTk.PhotoImage(image)
+                    
+                    self.moon_label = tk.Label(
+                        self.theme_frame,
+                        image=self.moon_image,  # Use image instead of text
+                        bg=colors["toggle_bg"],
+                        borderwidth=0,
+                        highlightthickness=0
+                    )
+                else:
+                    # PIL not available, use emoji fallback
+                    raise ImportError("PIL not available")
             except Exception as e:
-                # Fallback to emoji if image loading fails
+                # Fallback to emoji if image loading fails or PIL not available
                 print(f"Could not load moon image: {e}")
                 self.moon_label = tk.Label(
                     self.theme_frame, 

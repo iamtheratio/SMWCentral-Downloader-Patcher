@@ -10,7 +10,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['PIL._imagingtk'],
+    excludes=['PIL'],
     noarchive=False,
     optimize=0,
 )
