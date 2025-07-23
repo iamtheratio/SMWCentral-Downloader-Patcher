@@ -65,6 +65,25 @@ class HistoryPage:
         filter_frame = self.filters.create_filter_ui(self.frame, self.data_manager)
         filter_frame.pack(fill="x", pady=(0, section_padding_y))
         
+        # Create download status indicator
+        self.status_frame = ttk.Frame(self.frame)
+        self.status_frame.pack(fill="x", pady=(0, 5))
+        
+        self.download_status_label = ttk.Label(
+            self.status_frame, 
+            text="", 
+            font=("Segoe UI", 9, "bold"),
+            foreground="#FF6B6B"  # Red color for warning
+        )
+        self.download_status_label.pack()
+        
+        # Register for download state changes
+        try:
+            from download_state_manager import register_callback
+            register_callback(self._on_download_state_change)
+        except ImportError:
+            pass  # Download state manager not available
+        
         # Connect refresh button
         # (This is a bit hacky but keeps the component simple)
         for widget in filter_frame.winfo_children():
@@ -102,8 +121,26 @@ class HistoryPage:
     
     def cleanup(self):
         """Clean up resources and ensure data is saved"""
+        # Unregister download state callback
+        try:
+            from download_state_manager import unregister_callback
+            unregister_callback(self._on_download_state_change)
+        except ImportError:
+            pass
+            
         # Force save any pending changes
         self.data_manager.force_save()
+    
+    def _on_download_state_change(self, download_active):
+        """Handle download state changes"""
+        if hasattr(self, 'download_status_label') and self.download_status_label:
+            if download_active:
+                self.download_status_label.config(
+                    text="⚠️ Download in progress - History editing is temporarily disabled",
+                    foreground="#FF6B6B"  # Red
+                )
+            else:
+                self.download_status_label.config(text="", foreground="#4ECDC4")  # Clear text
     
     def _create_table(self):
         """Create the main data table"""
@@ -272,6 +309,19 @@ class HistoryPage:
     
     def _on_item_click(self, event):
         """Handle single clicks on table items"""
+        # Check if download is active - prevent editing during downloads
+        try:
+            from download_state_manager import is_download_active
+            if is_download_active():
+                messagebox.showwarning(
+                    "Download in Progress", 
+                    "Cannot edit hack history while a download is in progress.\n\n"
+                    "Please wait for the download to complete or cancel it before making changes."
+                )
+                return
+        except ImportError:
+            pass  # If download state manager not available, allow editing
+        
         # Save any active edits first
         if self.date_editor.entry:
             self.date_editor.save()
@@ -310,6 +360,19 @@ class HistoryPage:
     
     def _on_item_double_click(self, event):
         """Handle double click - show edit hack dialog"""
+        # Check if download is active - prevent editing during downloads
+        try:
+            from download_state_manager import is_download_active
+            if is_download_active():
+                messagebox.showwarning(
+                    "Download in Progress", 
+                    "Cannot edit hack history while a download is in progress.\n\n"
+                    "Please wait for the download to complete or cancel it before making changes."
+                )
+                return
+        except ImportError:
+            pass  # If download state manager not available, allow editing
+            
         item = self.tree.identify("item", event.x, event.y)
         if not item:
             return

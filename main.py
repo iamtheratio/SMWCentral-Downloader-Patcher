@@ -179,16 +179,25 @@ def clear_log_shortcut(root):
 
 def run_pipeline_wrapper(*args, **kwargs):
     """Wrapper function to handle both bulk downloads and single downloads"""
-    # Check if this is a single download call with selected_hacks
-    if 'selected_hacks' in kwargs:
-        selected_hacks = kwargs.pop('selected_hacks')
+    from download_state_manager import set_download_active
+    
+    # Mark download as active to lock history editing
+    set_download_active(True)
+    
+    try:
+        # Check if this is a single download call with selected_hacks
+        if 'selected_hacks' in kwargs:
+            selected_hacks = kwargs.pop('selected_hacks')
 
-        # For single downloads, we'll use the regular pipeline but with a custom hack list
-        # Instead of fetching from API, we'll inject the selected hacks
-        return run_single_download_pipeline(selected_hacks, **kwargs)
-    else:
-        # This is a regular bulk download call
-        run_pipeline(*args, **kwargs)
+            # For single downloads, we'll use the regular pipeline but with a custom hack list
+            # Instead of fetching from API, we'll inject the selected hacks
+            return run_single_download_pipeline(selected_hacks, **kwargs)
+        else:
+            # This is a regular bulk download call
+            run_pipeline(*args, **kwargs)
+    finally:
+        # Always unlock history editing when download finishes
+        set_download_active(False)
 
 
 def run_single_download_pipeline(selected_hacks, log=None, progress_callback=None):

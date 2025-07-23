@@ -589,8 +589,13 @@ class DownloadPage:
         """Cancel the current download operation"""
         try:
             from api_pipeline import cancel_operation
+            from download_state_manager import set_download_active
+            
             cancel_operation()
             self._log("🛑 Download cancellation requested by user", "Information")
+            
+            # Unlock history editing since download is cancelled
+            set_download_active(False)
             
             # Reset button state and clear any messages
             self.download_button_component.set_downloading(False)
