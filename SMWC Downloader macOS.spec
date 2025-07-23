@@ -33,7 +33,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=True,
-    target_arch='arm64',
+    target_arch='universal2',
     codesign_identity=None,
     entitlements_file=None,
 )
