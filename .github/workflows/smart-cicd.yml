@@ -166,7 +166,8 @@ jobs:
         # Build updater
         pyinstaller "SMWC Updater.spec" --clean --noconfirm
         Copy-Item "dist\SMWC Updater.exe" -Destination "$packageDir\updater\"
-        Copy-Item "config.json" -Destination $packageDir\
+        # Copy clean config template (not personal config.json)
+        Copy-Item "config.template.json" -Destination "$packageDir\config.json"
         Copy-Item "README.md" -Destination $packageDir\
         echo "ARTIFACT_NAME=$packageDir" >> $env:GITHUB_OUTPUT
       id: windows_package
@@ -180,7 +181,8 @@ jobs:
         mkdir -p dmg_contents/updater
         cp -R "dist/SMWC Downloader.app" dmg_contents/
         cp -R "dist/SMWC Updater.app" dmg_contents/updater/
-        cp config.json dmg_contents/
+        # Copy clean config template (not personal config.json)
+        cp config.template.json dmg_contents/config.json
         cp README.md dmg_contents/
         ln -s /Applications dmg_contents/Applications
         hdiutil create -volname "SMWC Downloader $VERSION" \
@@ -244,8 +246,8 @@ jobs:
         cp dist/smwc-downloader package/
         cp dist/smwc-updater package/updater/
         
-        # Copy configuration and documentation
-        cp config.json package/
+        # Copy configuration and documentation (using clean template)
+        cp config.template.json package/config.json
         cp README.md package/
         
         # Copy desktop integration files
