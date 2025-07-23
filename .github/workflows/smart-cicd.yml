@@ -234,11 +234,82 @@ jobs:
         EOF
         # Build updater
         pyinstaller "SMWC Updater Linux.spec" --clean --noconfirm
+        
+        # Create Linux package with proper directory structure
         mkdir -p package/updater
+        mkdir -p package/usr/share/applications
+        mkdir -p package/usr/share/icons/hicolor/{16x16,32x32,48x48,64x64,128x128,256x256,512x512}/apps
+        
+        # Copy executables
         cp dist/smwc-downloader package/
         cp dist/smwc-updater package/updater/
+        
+        # Copy configuration and documentation
         cp config.json package/
         cp README.md package/
+        
+        # Copy desktop integration files
+        cp assets/smwc-downloader.desktop package/usr/share/applications/
+        
+        # Copy PNG icons to proper Linux icon directories
+        cp assets/icons/smwc-downloader-16x16.png package/usr/share/icons/hicolor/16x16/apps/smwc-downloader.png
+        cp assets/icons/smwc-downloader-32x32.png package/usr/share/icons/hicolor/32x32/apps/smwc-downloader.png
+        cp assets/icons/smwc-downloader-48x48.png package/usr/share/icons/hicolor/48x48/apps/smwc-downloader.png
+        cp assets/icons/smwc-downloader-64x64.png package/usr/share/icons/hicolor/64x64/apps/smwc-downloader.png
+        cp assets/icons/smwc-downloader-128x128.png package/usr/share/icons/hicolor/128x128/apps/smwc-downloader.png
+        cp assets/icons/smwc-downloader-256x256.png package/usr/share/icons/hicolor/256x256/apps/smwc-downloader.png
+        cp assets/icons/smwc-downloader-512x512.png package/usr/share/icons/hicolor/512x512/apps/smwc-downloader.png
+        
+        # Create installation script
+        cat > package/install.sh << 'EOF'
+        #!/bin/bash
+        # SMWC Downloader Linux Installation Script
+        
+        echo "Installing SMWC Downloader..."
+        
+        # Copy executable to user's local bin directory
+        mkdir -p ~/.local/bin
+        cp smwc-downloader ~/.local/bin/
+        chmod +x ~/.local/bin/smwc-downloader
+        
+        # Copy updater
+        mkdir -p ~/.local/bin/updater
+        cp updater/smwc-updater ~/.local/bin/updater/
+        chmod +x ~/.local/bin/updater/smwc-updater
+        
+        # Install desktop integration files
+        mkdir -p ~/.local/share/applications
+        mkdir -p ~/.local/share/icons/hicolor/{16x16,32x32,48x48,64x64,128x128,256x256,512x512}/apps
+        
+        # Copy desktop file
+        cp usr/share/applications/smwc-downloader.desktop ~/.local/share/applications/
+        
+        # Copy icons
+        cp usr/share/icons/hicolor/16x16/apps/smwc-downloader.png ~/.local/share/icons/hicolor/16x16/apps/
+        cp usr/share/icons/hicolor/32x32/apps/smwc-downloader.png ~/.local/share/icons/hicolor/32x32/apps/
+        cp usr/share/icons/hicolor/48x48/apps/smwc-downloader.png ~/.local/share/icons/hicolor/48x48/apps/
+        cp usr/share/icons/hicolor/64x64/apps/smwc-downloader.png ~/.local/share/icons/hicolor/64x64/apps/
+        cp usr/share/icons/hicolor/128x128/apps/smwc-downloader.png ~/.local/share/icons/hicolor/128x128/apps/
+        cp usr/share/icons/hicolor/256x256/apps/smwc-downloader.png ~/.local/share/icons/hicolor/256x256/apps/
+        cp usr/share/icons/hicolor/512x512/apps/smwc-downloader.png ~/.local/share/icons/hicolor/512x512/apps/
+        
+        # Update desktop database and icon cache
+        if command -v update-desktop-database >/dev/null 2>&1; then
+            update-desktop-database ~/.local/share/applications
+        fi
+        
+        if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+            gtk-update-icon-cache ~/.local/share/icons/hicolor
+        fi
+        
+        echo "✅ Installation complete!"
+        echo "You can now run 'smwc-downloader' from the terminal or find it in your applications menu."
+        echo "Make sure ~/.local/bin is in your PATH to run from terminal."
+        EOF
+        
+        chmod +x package/install.sh
+        
+        # Create the archive
         tar -czf "$ARCHIVE_NAME" -C package .
         echo "ARTIFACT_NAME=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
       id: linux_package
