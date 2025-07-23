@@ -4,7 +4,18 @@
 
 A simple desktop app that automatically downloads, patches, and organizes ROM hacks from SMWCentral. Works on Windows, Mac, and Linux.
 
-![App Screenshot](images/ss_app_dashboard_v4.0.png)
+![App Screenshot](images/ss_app_dashboard_v4.3.png)
+
+## 🎯 App Features
+
+### Browse & Download
+![Download View](images/ss_app_download_v4.3.png)
+
+### Manage Your Collection
+![History View](images/ss_app_history_v4.3.png)
+
+### Customize Settings
+![Settings View](images/ss_app_settings_v4.3.png)
 
 ## 📥 Download & Install
 
