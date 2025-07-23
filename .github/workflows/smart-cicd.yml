@@ -268,8 +268,8 @@ jobs:
         fi
         
         # Generate PNG icons from ICO/ICNS if available, or use placeholder
-        # For now, create a simple install script for users
-        cat > package/install.sh << 'INSTALL_EOF'
+        # Create install script for users
+        cat > package/install.sh << 'EOF'
 #!/bin/bash
 # SMWC Downloader Linux Installation Script
 echo "Installing SMWC Downloader..."
@@ -298,11 +298,11 @@ sudo ln -sf "$INSTALL_DIR/smwc-downloader" /usr/local/bin/smwc-downloader
 
 echo "Installation complete!"
 echo "You can now run 'smwc-downloader' from terminal or find it in your applications menu."
-INSTALL_EOF
+EOF
         chmod +x package/install.sh
         
         # Create uninstall script
-        cat > package/uninstall.sh << 'UNINSTALL_EOF'
+        cat > package/uninstall.sh << 'EOF'
 #!/bin/bash
 # SMWC Downloader Linux Uninstallation Script
 echo "Uninstalling SMWC Downloader..."
@@ -312,7 +312,7 @@ sudo rm -f /usr/local/bin/smwc-downloader
 sudo rm -rf /opt/smwc-downloader
 
 echo "Uninstallation complete!"
-UNINSTALL_EOF
+EOF
         chmod +x package/uninstall.sh
         
         tar -czf "$ARCHIVE_NAME" -C package .
