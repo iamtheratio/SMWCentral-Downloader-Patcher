@@ -14,6 +14,7 @@ env:
 
 jobs:
   test-builds:
+    timeout-minutes: 15
     strategy:
       matrix:
         os: [windows-latest, macos-latest, ubuntu-latest]
@@ -76,24 +77,24 @@ jobs:
         
         echo "Installing customtkinter..."
         pip install customtkinter || echo "customtkinter install failed, continuing..."
-        
-        # Platform-specific dependencies
-        if [ "${{ matrix.os }}" = "windows-latest" ]; then
-          echo "Installing pywinstyles for Windows..."
-          pip install "pywinstyles>=1.0.0" || echo "pywinstyles install failed, continuing..."
-        fi
+      
+    - name: Install Windows dependencies
+      if: matrix.os == 'windows-latest'
+      run: |
+        echo "Installing pywinstyles for Windows..."
+        pip install "pywinstyles>=1.0.0" || echo "pywinstyles install failed, continuing..."
+
+    - name: Set up virtual display (Linux only)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1024x768x24 &
+        sleep 3
 
     - name: Test import and basic functionality
       env:
         PYTHONIOENCODING: utf-8
       run: |
-        # Set up virtual display for Linux
-        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
-          export DISPLAY=:99
-          Xvfb :99 -screen 0 1024x768x24 &
-          sleep 3
-        fi
-        
         python -c "
         import sys
         import os
