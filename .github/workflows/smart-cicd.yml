@@ -179,21 +179,20 @@ jobs:
       if: matrix.os == 'windows-latest' && github.event_name != 'pull_request'
       run: |
         $version = "${{ steps.get_version.outputs.VERSION }}"
-        $archiveName = "SMWC-Downloader-$version-Windows-x64.zip"
+        $packageDir = "SMWC-Downloader-$version-Windows-x64"
         
-        New-Item -ItemType Directory -Path package -Force
-        New-Item -ItemType Directory -Path package\updater -Force
-        Copy-Item "dist\SMWC Downloader.exe" -Destination package\
+        New-Item -ItemType Directory -Path $packageDir -Force
+        New-Item -ItemType Directory -Path "$packageDir\updater" -Force
+        Copy-Item "dist\SMWC Downloader.exe" -Destination $packageDir\
         
         # Build updater
         pyinstaller "SMWC Updater.spec" --clean --noconfirm
-        Copy-Item "dist\SMWC Updater.exe" -Destination package\updater\
+        Copy-Item "dist\SMWC Updater.exe" -Destination "$packageDir\updater\"
         
-        Copy-Item "config.json" -Destination package\
-        Copy-Item "README.md" -Destination package\
+        Copy-Item "config.json" -Destination $packageDir\
+        Copy-Item "README.md" -Destination $packageDir\
         
-        Compress-Archive -Path "package\*" -DestinationPath $archiveName
-        echo "ARTIFACT_NAME=$archiveName" >> $env:GITHUB_OUTPUT
+        echo "ARTIFACT_NAME=$packageDir" >> $env:GITHUB_OUTPUT
       id: windows_package
 
     - name: Create macOS package
@@ -379,6 +378,20 @@ jobs:
 
     - name: Download all artifacts
       uses: actions/download-artifact@v4
+
+    - name: Create release archives
+      run: |
+        VERSION="${{ steps.get_version.outputs.VERSION }}"
+        
+        # Create Windows zip file
+        if [ -d "SMWC-Downloader-$VERSION-Windows-x64" ]; then
+          cd "SMWC-Downloader-$VERSION-Windows-x64"
+          zip -r "../SMWC-Downloader-$VERSION-Windows-x64.zip" .
+          cd ..
+        fi
+        
+        # For macOS and Linux, just rename the existing files if needed
+        # (they should already be properly packaged)
 
     - name: Create Pre-Release
       id: create_prerelease
