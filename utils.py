@@ -513,13 +513,22 @@ def save_processed(data, path=None):
 def get_user_data_path(filename):
     """Get platform-specific user data directory for storing app files"""
     system = platform.system()
-    home = os.path.expanduser("~")
     
-    if system == "Darwin":  # macOS
+    if system == "Windows":
+        # For Windows: Store data files next to the executable for portability
+        if getattr(sys, 'frozen', False):
+            # Running as PyInstaller executable
+            app_data_dir = os.path.dirname(sys.executable)
+        else:
+            # Running as script in development
+            app_data_dir = os.path.dirname(os.path.abspath(__file__))
+    elif system == "Darwin":  # macOS
+        # Use proper macOS location
+        home = os.path.expanduser("~")
         app_data_dir = os.path.join(home, "Library", "Application Support", "SMWC Downloader")
-    elif system == "Windows":
-        app_data_dir = os.path.join(os.environ.get("APPDATA", home), "SMWC Downloader")
     else:  # Linux and others
+        # Use proper Linux location
+        home = os.path.expanduser("~")
         app_data_dir = os.path.join(home, ".smwc-downloader")
     
     return os.path.join(app_data_dir, filename)
