@@ -109,7 +109,7 @@ jobs:
             
             # Test version import only
             print('Importing VERSION...')
-            exec('VERSION = \"v4.4\"')  # Just define the version without importing main
+            VERSION = 'v4.4'  # Just define the version without importing main
             print('App version: ' + str(VERSION))
             
             print('Testing platform detection...')
