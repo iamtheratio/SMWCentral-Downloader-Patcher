@@ -2,7 +2,7 @@ name: Development Builds
 
 on:
   push:
-    branches: [ main, develop, feature/MacOS-Implementation ]
+    branches: [ main, develop ]
     paths-ignore:
       - '*.md'
       - 'docs/**'
