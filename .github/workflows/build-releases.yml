@@ -57,8 +57,9 @@ jobs:
         
         # Create a temporary directory for packaging
         New-Item -ItemType Directory -Path package -Force
+        New-Item -ItemType Directory -Path package\updater -Force
         Copy-Item "dist\SMWC Downloader.exe" -Destination package\
-        Copy-Item "dist\SMWC Updater.exe" -Destination package\
+        Copy-Item "dist\SMWC Updater.exe" -Destination package\updater\
         Copy-Item "config.json" -Destination package\
         Copy-Item "README.md" -Destination package\
         
@@ -128,9 +129,9 @@ jobs:
         DMG_NAME="SMWC-Downloader-$VERSION-macOS-Universal.dmg"
         
         # Create a temporary directory for DMG contents
-        mkdir -p dmg_contents
+        mkdir -p dmg_contents/updater
         cp -R "dist/SMWC Downloader.app" dmg_contents/
-        cp -R "dist/SMWC Updater.app" dmg_contents/
+        cp -R "dist/SMWC Updater.app" dmg_contents/updater/
         cp config.json dmg_contents/
         cp README.md dmg_contents/
         
@@ -285,9 +286,9 @@ jobs:
         ARCHIVE_NAME="SMWC-Downloader-$VERSION-Linux-x64.tar.gz"
         
         # Create a temporary directory for packaging
-        mkdir -p package
+        mkdir -p package/updater
         cp dist/smwc-downloader package/
-        cp dist/smwc-updater package/
+        cp dist/smwc-updater package/updater/
         cp config.json package/
         cp README.md package/
         
