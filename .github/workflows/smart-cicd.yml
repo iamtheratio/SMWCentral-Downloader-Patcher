@@ -234,11 +234,87 @@ jobs:
         EOF
         # Build updater
         pyinstaller "SMWC Updater Linux.spec" --clean --noconfirm
+        
+        # Generate Linux PNG icons
+        python generate_linux_icons.py
+        
+        # Create proper Linux directory structure
         mkdir -p package/updater
+        mkdir -p package/usr/share/applications
+        mkdir -p package/usr/share/icons/hicolor/48x48/apps
+        mkdir -p package/usr/share/icons/hicolor/64x64/apps
+        mkdir -p package/usr/share/icons/hicolor/128x128/apps
+        mkdir -p package/usr/share/icons/hicolor/256x256/apps
+        mkdir -p package/usr/share/icons/hicolor/scalable/apps
+        
+        # Copy executables
         cp dist/smwc-downloader package/
         cp dist/smwc-updater package/updater/
+        
+        # Copy configuration and documentation
         cp config.json package/
         cp README.md package/
+        
+        # Copy desktop entry file
+        cp assets/smwc-downloader.desktop package/usr/share/applications/
+        
+        # Copy PNG icons if they were generated
+        if [ -d "assets/icons" ]; then
+            for size in 48 64 128 256; do
+                if [ -f "assets/icons/smwc-downloader-${size}x${size}.png" ]; then
+                    cp "assets/icons/smwc-downloader-${size}x${size}.png" "package/usr/share/icons/hicolor/${size}x${size}/apps/smwc-downloader.png"
+                fi
+            done
+        fi
+        
+        # Generate PNG icons from ICO/ICNS if available, or use placeholder
+        # For now, create a simple install script for users
+        cat > package/install.sh << 'INSTALL_EOF'
+#!/bin/bash
+# SMWC Downloader Linux Installation Script
+echo "Installing SMWC Downloader..."
+
+# Copy desktop entry
+sudo cp usr/share/applications/smwc-downloader.desktop /usr/share/applications/
+sudo chmod 644 /usr/share/applications/smwc-downloader.desktop
+
+# Copy icons if available
+if [ -d "usr/share/icons" ]; then
+    sudo cp -r usr/share/icons/* /usr/share/icons/
+    sudo gtk-update-icon-cache /usr/share/icons/hicolor/ 2>/dev/null || true
+fi
+
+# Make executable accessible
+INSTALL_DIR="/opt/smwc-downloader"
+sudo mkdir -p "$INSTALL_DIR"
+sudo cp smwc-downloader "$INSTALL_DIR/"
+sudo cp -r updater "$INSTALL_DIR/"
+sudo cp config.json "$INSTALL_DIR/"
+sudo chmod +x "$INSTALL_DIR/smwc-downloader"
+sudo chmod +x "$INSTALL_DIR/updater/smwc-updater"
+
+# Create symlink for command line access
+sudo ln -sf "$INSTALL_DIR/smwc-downloader" /usr/local/bin/smwc-downloader
+
+echo "Installation complete!"
+echo "You can now run 'smwc-downloader' from terminal or find it in your applications menu."
+INSTALL_EOF
+        chmod +x package/install.sh
+        
+        # Create uninstall script
+        cat > package/uninstall.sh << 'UNINSTALL_EOF'
+#!/bin/bash
+# SMWC Downloader Linux Uninstallation Script
+echo "Uninstalling SMWC Downloader..."
+
+sudo rm -f /usr/share/applications/smwc-downloader.desktop
+sudo rm -f /usr/local/bin/smwc-downloader
+sudo rm -rf /opt/smwc-downloader
+
+echo "Uninstallation complete!"
+UNINSTALL_EOF
+        chmod +x package/uninstall.sh
+        
         tar -czf "$ARCHIVE_NAME" -C package .
         echo "ARTIFACT_NAME=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
       id: linux_package
