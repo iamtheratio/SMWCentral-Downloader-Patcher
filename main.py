@@ -338,10 +338,11 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
 
                     log(f"📝 Updated exits from {old_exits} -> {current_exits}", "Information")
 
-            if (multi_type_enabled and download_mode == "copy_all" and
-                    len(current_hack_types) > 1 and
-                    existing_hack.get("file_path") and
-                    os.path.exists(existing_hack["file_path"])):
+            if (multi_type_enabled
+                    and download_mode == "copy_all"
+                    and len(current_hack_types) > 1
+                    and existing_hack.get("file_path")
+                    and os.path.exists(existing_hack["file_path"])):
 
                 # Check if additional_paths exist or are missing
                 existing_additional_paths = existing_hack.get("additional_paths", [])
@@ -350,7 +351,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                 missing_copies = []
                 for hack_type in expected_additional_types:
                     expected_path = os.path.join(make_output_path(output_dir, hack_type, existing_hack["folder_name"]),
-                                               os.path.basename(existing_hack["file_path"]))
+                                                 os.path.basename(existing_hack["file_path"]))
                     if not os.path.exists(expected_path):
                         missing_copies.append((hack_type, expected_path))
 
@@ -479,10 +480,10 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                 # Check for any remaining duplicate warning (different from obsolete detection)
                 duplicate_id = None
                 for existing_id, existing_data in processed.items():
-                    if (isinstance(existing_data, dict) and
-                            existing_data.get("title") == current_title and
-                            existing_id != hack_id and
-                            not existing_data.get("obsolete", False)):
+                    if (isinstance(existing_data, dict)
+                            and existing_data.get("title") == current_title
+                            and existing_id != hack_id
+                            and not existing_data.get("obsolete", False)):
 
                         # Only warn about non-obsolete duplicates
                         duplicate_id = existing_id
@@ -549,9 +550,9 @@ def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=
 
     # Find all hacks with the same title
     for hack_id, hack_data in processed.items():
-        if (isinstance(hack_data, dict) and
-                hack_data.get("title") == current_title and
-                hack_id != current_hack_id):
+        if (isinstance(hack_data, dict)
+                and hack_data.get("title") == current_title
+                and hack_id != current_hack_id):
             duplicate_ids.append(hack_id)
 
     if not duplicate_ids:
