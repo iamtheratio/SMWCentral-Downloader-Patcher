@@ -124,6 +124,186 @@ After launching the application on any platform:
 - 💡 The app automatically checks for updates and downloads the correct version for your platform
 - 💡 Check Settings > "Check for Updates" to manually look for new versions
 
+## 🎮 ROM & Emulator Compatibility
+
+### Supported ROM Formats
+- **Input ROM**: Clean Super Mario World ROM (.smc or .sfc format)
+- **Output ROMs**: Patched .smc/.sfc files compatible with all major emulators
+- **Region Support**: Works with NTSC (US), PAL (Europe), and Japanese ROM versions
+- **File Validation**: Automatic ROM integrity checking before patching
+
+### Recommended Emulators
+
+#### Windows
+- **SNES9X**: Excellent compatibility and performance
+- **bsnes/higan**: Cycle-accurate emulation for purists  
+- **RetroArch**: Multi-system emulator with advanced features
+- **ZSNES**: Legacy emulator (not recommended for modern use)
+
+#### macOS
+- **SNES9X**: Native macOS version with good performance
+- **OpenEmu**: Beautiful multi-system emulator frontend
+- **RetroArch**: Cross-platform emulator with extensive features
+- **bsnes**: Accurate emulation for demanding hacks
+
+#### Linux
+- **SNES9X-GTK**: Native Linux version with GTK interface
+- **RetroArch**: Available in most distribution repositories
+- **bsnes**: Compile from source or use flatpak
+- **Mednafen**: Command-line emulator with high accuracy
+
+### ROM Management Best Practices
+
+#### Base ROM Requirements
+1. **Use Original ROMs**: Must be clean, unmodified Super Mario World ROM
+2. **Verify Checksums**: Ensure ROM integrity before first use
+3. **Backup Originals**: Keep clean copies separate from patched versions
+4. **Legal Compliance**: Only use ROMs you legally own
+
+#### Patch Compatibility
+- **IPS Patches**: Older format, widely supported, limited to 16MB ROMs
+- **BPS Patches**: Modern format, supports larger ROMs, includes integrity checking
+- **Mixed Collections**: App handles both formats automatically
+- **Version Conflicts**: Some hacks require specific ROM versions (app will warn you)
+
+#### File Organization Tips
+```
+Recommended Structure:
+├── Base ROMs/
+│   ├── Super Mario World (USA).smc
+│   ├── Super Mario World (Europe).smc
+│   └── Super Mario World (Japan).smc
+├── Patched Hacks/    # (Your configured output directory)
+│   ├── Standard/
+│   ├── Kaizo/
+│   └── ...
+└── Emulator Saves/
+    ├── Save States/
+    ├── SRAM/
+    └── Screenshots/
+```
+
+## 🎮 Comprehensive Usage Guide
+
+### Keyboard Shortcuts
+- **Ctrl+L** (Windows/Linux) or **Cmd+L** (macOS): Clear log output
+- **Tab**: Navigate between UI elements
+- **Enter**: Trigger default button actions (Download, Search, etc.)
+- **Escape**: Cancel dialogs and close popups
+- **F1**: Show help tooltip (where available)
+
+### Advanced Download Features
+
+#### Bulk Download Operations
+1. **Select Multiple Hacks**: Use checkboxes to select multiple hacks for download
+2. **Filter While Selecting**: Apply filters first, then select hacks from filtered results
+3. **Download Progress**: Watch real-time progress for each hack being downloaded
+4. **Cancel Anytime**: Stop downloads in progress without losing completed downloads
+
+#### Smart Search & Filtering
+- **Type Filter**: Standard, Kaizo, Puzzle, Tool-Assisted, Pit hacks
+- **Difficulty Filter**: 8 levels from Newcomer to No Difficulty  
+- **Feature Filter**: Music, Graphics, Boss, Power-ups, etc.
+- **Author Filter**: Find hacks by specific creators
+- **Name Search**: Search hack titles (supports partial matches)
+- **Advanced Operators**: Use quotes for exact matches, minus sign (-) to exclude terms
+
+#### Download Organization
+```
+Your Output Directory/
+├── Standard/           # Traditional Mario-style hacks
+│   ├── 01-Newcomer/    # Easiest difficulty
+│   ├── 02-Intermediate/
+│   ├── 03-Advanced/
+│   └── ...up to 08-No Difficulty/
+├── Kaizo/             # Precision-based challenge hacks
+├── Puzzle/            # Logic and problem-solving hacks
+├── Tool-Assisted/     # Hacks designed for TAS use
+└── Pit/              # Multi-creator collaboration hacks
+```
+
+### Dashboard Analytics Deep Dive
+
+#### Collection Statistics
+- **Total Hacks**: Complete count of your downloaded collection
+- **Type Distribution**: Visual breakdown by hack categories
+- **Difficulty Analysis**: See your preferences across difficulty levels
+- **Completion Tracking**: Track which hacks you've finished
+- **Rating System**: Rate hacks and view your average ratings
+
+#### Progress Indicators
+- **Download Status**: View which hacks are downloaded vs tracked manually
+- **Completion Progress**: Track your playthrough status
+- **Recent Activity**: See your latest downloads and updates
+- **Collection Growth**: Monitor how your collection expands over time
+
+### History Management Mastery
+
+#### Advanced Filtering & Sorting
+- **Real-time Search**: Filter by hack name as you type
+- **Column Sorting**: Click any column header to sort (click again to reverse)
+- **Multi-criteria Filtering**: Combine search terms with difficulty and type filters
+- **Obsolete Management**: Toggle to show/hide superseded hack versions
+- **Export Options**: Export your collection data for backup or analysis
+
+#### Manual Hack Management
+1. **Add Custom Entries**: Track hacks you've played elsewhere
+2. **Edit Details**: Update hack information, ratings, and completion status  
+3. **Delete Entries**: Remove manually added hacks (original downloads are protected)
+4. **Duplicate Prevention**: System warns if you try to add existing hacks
+5. **Bulk Operations**: Select multiple entries for batch operations
+
+### Settings & Customization
+
+#### Performance Tuning
+- **Download Concurrency**: Adjust how many hacks download simultaneously
+- **API Rate Limiting**: Configure delays between SMWCentral API calls
+- **Cache Management**: Control local data storage and cleanup
+- **Threading Options**: Optimize for your system's capabilities
+
+#### Interface Customization  
+- **Theme Selection**: Choose between light and dark modes
+- **Layout Options**: Adjust window sizes and panel arrangements
+- **Accessibility**: Configure for screen readers and assistive technology
+- **Language Settings**: Interface localization (where available)
+
+#### Directory Management
+- **Multiple Output Folders**: Set different directories for different hack types
+- **Backup Locations**: Configure automatic backup destinations
+- **ROM Path Validation**: Ensure your base ROM file is correct
+- **Cleanup Tools**: Manage temporary files and obsolete downloads
+
+### Cross-Platform Update System
+
+#### Automatic Updates
+1. **Background Checking**: App quietly checks for updates on startup
+2. **Smart Detection**: Automatically detects your platform (Windows/macOS/Linux)
+3. **User Notification**: Shows update dialog with release notes if new version available
+4. **One-Click Install**: Download and install with a single button click
+5. **Safe Process**: Creates backups and validates installation before committing
+6. **Quick Restart**: App closes and reopens with new version (under 6 seconds)
+
+#### Manual Update Management
+- **Check Now**: Force immediate update check from Settings
+- **Update History**: View log of all previous updates
+- **Rollback Options**: Restore previous version if needed
+- **Platform Details**: See technical information about your installation
+
+### Troubleshooting & Diagnostics
+
+#### Built-in Diagnostics
+- **Log Viewer**: Real-time log output with filtering capabilities
+- **System Info**: View platform and system information
+- **Network Test**: Test connectivity to SMWCentral and GitHub
+- **File Validation**: Check ROM files and patch integrity
+- **Database Repair**: Fix corrupted hack database files
+
+#### Performance Optimization
+- **Memory Usage**: Monitor and optimize RAM consumption
+- **Disk Cleanup**: Remove temporary files and old backups
+- **Network Optimization**: Adjust settings for slow connections
+- **UI Responsiveness**: Configure for better performance on older hardware
+
 ## ✨ Features
 
 ### 🔍 Advanced Hack Discovery
@@ -202,22 +382,99 @@ Output Directory/
 
 ## � Technical Details
 
-### Requirements
-- **OS**: Windows 10 or later
-- **Storage**: ~20 MB for application + space for your hack collection
-- **Network**: Internet connection for downloading hacks
-- **ROM**: Clean Super Mario World ROM file
+### System Requirements
 
-### File Formats
+#### Windows
+- **OS**: Windows 10 (version 1903+) or Windows 11
+- **Architecture**: x64 (64-bit)
+- **Memory**: 512 MB RAM minimum, 1 GB recommended
+- **Storage**: ~25 MB for application + space for your hack collection
+- **Network**: Internet connection for downloading hacks and updates
+- **ROM**: Clean Super Mario World ROM file (.smc or .sfc format)
+
+#### macOS  
+- **OS**: macOS 10.15 (Catalina) or later
+- **Architecture**: Universal Binary (Intel x64 & Apple Silicon ARM64)
+- **Memory**: 512 MB RAM minimum, 1 GB recommended
+- **Storage**: ~30 MB for application + space for your hack collection
+- **Network**: Internet connection for downloading hacks and updates
+- **ROM**: Clean Super Mario World ROM file (.smc or .sfc format)
+
+#### Linux
+- **OS**: Modern Linux distribution with GTK+ 3.0 support
+- **Architecture**: x64 (64-bit)
+- **Memory**: 512 MB RAM minimum, 1 GB recommended  
+- **Storage**: ~35 MB for application + space for your hack collection
+- **Dependencies**: `python3-tkinter`, `libgtk-3-0` (usually pre-installed)
+- **Network**: Internet connection for downloading hacks and updates
+- **ROM**: Clean Super Mario World ROM file (.smc or .sfc format)
+
+### File Formats & Processing
 - **Input**: Supports .zip files containing .ips or .bps patches from SMWCentral
-- **Output**: Generates patched .smc/.sfc ROM files ready to play
+- **Output**: Generates patched .smc/.sfc ROM files ready to play in any emulator
 - **Database**: Uses JSON format for hack metadata and progress tracking
-- **Configuration**: Automatic migration system for seamless upgrades
+- **Configuration**: Automatic migration system for seamless upgrades between versions
+- **Patches**: Full support for both IPS (legacy) and BPS (modern) patch formats
+- **Compression**: Handles nested zip files and various compression methods
 
-### Key Files
-- **`config.json`**: Application configuration and settings
-- **`processed.json`**: Database of downloaded hacks and metadata
-- **`README.md`**: This documentation file
+### Architecture & Components
+
+#### Core Application (`main.py`)
+- **Purpose**: Main GUI application with tabbed interface
+- **Framework**: Python Tkinter with custom theming
+- **Features**: Multi-threaded downloads, real-time progress tracking, cross-platform UI
+
+#### API Pipeline (`api_pipeline.py`)
+- **Purpose**: Interfaces with SMWCentral API for hack data retrieval
+- **Features**: Rate limiting, retry logic, data caching, error handling
+- **Performance**: Optimized for bulk operations and minimal API calls
+
+#### Patch Handlers (`patcher_ips.py`, `patcher_bps.py`)
+- **Purpose**: ROM patching engines for different patch formats
+- **IPS Support**: Classic IPS format with truncation and expansion support
+- **BPS Support**: Modern BPS format with integrity checking and delta compression
+- **Safety**: Validates patch files and ROM integrity before applying
+
+#### Configuration System (`config_manager.py`)
+- **Purpose**: Centralized configuration and settings management
+- **Features**: JSON-based storage, automatic migration, default value handling
+- **Migration**: Seamlessly upgrades config format between application versions
+
+#### Data Management (`hack_data_manager.py`)
+- **Purpose**: Local database management for downloaded hacks
+- **Features**: CRUD operations, duplicate detection, data integrity checking
+- **Performance**: Optimized JSON operations with minimal file I/O
+
+#### Auto-Updater (`updater.py`, `standalone_updater.py`)
+- **Purpose**: Cross-platform automatic update system
+- **Features**: Platform detection, safe installation, rollback capability
+- **Formats**: Handles .zip (Windows), .dmg (macOS), .tar.gz (Linux) packages
+
+### Key Application Files
+- **`config.json`**: Application configuration and user preferences
+- **`processed.json`**: Database of downloaded hacks with metadata and progress
+- **`processed.json.backup`**: Automatic backup of hack database
+- **`version.txt`**: Current application version for update checking
+- **`README.md`**: Comprehensive documentation (this file)
+- **`LICENSE`**: MIT license terms and conditions
+
+### Development & Build System
+- **Language**: Python 3.8+ with Tkinter GUI framework
+- **Packaging**: PyInstaller for standalone executables across all platforms
+- **Build System**: GitHub Actions CI/CD with automated cross-platform builds
+- **Architecture**: 
+  - **Windows**: x64 executable with embedded Python runtime
+  - **macOS**: Universal2 binary supporting both Intel and Apple Silicon
+  - **Linux**: x64 executable with GTK+ integration
+- **Testing**: Comprehensive test suite covering all major components
+- **Distribution**: Platform-specific packages (.zip, .dmg, .tar.gz) via GitHub Releases
+
+### Security & Privacy
+- **Data Storage**: All data stored locally - no cloud dependencies
+- **Network Access**: Only connects to SMWCentral API and GitHub for updates
+- **Privacy**: No user data collection, tracking, or analytics
+- **Code Signing**: Open source codebase available for security review
+- **Updates**: Cryptographically verified updates from GitHub Releases
 
 ## 📝 Changelog
 
@@ -363,6 +620,183 @@ If you encounter platform-specific issues:
 5. For macOS: Check Console.app for system-level error messages
 6. For Windows: Check Event Viewer for application errors
 7. Create an issue on the GitHub repository with platform details and error logs
+
+## ❓ Frequently Asked Questions
+
+### General Usage
+
+**Q: Can I use this app with ROM hacks from other sites?**
+A: No, this app is specifically designed for SMWCentral hacks. It uses SMWCentral's API and expects their specific file formats and metadata.
+
+**Q: Do I need to keep the app running while playing hacks?**
+A: No, once hacks are downloaded and patched, the ROM files are completely independent. You can close the app and play hacks in any emulator.
+
+**Q: Can I move my patched ROMs to other devices?**
+A: Yes! The patched .smc/.sfc files work on any device with a compatible SNES emulator, including mobile devices, handheld consoles, and other computers.
+
+**Q: What happens if I delete a patched ROM file?**
+A: You can re-download and re-patch any hack from your History page. The app remembers what you've downloaded and can recreate the files.
+
+### Technical Questions
+
+**Q: Why does the app need internet access?**
+A: Internet access is required to:
+- Download hack data from SMWCentral's API
+- Download patch files (.zip archives)
+- Check for application updates
+- No personal data is transmitted
+
+**Q: How much disk space will my collection use?**
+A: Each patched hack is typically 1-4 MB. A collection of 100 hacks uses about 200-400 MB. The app itself is under 50 MB on all platforms.
+
+**Q: Can I backup my collection and settings?**
+A: Yes! Your entire collection data is stored in `processed.json` and settings in `config.json`. Copy these files to backup your progress and configuration.
+
+**Q: Does the app work offline?**
+A: Partially. You can:
+- Browse your downloaded collection
+- Play previously patched hacks
+- Manage history and settings
+- But you cannot download new hacks or check for updates without internet
+
+### Platform-Specific Questions
+
+**Q: Why does Windows Defender flag the app as suspicious?**
+A: This is a common false positive with PyInstaller executables. The app is completely safe - it's open source and builds are automated through GitHub Actions. Use the included `defender_exclusion.bat` script to resolve this.
+
+**Q: Why can't I open the app on macOS?**
+A: macOS blocks unsigned applications by default. Right-click the app and select "Open" to bypass this security feature. This only needs to be done once.
+
+**Q: Why is the Linux version larger than Windows/macOS?**
+A: The Linux version includes additional libraries for GTK+ compatibility across different distributions, making it more portable but slightly larger.
+
+**Q: Can I run multiple instances of the app?**
+A: No, the app uses file locking to prevent database corruption. Only one instance can run at a time.
+
+### Troubleshooting
+
+**Q: Downloads keep failing - what should I check?**
+A: Common causes:
+- Internet connectivity issues
+- Firewall blocking the application
+- Insufficient disk space
+- Write permissions to output directory
+- SMWCentral server temporarily unavailable
+
+**Q: The app crashes when patching ROMs - how do I fix this?**
+A: Usually caused by:
+- Corrupted or wrong ROM file
+- Insufficient disk space
+- Antivirus software interfering
+- Corrupted patch file (try re-downloading the hack)
+
+**Q: My hack collection disappeared - how do I recover it?**
+A: Check for:
+- `processed.json.backup` file in the app directory
+- Your configured output directory (ROM files should still be there)
+- Recent backups of the application folder
+- The app creates automatic backups before major operations
+
+**Q: Can I use different base ROMs for different hacks?**
+A: Currently, the app uses one configured base ROM for all patches. Most hacks work with the standard US Super Mario World ROM, but some may require specific versions.
+
+### Advanced Usage
+
+**Q: Can I modify the app's behavior or add features?**
+A: Yes! The app is open source (MIT license). You can:
+- Modify the source code for personal use
+- Submit feature requests on GitHub
+- Contribute improvements to the project
+- Fork the project for custom versions
+
+**Q: How does the auto-updater work across platforms?**
+A: The updater:
+- Detects your platform automatically
+- Downloads the correct package format (.zip/.dmg/.tar.gz)
+- Installs using platform-native methods
+- Creates backups and handles rollbacks if needed
+- Works identically on Windows, macOS, and Linux
+
+**Q: Can I use the app for ROM hacking development?**
+A: The app is designed for playing hacks, not creating them. For ROM hacking development, you'll want:
+- Lunar Magic (level editor)
+- AddmusicK (music insertion)
+- PIXI (sprite tool)
+- GPS (block tool)
+- Various other specialized tools
+
+## 🔧 For Developers
+
+### Building from Source
+
+#### Prerequisites
+- Python 3.8 or later
+- pip (Python package manager)
+- Git (for cloning the repository)
+
+#### Setup Process
+```bash
+# Clone the repository
+git clone https://github.com/your-username/smwc-downloader.git
+cd smwc-downloader
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run the application
+python main.py
+```
+
+#### Building Executables
+```bash
+# Windows
+pyinstaller "SMWC Downloader.spec"
+
+# macOS  
+pyinstaller "SMWC Downloader macOS.spec"
+
+# Linux
+pyinstaller "SMWC Downloader.spec"
+```
+
+#### Testing
+```bash
+# Run test suite
+python -m pytest tests/
+
+# Run specific test
+python tests/test_specific_feature.py
+```
+
+### Project Structure
+```
+smwc-downloader/
+├── main.py              # Main application entry point
+├── ui/                  # User interface components
+│   ├── components.py    # Reusable UI elements
+│   ├── pages/          # Individual page implementations
+│   └── components/     # Specialized components
+├── api_pipeline.py      # SMWCentral API interface
+├── patch_handler.py     # ROM patching logic
+├── config_manager.py    # Configuration management
+├── hack_data_manager.py # Local database operations
+├── updater.py          # Auto-update system
+└── tests/              # Test suite
+```
+
+### Contributing Guidelines
+1. **Fork the repository** on GitHub
+2. **Create a feature branch** for your changes
+3. **Write tests** for new functionality
+4. **Follow the existing code style** and conventions
+5. **Test on multiple platforms** if possible
+6. **Submit a pull request** with detailed description
+
+### API Reference
+The app uses SMWCentral's public API. Key endpoints:
+- `/api/v1/hacks` - Hack listing and search
+- `/api/v1/hack/{id}` - Individual hack details
+- Rate limits apply - the app handles these automatically
 
 ## 🤝 Contributing
 

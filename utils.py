@@ -496,7 +496,7 @@ def move_hack_to_new_difficulty(output_dir, hack_type, old_diff, new_diff, filen
 # Processed tracking
 def load_processed(path=None):
     if path is None:
-        path = get_user_data_path("processed.json")
+        path = PROCESSED_JSON_PATH
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
@@ -504,7 +504,7 @@ def load_processed(path=None):
 
 def save_processed(data, path=None):
     if path is None:
-        path = get_user_data_path("processed.json")
+        path = PROCESSED_JSON_PATH
     # Ensure directory exists
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
@@ -533,16 +533,19 @@ def get_user_data_path(filename):
     
     return os.path.join(app_data_dir, filename)
 
+
+# Centralized file paths - single source of truth for all application data files
+PROCESSED_JSON_PATH = get_user_data_path("processed.json")
+CONFIG_JSON_PATH = get_user_data_path("config.json")
+
 # Get base directory (project root)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Config paths
-CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
-PROCESSED_FILE = os.path.join(BASE_DIR, "processed.json")
-
-# Ensure files exist
-if not os.path.exists(CONFIG_FILE):
-    with open(CONFIG_FILE, 'w') as f:
+# Ensure cross-platform config file exists in proper location
+if not os.path.exists(CONFIG_JSON_PATH):
+    # Create the directory if it doesn't exist
+    os.makedirs(os.path.dirname(CONFIG_JSON_PATH), exist_ok=True)
+    with open(CONFIG_JSON_PATH, 'w') as f:
         json.dump({
             "flips_path": "",
             "base_rom_path": "",

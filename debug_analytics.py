@@ -8,12 +8,15 @@ from collections import defaultdict
 def debug_analytics():
     """Check what's in the analytics data for time progression"""
     
-    # Load the hack data
+    # Load the hack data using the same path resolution
+    from utils import PROCESSED_JSON_PATH
+    processed_path = PROCESSED_JSON_PATH
+    
     try:
-        with open('processed.json', 'r', encoding='utf-8') as f:
+        with open(processed_path, 'r', encoding='utf-8') as f:
             all_data = json.load(f)
     except FileNotFoundError:
-        print("processed.json not found")
+        print(f"{processed_path} not found")
         return
     
     print("=== DEBUG: Checking Time Progression Data ===")

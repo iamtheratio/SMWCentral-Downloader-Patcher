@@ -8,7 +8,12 @@ from datetime import datetime
 class HackDataManager:
     """Manages hack data from processed.json with history tracking"""
 
-    def __init__(self, json_path="processed.json", logger=None):
+    def __init__(self, json_path=None, logger=None):
+        # If no path specified, use the same path resolution as download operations
+        if json_path is None:
+            from utils import PROCESSED_JSON_PATH
+            json_path = PROCESSED_JSON_PATH
+        
         self.json_path = json_path
         self.logger = logger
         self.data = self._load_data()

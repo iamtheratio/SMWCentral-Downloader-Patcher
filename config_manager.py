@@ -14,25 +14,9 @@ import sys
 
 def get_config_path():
     """Get the appropriate config path for the current platform"""
-    if platform.system() == "Windows":
-        # For Windows: Store config next to the executable for portability
-        if hasattr(sys, 'frozen') and sys.frozen:
-            # Running as PyInstaller executable
-            config_dir = os.path.dirname(sys.executable)
-        else:
-            # Running as script in development
-            config_dir = os.path.dirname(os.path.abspath(__file__))
-        return os.path.join(config_dir, "config.json")
-    elif platform.system() == "Darwin":
-        # macOS - Use proper location (cannot write to app bundle)
-        config_dir = os.path.expanduser("~/Library/Application Support/SMWCDownloader")
-        os.makedirs(config_dir, exist_ok=True)
-        return os.path.join(config_dir, "config.json")
-    else:
-        # Linux - use ~/.config/smwc-downloader/
-        config_dir = os.path.expanduser("~/.config/smwc-downloader")
-        os.makedirs(config_dir, exist_ok=True)
-        return os.path.join(config_dir, "config.json")
+    # Use the same path resolution as processed.json for consistency
+    from utils import CONFIG_JSON_PATH
+    return CONFIG_JSON_PATH
 
 
 CONFIG_PATH = get_config_path()
