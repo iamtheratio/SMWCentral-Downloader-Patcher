@@ -118,13 +118,11 @@ jobs:
         "
 
     # Only build full packages if we're on main or develop branch (not PRs)
-    - name: Build main executable
-      if: github.event_name != 'pull_request'
+    - name: Build main executable (Linux)
+      if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest'
       run: |
-        # Create platform-specific spec for Linux if needed
-        if [ "${{ matrix.os }}" == "ubuntu-latest" ]; then
-          # Create Linux-specific spec for main downloader
-          cat > "SMWC Downloader Linux.spec" << 'EOF'
+        # Create Linux-specific spec for main downloader
+        cat > "SMWC Downloader Linux.spec" << 'EOF'
         # -*- mode: python ; coding: utf-8 -*-
         a = Analysis(
             ['main.py'],
@@ -161,10 +159,13 @@ jobs:
             entitlements_file=None,
         )
         EOF
-          pyinstaller "SMWC Downloader Linux.spec" --clean --noconfirm
-        else
-          pyinstaller "${{ matrix.spec }}" --clean --noconfirm
-        fi
+        pyinstaller "SMWC Downloader Linux.spec" --clean --noconfirm
+
+    - name: Build main executable (Windows/macOS)
+      if: github.event_name != 'pull_request' && matrix.os != 'ubuntu-latest'
+      shell: bash
+      run: |
+        pyinstaller "${{ matrix.spec }}" --clean --noconfirm
 
     # Create platform-specific packages
     - name: Create Windows package
