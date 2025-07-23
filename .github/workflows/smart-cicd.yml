@@ -1,5 +1,10 @@
 name: Smart CI/CD Pipeline
 
+# Note: Using macos-13 instead of macos-latest for compatibility
+# GitHub will migrate macos-latest to macOS 15 on August 4, 2025
+# See: https://github.com/actions/runner-images/issues/12520
+# When ready for macOS 15, update to macos-15 or macos-latest
+
 on:
   push:
     branches: [ main, develop ]
@@ -19,18 +24,20 @@ jobs:
   build-and-test:
     strategy:
       matrix:
-        os: [windows-latest, macos-latest, ubuntu-latest]
+        os: [windows-latest, macos-13, ubuntu-latest]  # Use macos-13 for broader compatibility
         include:
           - os: windows-latest
             platform: Windows
             spec: "SMWC Downloader.spec"
             artifact_name_pattern: "SMWC-Downloader-{version}-Windows-x64.zip"
             asset_content_type: "application/zip"
-          - os: macos-latest
+          - os: macos-13
             platform: macOS
             spec: "SMWC Downloader macOS.spec"
             artifact_name_pattern: "SMWC-Downloader-{version}-macOS-Universal.dmg"
             asset_content_type: "application/x-apple-diskimage"
+            # Note: Using macos-13 for broader compatibility. macOS 13+ supports Intel + Apple Silicon universal binaries
+            # When ready for macOS 15, change to macos-15 or macos-latest after August 4, 2025
           - os: ubuntu-latest
             platform: Linux
             spec: "SMWC Downloader.spec"
@@ -66,7 +73,7 @@ jobs:
         sudo apt-get install -y python3-tk python3-dev xvfb
 
     - name: Install system dependencies (macOS)
-      if: matrix.os == 'macos-latest'
+      if: matrix.os == 'macos-13'
       run: |
         brew install tcl-tk
 
@@ -190,7 +197,7 @@ jobs:
       id: windows_package
 
     - name: Create macOS package
-      if: matrix.os == 'macos-latest' && github.event_name != 'pull_request'
+      if: matrix.os == 'macos-13' && github.event_name != 'pull_request'
       run: |
         VERSION="${{ steps.get_version.outputs.VERSION }}"
         DMG_NAME="SMWC-Downloader-$VERSION-macOS-Universal.dmg"
@@ -329,15 +336,28 @@ jobs:
       id: linux_package
 
     # Upload artifacts for develop branch or main branch pushes
-    - name: Upload artifacts
-      if: github.event_name != 'pull_request'
+    - name: Upload Windows artifact
+      if: github.event_name != 'pull_request' && matrix.os == 'windows-latest'
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.platform }}-build
-        path: |
-          ${{ steps.windows_package.outputs.ARTIFACT_NAME }}
-          ${{ steps.macos_package.outputs.ARTIFACT_NAME }}
-          ${{ steps.linux_package.outputs.ARTIFACT_NAME }}
+        name: ${{ steps.windows_package.outputs.ARTIFACT_NAME }}
+        path: ${{ steps.windows_package.outputs.ARTIFACT_NAME }}
+        retention-days: 30
+
+    - name: Upload macOS artifact
+      if: github.event_name != 'pull_request' && matrix.os == 'macos-13'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.macos_package.outputs.ARTIFACT_NAME }}
+        path: ${{ steps.macos_package.outputs.ARTIFACT_NAME }}
+        retention-days: 30
+
+    - name: Upload Linux artifact
+      if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.linux_package.outputs.ARTIFACT_NAME }}
+        path: ${{ steps.linux_package.outputs.ARTIFACT_NAME }}
         retention-days: 30
 
   # Create pre-release when merging to main
@@ -401,7 +421,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_prerelease.outputs.upload_url }}
-        asset_path: Windows-build/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip
+        asset_path: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip
         asset_name: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip
         asset_content_type: application/zip
 
@@ -411,7 +431,7 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_prerelease.outputs.upload_url }}
-        asset_path: macOS-build/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg
+        asset_path: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg
         asset_name: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg
         asset_content_type: application/x-apple-diskimage
 
@@ -421,6 +441,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_prerelease.outputs.upload_url }}
-        asset_path: Linux-build/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz
+        asset_path: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz
         asset_name: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz
         asset_content_type: application/gzip
