@@ -27,6 +27,7 @@ PADDING_GUIDE.md
 *.tmp
 .DS_Store
 test_canvas.py
+test_*.py
 
 # VS Code
 .vscode/

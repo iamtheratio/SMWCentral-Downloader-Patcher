@@ -7,6 +7,31 @@ Copyright (c) 2025 iamtheratio
 Licensed under the MIT License - see LICENSE file for details
 """
 
+# Suppress threading cleanup errors during Python shutdown - must be before any imports
+import warnings
+import sys
+import os
+
+# Multiple approaches to suppress threading cleanup errors
+warnings.filterwarnings("ignore", message=".*NoneType.*context manager protocol.*")
+warnings.filterwarnings("ignore", category=RuntimeWarning, message=".*dummy thread.*")
+warnings.simplefilter("ignore", ResourceWarning)
+
+# Additional threading cleanup suppression
+try:
+    import threading
+    # Override the problematic cleanup function
+    original_del = getattr(threading, '_DeleteDummyThreadOnDel', None)
+    if original_del and hasattr(original_del, '__del__'):
+        def silent_del(self):
+            try:
+                original_del.__del__(self)
+            except (TypeError, AttributeError):
+                pass  # Silently ignore cleanup errors
+        threading._DeleteDummyThreadOnDel.__del__ = silent_del
+except:
+    pass  # Ignore if threading module changes
+
 import tkinter as tk
 from tkinter import ttk
 from api_pipeline import run_pipeline
@@ -30,7 +55,7 @@ try:
 except ImportError:
     pywinstyles = None
 
-VERSION = "v4.3"
+VERSION = "v4.4"
 
 def apply_theme_to_titlebar(root):
     if platform.system() != "Windows" or pywinstyles is None:
@@ -516,10 +541,6 @@ def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=
 def main():
     """Main application entry point"""
     try:
-        # Suppress threading cleanup errors during shutdown
-        import warnings
-        warnings.filterwarnings("ignore", message=".*NoneType.*context manager protocol.*")
-        
         root = tk.Tk()
         root.title("SMWC Downloader & Patcher")
         
@@ -594,17 +615,38 @@ def main():
                     if hasattr(history_page, 'cleanup'):
                         history_page.cleanup()
             
-            # Clean up any background threads to prevent shutdown errors
+            # Aggressive thread cleanup to prevent shutdown errors
             try:
                 import threading
+                import time
+                
+                # Set a flag to signal all threads to stop
                 for thread in threading.enumerate():
                     if thread != threading.current_thread() and thread.is_alive():
+                        # Try multiple cleanup methods
                         if hasattr(thread, '_stop'):
                             thread._stop()
+                        if hasattr(thread, 'daemon'):
+                            thread.daemon = True
+                        # Don't wait for threads - let them die naturally
+                
+                # Clear thread references to help garbage collection
+                threading._shutdown()
             except:
-                pass  # Ignore cleanup errors
+                pass  # Ignore all cleanup errors
             
-            root.destroy()
+            # Force exit to bypass any remaining cleanup issues
+            try:
+                root.destroy()
+            except:
+                pass
+            
+            # Final fallback - force process termination if needed
+            try:
+                import os
+                os._exit(0)
+            except:
+                pass
         
         root.protocol("WM_DELETE_WINDOW", on_closing)
         

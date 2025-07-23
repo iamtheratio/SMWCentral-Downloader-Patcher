@@ -81,49 +81,47 @@ class DashboardPage:
         # Configure canvas scrolling
         self.canvas.configure(yscrollcommand=self.scrollbar.set)
         
-        # Mouse wheel scrolling - different approach for macOS trackpad
-        def _on_mousewheel(event):
-            """Handle mouse wheel scrolling"""
-            if platform.system() == "Darwin":  # macOS
-                # Try different approaches for macOS
-                delta = event.delta
-                self.canvas.yview_scroll(-delta, "units")
-            else:  # Windows/Linux
-                self.canvas.yview_scroll(int(-1*(event.delta/120)), "units")
-        
-        def _on_trackpad(event):
-            """Alternative trackpad handler for macOS"""
-            self.canvas.yview_scroll(-1 if event.delta > 0 else 1, "units")
-        
-        # Try multiple binding approaches for macOS trackpad
-        widgets_to_bind = [self.canvas, self.scrollable_frame, self.frame, self.parent_frame]
-        
-        for widget in widgets_to_bind:
-            # Standard mouse wheel
-            widget.bind("<MouseWheel>", _on_mousewheel)
-            
-            # macOS specific bindings
-            if platform.system() == "Darwin":
-                # Try different event types for macOS trackpad
-                widget.bind("<Button-4>", lambda e: self.canvas.yview_scroll(-1, "units"))
-                widget.bind("<Button-5>", lambda e: self.canvas.yview_scroll(1, "units"))
-                # Additional macOS trackpad events
+        # Simple and reliable mouse wheel scrolling
+        def _bind_mousewheel(widget):
+            """Bind mouse wheel events to a widget"""
+            def _on_mousewheel(event):
+                # Universal mouse wheel handling
                 try:
-                    widget.bind("<Shift-MouseWheel>", _on_trackpad)
-                    widget.bind("<Control-MouseWheel>", _on_mousewheel)
+                    if platform.system() == "Darwin":  # macOS
+                        self.canvas.yview_scroll(-1 * int(event.delta), "units")
+                    else:  # Windows/Linux
+                        self.canvas.yview_scroll(-1 * int(event.delta/120), "units")
                 except:
-                    pass
+                    # Fallback for any platform differences
+                    if hasattr(event, 'delta'):
+                        delta = event.delta
+                        if delta > 0:
+                            self.canvas.yview_scroll(-1, "units")
+                        else:
+                            self.canvas.yview_scroll(1, "units")
+                return "break"  # Prevent event propagation
             
-            # Ensure widget can receive events
-            try:
-                widget.bind("<Button-1>", lambda e, w=widget: w.focus_set())
-                widget.bind("<Enter>", lambda e, w=widget: w.focus_set())
-            except:
-                pass
+            def _on_enter(event):
+                """When mouse enters widget, bind mousewheel"""
+                widget.bind_all("<MouseWheel>", _on_mousewheel)
+                # macOS specific
+                if platform.system() == "Darwin":
+                    widget.bind_all("<Button-4>", lambda e: self.canvas.yview_scroll(-1, "units"))
+                    widget.bind_all("<Button-5>", lambda e: self.canvas.yview_scroll(1, "units"))
+            
+            def _on_leave(event):
+                """When mouse leaves widget, unbind mousewheel"""
+                widget.unbind_all("<MouseWheel>")
+                if platform.system() == "Darwin":
+                    widget.unbind_all("<Button-4>")
+                    widget.unbind_all("<Button-5>")
+            
+            widget.bind("<Enter>", _on_enter)
+            widget.bind("<Leave>", _on_leave)
         
-        # Make sure canvas is focused and can scroll
-        self.canvas.focus_set()
-        self.canvas.configure(takefocus=True)
+        # Bind mousewheel to the main frame and canvas
+        _bind_mousewheel(self.frame)
+        _bind_mousewheel(self.canvas)
         
         # Pack canvas and scrollbar
         self.canvas.pack(side="left", fill="both", expand=True)
@@ -159,6 +157,41 @@ class DashboardPage:
         # Ensure scroll region is properly set after content creation
         self.scrollable_frame.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+        
+        # Bind mousewheel to all child widgets recursively
+        self._bind_mousewheel_to_children(self.scrollable_frame)
+    
+    def _bind_mousewheel_to_children(self, parent):
+        """Recursively bind mousewheel events to all child widgets"""
+        def _on_child_mousewheel(event):
+            """Handle mousewheel on child widgets"""
+            try:
+                if platform.system() == "Darwin":  # macOS
+                    self.canvas.yview_scroll(-1 * int(event.delta), "units")
+                else:  # Windows/Linux
+                    self.canvas.yview_scroll(-1 * int(event.delta/120), "units")
+            except:
+                # Fallback
+                if hasattr(event, 'delta'):
+                    delta = event.delta
+                    if delta > 0:
+                        self.canvas.yview_scroll(-1, "units")
+                    else:
+                        self.canvas.yview_scroll(1, "units")
+            return "break"
+        
+        # Bind to the parent widget
+        try:
+            parent.bind("<MouseWheel>", _on_child_mousewheel)
+            if platform.system() == "Darwin":
+                parent.bind("<Button-4>", lambda e: self.canvas.yview_scroll(-1, "units"))
+                parent.bind("<Button-5>", lambda e: self.canvas.yview_scroll(1, "units"))
+        except:
+            pass
+        
+        # Recursively bind to all children
+        for child in parent.winfo_children():
+            self._bind_mousewheel_to_children(child)
     
     def _refresh_dashboard(self):
         """Refresh dashboard data and UI"""
@@ -180,10 +213,6 @@ class DashboardPage:
         self.scrollable_frame.update_idletasks()
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))
         self.canvas.yview_moveto(0)
-        
-        # Re-bind mouse wheel to all new content
-        if hasattr(self, '_bind_mousewheel_recursive'):
-            self._bind_mousewheel_recursive()
         
         if self.logger:
             self.logger.log("Dashboard refreshed successfully!", level="info")

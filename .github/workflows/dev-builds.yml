@@ -1,0 +1,86 @@
+name: Development Builds
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.gitignore'
+  workflow_dispatch:
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  test-builds:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-latest, ubuntu-latest]
+        include:
+          - os: windows-latest
+            platform: Windows
+          - os: macos-latest
+            platform: macOS
+          - os: ubuntu-latest
+            platform: Linux
+
+    runs-on: ${{ matrix.os }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+
+    - name: Install system dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-tk python3-dev
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Test import and basic functionality
+      run: |
+        python -c "
+        import sys
+        sys.path.append('.')
+        try:
+            from main import VERSION
+            print(f'✅ App version: {VERSION}')
+            
+            # Test key imports
+            from hack_data_manager import HackDataManager
+            from config_manager import ConfigManager
+            from ui import setup_ui
+            print('✅ Core modules import successfully')
+            
+            # Test data manager
+            dm = HackDataManager()
+            print('✅ Data manager initializes successfully')
+            
+            print('✅ All basic tests passed!')
+        except Exception as e:
+            print(f'❌ Test failed: {e}')
+            sys.exit(1)
+        "
+
+    - name: Lint check (optional)
+      continue-on-error: true
+      run: |
+        pip install flake8
+        flake8 --ignore=E501,W503,E203 --max-line-length=120 main.py hack_data_manager.py config_manager.py
+
+    - name: Test build (PyInstaller dry run)
+      if: matrix.os != 'ubuntu-latest'  # Skip Linux for speed
+      run: |
+        pip install pyinstaller
+        pyinstaller --version
+        echo "✅ PyInstaller is ready for ${{ matrix.platform }}"

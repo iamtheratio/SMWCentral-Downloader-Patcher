@@ -9,11 +9,14 @@ Licensed under the MIT License - see LICENSE file for details
 import requests
 import json
 import zipfile
+import tarfile
 import tempfile
 import os
 import sys
 import subprocess
 import shutil
+import platform
+import stat
 import tkinter as tk
 from tkinter import ttk, messagebox
 from threading import Thread
@@ -120,7 +123,7 @@ class Updater:
         platform_patterns = {
             'darwin': ['macos', 'mac', 'darwin'],  # macOS
             'windows': ['win', 'windows'],          # Windows
-            'linux': ['linux']                     # Linux (future support)
+            'linux': ['linux']                     # Linux
         }
         
         # Look for platform-specific assets first
@@ -129,7 +132,7 @@ class Updater:
             for asset in assets:
                 asset_name_lower = asset['name'].lower()
                 if any(pattern in asset_name_lower for pattern in patterns):
-                    if asset_name_lower.endswith(('.zip', '.dmg', '.exe')):
+                    if asset_name_lower.endswith(('.zip', '.dmg', '.exe', '.tar.gz')):
                         return asset['browser_download_url']
         
         # Fallback: Look for .zip files first (cross-platform)
@@ -145,6 +148,10 @@ class Updater:
         elif current_platform == 'windows':
             for asset in assets:
                 if asset['name'].endswith('.exe'):
+                    return asset['browser_download_url']
+        elif current_platform == 'linux':
+            for asset in assets:
+                if asset['name'].endswith('.tar.gz'):
                     return asset['browser_download_url']
         
         # If no suitable asset found, use the zipball URL
@@ -177,6 +184,10 @@ class Updater:
                 file_ext = '.zip'
             elif download_url.endswith('.exe'):
                 file_ext = '.exe'
+            elif download_url.endswith('.dmg'):
+                file_ext = '.dmg'
+            elif download_url.endswith('.tar.gz'):
+                file_ext = '.tar.gz'
             else:
                 file_ext = '.zip'  # Default assumption
             
@@ -238,7 +249,7 @@ class Updater:
                     else:
                         raise UpdaterError("Could not locate application executable for update")
             
-            # Extract update if it's a zip file
+            # Extract update based on file type
             if downloaded_file_path.endswith('.zip'):
                 extract_dir = tempfile.mkdtemp(prefix="smwc_extract_")
                 
@@ -259,6 +270,95 @@ class Updater:
                     raise UpdaterError("Could not find executable in update package")
                 
                 update_exe = new_exe
+                
+            elif downloaded_file_path.endswith('.tar.gz'):
+                import tarfile
+                extract_dir = tempfile.mkdtemp(prefix="smwc_extract_")
+                
+                with tarfile.open(downloaded_file_path, 'r:gz') as tar_ref:
+                    tar_ref.extractall(extract_dir)
+                
+                # Find the new executable in the extracted files
+                new_exe = None
+                for root, dirs, files in os.walk(extract_dir):
+                    for file in files:
+                        # Linux executables typically don't have .exe extension
+                        if ('SMWC' in file or 'smwc' in file) and not file.endswith(('.txt', '.md', '.json', '.spec')):
+                            # Check if file is executable
+                            file_path = os.path.join(root, file)
+                            if os.access(file_path, os.X_OK):
+                                new_exe = file_path
+                                break
+                    if new_exe:
+                        break
+                
+                if not new_exe:
+                    raise UpdaterError("Could not find executable in update package")
+                
+                update_exe = new_exe
+                
+            elif downloaded_file_path.endswith('.dmg'):
+                # For macOS DMG files, we need to mount and copy the app
+                import platform
+                if platform.system().lower() != 'darwin':
+                    raise UpdaterError("DMG files can only be installed on macOS")
+                
+                try:
+                    # Mount the DMG
+                    mount_result = subprocess.run(['hdiutil', 'attach', downloaded_file_path, '-nobrowse', '-quiet'], 
+                                                capture_output=True, text=True)
+                    if mount_result.returncode != 0:
+                        raise UpdaterError(f"Failed to mount DMG: {mount_result.stderr}")
+                    
+                    # Parse mount output to find volume path
+                    mount_point = None
+                    for line in mount_result.stdout.split('\n'):
+                        if '/Volumes/' in line:
+                            mount_point = line.split('\t')[-1].strip()
+                            break
+                    
+                    if not mount_point:
+                        raise UpdaterError("Could not find mount point for DMG")
+                    
+                    # Find the .app bundle
+                    app_bundle = None
+                    for item in os.listdir(mount_point):
+                        if item.endswith('.app') and 'SMWC' in item:
+                            app_bundle = os.path.join(mount_point, item)
+                            break
+                    
+                    if not app_bundle:
+                        subprocess.run(['hdiutil', 'detach', mount_point, '-quiet'])
+                        raise UpdaterError("Could not find application bundle in DMG")
+                    
+                    # Copy to Applications folder
+                    applications_dir = "/Applications"
+                    app_name = os.path.basename(app_bundle)
+                    target_path = os.path.join(applications_dir, app_name)
+                    
+                    # Remove existing installation if present
+                    if os.path.exists(target_path):
+                        subprocess.run(['rm', '-rf', target_path])
+                    
+                    # Copy new version
+                    subprocess.run(['cp', '-R', app_bundle, applications_dir])
+                    
+                    # Unmount DMG
+                    subprocess.run(['hdiutil', 'detach', mount_point, '-quiet'])
+                    
+                    # DMG installation complete - no need for further processing
+                    self.update_in_progress = False
+                    return
+                    
+                except Exception as e:
+                    # Try to unmount if something went wrong
+                    try:
+                        if 'mount_point' in locals():
+                            subprocess.run(['hdiutil', 'detach', mount_point, '-quiet'])
+                    except:
+                        pass
+                    raise UpdaterError(f"Failed to install DMG: {str(e)}")
+                
             else:
                 # Direct executable download
                 update_exe = downloaded_file_path
@@ -310,7 +410,7 @@ class Updater:
                     else:
                         raise UpdaterError("Could not locate application executable for update")
             
-            # Extract update if it's a zip file
+            # Extract update based on file type
             if downloaded_file_path.endswith('.zip'):
                 extract_dir = tempfile.mkdtemp(prefix="smwc_extract_")
                 
@@ -331,17 +431,120 @@ class Updater:
                     raise UpdaterError("Could not find executable in update package")
                 
                 update_exe = new_exe
+                
+            elif downloaded_file_path.endswith('.tar.gz'):
+                import tarfile
+                extract_dir = tempfile.mkdtemp(prefix="smwc_extract_")
+                
+                with tarfile.open(downloaded_file_path, 'r:gz') as tar_ref:
+                    tar_ref.extractall(extract_dir)
+                
+                # Find the new executable in the extracted files
+                new_exe = None
+                for root, dirs, files in os.walk(extract_dir):
+                    for file in files:
+                        # Linux executables typically don't have .exe extension
+                        if ('SMWC' in file or 'smwc' in file) and not file.endswith(('.txt', '.md', '.json', '.spec')):
+                            # Check if file is executable
+                            file_path = os.path.join(root, file)
+                            if os.access(file_path, os.X_OK):
+                                new_exe = file_path
+                                break
+                    if new_exe:
+                        break
+                
+                if not new_exe:
+                    raise UpdaterError("Could not find executable in update package")
+                
+                update_exe = new_exe
+                
+            elif downloaded_file_path.endswith('.dmg'):
+                # For macOS DMG files, we need to mount and copy the app
+                import platform
+                if platform.system().lower() != 'darwin':
+                    raise UpdaterError("DMG files can only be installed on macOS")
+                
+                try:
+                    # Mount the DMG
+                    mount_result = subprocess.run(['hdiutil', 'attach', downloaded_file_path, '-nobrowse', '-quiet'], 
+                                                capture_output=True, text=True)
+                    if mount_result.returncode != 0:
+                        raise UpdaterError(f"Failed to mount DMG: {mount_result.stderr}")
+                    
+                    # Parse mount output to find volume path
+                    mount_point = None
+                    for line in mount_result.stdout.split('\n'):
+                        if '/Volumes/' in line:
+                            mount_point = line.split('\t')[-1].strip()
+                            break
+                    
+                    if not mount_point:
+                        raise UpdaterError("Could not find mount point for DMG")
+                    
+                    # Find the .app bundle
+                    app_bundle = None
+                    for item in os.listdir(mount_point):
+                        if item.endswith('.app') and 'SMWC' in item:
+                            app_bundle = os.path.join(mount_point, item)
+                            break
+                    
+                    if not app_bundle:
+                        subprocess.run(['hdiutil', 'detach', mount_point, '-quiet'])
+                        raise UpdaterError("Could not find application bundle in DMG")
+                    
+                    # Copy to Applications folder
+                    applications_dir = "/Applications"
+                    app_name = os.path.basename(app_bundle)
+                    target_path = os.path.join(applications_dir, app_name)
+                    
+                    # Remove existing installation if present
+                    if os.path.exists(target_path):
+                        subprocess.run(['rm', '-rf', target_path])
+                    
+                    # Copy new version
+                    subprocess.run(['cp', '-R', app_bundle, applications_dir])
+                    
+                    # Unmount DMG
+                    subprocess.run(['hdiutil', 'detach', mount_point, '-quiet'])
+                    
+                    # DMG installation complete
+                    self.update_in_progress = False
+                    return
+                    
+                except Exception as e:
+                    # Try to unmount if something went wrong
+                    try:
+                        if 'mount_point' in locals():
+                            subprocess.run(['hdiutil', 'detach', mount_point, '-quiet'])
+                    except:
+                        pass
+                    raise UpdaterError(f"Failed to install DMG: {str(e)}")
+                
             else:
                 # Direct executable download
                 update_exe = downloaded_file_path
             
             # Copy update executable to a permanent location to avoid temp directory cleanup
             script_dir = os.path.dirname(current_exe)
-            permanent_update_exe = os.path.join(script_dir, "update_new.exe")
+            
+            # Determine appropriate filename based on platform and file type
+            import platform
+            current_platform = platform.system().lower()
+            
+            if update_exe.endswith('.exe') or current_platform == 'windows':
+                permanent_update_exe = os.path.join(script_dir, "update_new.exe")
+            else:
+                # Linux or other platform
+                permanent_update_exe = os.path.join(script_dir, "update_new")
             
             # Copy the update executable to permanent location
             import shutil
             shutil.copy2(update_exe, permanent_update_exe)
+            
+            # Ensure executable permissions on Linux/macOS
+            if current_platform in ['linux', 'darwin']:
+                import stat
+                os.chmod(permanent_update_exe, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP | stat.S_IROTH | stat.S_IXOTH)
             
             # Create update script with permanent path
             update_script = self._create_update_script(current_exe, permanent_update_exe)
