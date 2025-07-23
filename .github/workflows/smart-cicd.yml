@@ -1,0 +1,348 @@
+name: Smart CI/CD Pipeline
+# Note: Using macos-13 instead of macos-latest for compatibility
+# GitHub will migrate macos-latest to macOS 15 on August 4, 2025
+# See: https://github.com/actions/runner-images/issues/12520
+# When ready for macOS 15, update to macos-15 or macos-latest
+on:
+  push:
+    branches: [ main, develop ]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.gitignore'
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+env:
+  APP_NAME: "SMWC Downloader"
+  PYTHON_VERSION: "3.11"
+jobs:
+  build-and-test:
+    strategy:
+      matrix:
+        os: [windows-latest, macos-13, ubuntu-latest]  # Use macos-13 for broader compatibility
+        include:
+          - os: windows-latest
+            platform: Windows
+            spec: "SMWC Downloader.spec"
+            artifact_name_pattern: "SMWC-Downloader-{version}-Windows-x64.zip"
+            asset_content_type: "application/zip"
+          - os: macos-13
+            platform: macOS
+            spec: "SMWC Downloader macOS.spec"
+            artifact_name_pattern: "SMWC-Downloader-{version}-macOS-Universal.dmg"
+            asset_content_type: "application/x-apple-diskimage"
+            # Note: Using macos-13 for broader compatibility. macOS 13+ supports Intel + Apple Silicon universal binaries
+            # When ready for macOS 15, change to macos-15 or macos-latest after August 4, 2025
+          - os: ubuntu-latest
+            platform: Linux
+            spec: "SMWC Downloader.spec"
+            artifact_name_pattern: "SMWC-Downloader-{version}-Linux-x64.tar.gz"
+            asset_content_type: "application/gzip"
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ env.PYTHON_VERSION }}
+    - name: Cache pip dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cache/pip
+          ~/Library/Caches/pip
+          ~\AppData\Local\pip\Cache
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    - name: Install system dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-tk python3-dev xvfb
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-13'
+      run: |
+        brew install tcl-tk
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install pyinstaller
+    - name: Get version from main.py
+      id: get_version
+      shell: bash
+      run: |
+        VERSION=$(python -c "import sys; sys.path.append('.'); from main import VERSION; print(VERSION)")
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "App version: $VERSION"
+    - name: Set virtual display (Linux only)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        export DISPLAY=:99
+        Xvfb :99 -screen 0 1024x768x24 &
+        sleep 3
+    # Quick test to ensure basic functionality
+    - name: Test basic functionality
+      env:
+        PYTHONIOENCODING: utf-8
+        DISPLAY: ":99"
+      run: |
+        python -c "
+        import sys
+        sys.path.append('.')
+        print('Testing imports...')
+        try:
+            from main import VERSION
+            print(f'OK Version: {VERSION}')
+            import platform
+            print(f'OK Platform: {platform.system()} {platform.release()}')
+            import requests
+            print('OK Requests module works')
+            print('OK All basic tests passed!')
+        except Exception as e:
+            print(f'X Test failed: {e}')
+            sys.exit(1)
+        "
+    # Only build full packages if we're on main or develop branch (not PRs)
+    - name: Build main executable (Linux)
+      if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest'
+      run: |
+        # Create Linux-specific spec for main downloader
+        cat > "SMWC Downloader Linux.spec" << 'EOF'
+        # -*- mode: python ; coding: utf-8 -*-
+        a = Analysis(
+            ['main.py'],
+            pathex=[],
+            binaries=[],
+            datas=[('assets', 'assets'), ('ui', 'ui')],
+            hiddenimports=['tkinter.filedialog', 'tkinter.messagebox'],
+            hookspath=[],
+            hooksconfig={},
+            runtime_hooks=[],
+            excludes=[],
+            noarchive=False,
+            optimize=0,
+        )
+        pyz = PYZ(a.pure)
+        exe = EXE(
+            pyz,
+            a.scripts,
+            a.binaries,
+            a.datas,
+            [],
+            name='smwc-downloader',
+            debug=False,
+            bootloader_ignore_signals=False,
+            strip=False,
+            upx=False,
+            upx_exclude=[],
+            runtime_tmpdir=None,
+            console=False,
+            disable_windowed_traceback=False,
+            argv_emulation=False,
+            target_arch=None,
+            codesign_identity=None,
+            entitlements_file=None,
+        )
+        EOF
+        pyinstaller "SMWC Downloader Linux.spec" --clean --noconfirm
+    - name: Build main executable (Windows/macOS)
+      if: github.event_name != 'pull_request' && matrix.os != 'ubuntu-latest'
+      shell: bash
+      run: |
+        pyinstaller "${{ matrix.spec }}" --clean --noconfirm
+    # Create platform-specific packages
+    - name: Create Windows package
+      if: matrix.os == 'windows-latest' && github.event_name != 'pull_request'
+      run: |
+        $version = "${{ steps.get_version.outputs.VERSION }}"
+        $packageDir = "SMWC-Downloader-$version-Windows-x64"
+        New-Item -ItemType Directory -Path $packageDir -Force
+        New-Item -ItemType Directory -Path "$packageDir\updater" -Force
+        Copy-Item "dist\SMWC Downloader.exe" -Destination $packageDir\
+        # Build updater
+        pyinstaller "SMWC Updater.spec" --clean --noconfirm
+        Copy-Item "dist\SMWC Updater.exe" -Destination "$packageDir\updater\"
+        Copy-Item "config.json" -Destination $packageDir\
+        Copy-Item "README.md" -Destination $packageDir\
+        echo "ARTIFACT_NAME=$packageDir" >> $env:GITHUB_OUTPUT
+      id: windows_package
+    - name: Create macOS package
+      if: matrix.os == 'macos-13' && github.event_name != 'pull_request'
+      run: |
+        VERSION="${{ steps.get_version.outputs.VERSION }}"
+        DMG_NAME="SMWC-Downloader-$VERSION-macOS-Universal.dmg"
+        # Build updater using the macOS spec
+        pyinstaller "SMWC Updater macOS.spec" --clean --noconfirm
+        mkdir -p dmg_contents/updater
+        cp -R "dist/SMWC Downloader.app" dmg_contents/
+        cp -R "dist/SMWC Updater.app" dmg_contents/updater/
+        cp config.json dmg_contents/
+        cp README.md dmg_contents/
+        ln -s /Applications dmg_contents/Applications
+        hdiutil create -volname "SMWC Downloader $VERSION" \
+          -srcfolder dmg_contents \
+          -ov -format UDZO \
+          "$DMG_NAME"
+        echo "ARTIFACT_NAME=$DMG_NAME" >> $GITHUB_OUTPUT
+      id: macos_package
+    - name: Create Linux package
+      if: matrix.os == 'ubuntu-latest' && github.event_name != 'pull_request'
+      run: |
+        VERSION="${{ steps.get_version.outputs.VERSION }}"
+        ARCHIVE_NAME="SMWC-Downloader-$VERSION-Linux-x64.tar.gz"
+        # Create Linux PyInstaller spec for updater
+        cat > "SMWC Updater Linux.spec" << 'EOF'
+        # -*- mode: python ; coding: utf-8 -*-
+        a = Analysis(
+            ['standalone_updater.py'],
+            pathex=[],
+            binaries=[],
+            datas=[],
+            hiddenimports=[],
+            hookspath=[],
+            hooksconfig={},
+            runtime_hooks=[],
+            excludes=[],
+            noarchive=False,
+            optimize=0,
+        )
+        pyz = PYZ(a.pure)
+        exe = EXE(
+            pyz,
+            a.scripts,
+            a.binaries,
+            a.datas,
+            [],
+            name='smwc-updater',
+            debug=False,
+            bootloader_ignore_signals=False,
+            strip=False,
+            upx=False,
+            upx_exclude=[],
+            runtime_tmpdir=None,
+            console=False,
+            disable_windowed_traceback=False,
+            argv_emulation=False,
+            target_arch=None,
+            codesign_identity=None,
+            entitlements_file=None,
+        )
+        EOF
+        # Build updater
+        pyinstaller "SMWC Updater Linux.spec" --clean --noconfirm
+        mkdir -p package/updater
+        cp dist/smwc-downloader package/
+        cp dist/smwc-updater package/updater/
+        cp config.json package/
+        cp README.md package/
+        tar -czf "$ARCHIVE_NAME" -C package .
+        echo "ARTIFACT_NAME=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
+      id: linux_package
+    # Upload artifacts for develop branch or main branch pushes
+    - name: Upload Windows artifact
+      if: github.event_name != 'pull_request' && matrix.os == 'windows-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.windows_package.outputs.ARTIFACT_NAME }}
+        path: ${{ steps.windows_package.outputs.ARTIFACT_NAME }}
+        retention-days: 30
+    - name: Upload macOS artifact
+      if: github.event_name != 'pull_request' && matrix.os == 'macos-13'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.macos_package.outputs.ARTIFACT_NAME }}
+        path: ${{ steps.macos_package.outputs.ARTIFACT_NAME }}
+        retention-days: 30
+    - name: Upload Linux artifact
+      if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.linux_package.outputs.ARTIFACT_NAME }}
+        path: ${{ steps.linux_package.outputs.ARTIFACT_NAME }}
+        retention-days: 30
+  # Create pre-release when merging to main
+  create-prerelease:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    - name: Get version from main.py
+      id: get_version
+      run: |
+        VERSION=$(python -c "import sys; sys.path.append('.'); from main import VERSION; print(VERSION)")
+        echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+        echo "Pre-release version: $VERSION"
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+    - name: Create release archives
+      run: |
+        VERSION="${{ steps.get_version.outputs.VERSION }}"
+        # Create Windows zip file
+        if [ -d "SMWC-Downloader-$VERSION-Windows-x64" ]; then
+          cd "SMWC-Downloader-$VERSION-Windows-x64"
+          zip -r "../SMWC-Downloader-$VERSION-Windows-x64.zip" .
+          cd ..
+        fi
+        # For macOS and Linux, just rename the existing files if needed
+        # (they should already be properly packaged)
+    - name: Create Pre-Release
+      id: create_prerelease
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.VERSION }}-pre
+        release_name: SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }} (Pre-Release)
+        body: |
+          ## 🚧 Pre-Release: SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }}
+          **This is a pre-release version for testing and review.**
+          🎮 **Multi-platform ROM hack downloader and patcher for Super Mario World Central**
+          ### 📥 Downloads Available:
+          - **Windows**: `SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip`
+          - **macOS**: `SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg`
+          - **Linux**: `SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz`
+          ### ⚠️ Pre-Release Notes:
+          - This version is ready for testing but not yet final
+          - Auto-updater will **NOT** automatically update to pre-releases
+          - Manual testing and feedback welcome
+          - Final release will be published separately
+          ### 🔧 Manual Installation:
+          - **Windows**: Extract ZIP and run `SMWC Downloader.exe`
+          - **macOS**: Mount DMG and drag to Applications
+          - **Linux**: Extract tar.gz and run executable
+          > **Note**: You can safely test this without affecting your current installation.
+        draft: false
+        prerelease: true
+    - name: Upload Windows Pre-Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_prerelease.outputs.upload_url }}
+        asset_path: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip
+        asset_name: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip
+        asset_content_type: application/zip
+    - name: Upload macOS Pre-Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_prerelease.outputs.upload_url }}
+        asset_path: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg 
+        asset_name: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg
+        asset_content_type: application/x-apple-diskimage
+    - name: Upload Linux Pre-Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_prerelease.outputs.upload_url }}
+        asset_path: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz       
+        asset_name: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz
+        asset_content_type: application/gzip
