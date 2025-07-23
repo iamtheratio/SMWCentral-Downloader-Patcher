@@ -708,19 +708,20 @@ def main():
                     check_for_updates_background(VERSION.lstrip('v'), handle_update)
             except Exception:
                 pass  # Ignore update check errors
-        
+
         # Schedule update check after UI loads
         root.after(3000, check_for_updates_after_startup)  # Wait 3 seconds for UI to load
-        
+
         root.mainloop()
-    
+
     except Exception as main_error:
         try:
             import tkinter.messagebox as msgbox
             msgbox.showerror("Application Error", f"A fatal error occurred:\n\n{main_error}")
-        except:
+        except Exception:
             pass
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

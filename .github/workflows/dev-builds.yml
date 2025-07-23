@@ -40,7 +40,13 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
-        sudo apt-get install -y python3-tk python3-dev
+        sudo apt-get install -y python3-tk python3-dev xvfb
+
+    - name: Install system dependencies (macOS)
+      if: matrix.os == 'macos-latest'
+      run: |
+        # Install tcl-tk for tkinter support
+        brew install tcl-tk
 
     - name: Install Python dependencies
       run: |
@@ -48,27 +54,53 @@ jobs:
         pip install -r requirements.txt
 
     - name: Test import and basic functionality
+      env:
+        PYTHONIOENCODING: utf-8
       run: |
+        # Set up virtual display for Linux
+        if [ "${{ matrix.os }}" = "ubuntu-latest" ]; then
+          export DISPLAY=:99
+          Xvfb :99 -screen 0 1024x768x24 &
+          sleep 3
+        fi
+        
         python -c "
         import sys
+        import os
         sys.path.append('.')
+        
         try:
+            # Test version import
             from main import VERSION
-            print(f'✅ App version: {VERSION}')
+            print('App version: ' + str(VERSION))
             
-            # Test key imports
-            from hack_data_manager import HackDataManager
+            # Test core non-GUI imports
             from config_manager import ConfigManager
-            from ui import setup_ui
-            print('✅ Core modules import successfully')
+            config = ConfigManager()
+            print('Config manager works')
             
-            # Test data manager
-            dm = HackDataManager()
-            print('✅ Data manager initializes successfully')
+            # Test utilities
+            from utils import safe_filename, title_case
+            test_filename = safe_filename('Test: File Name')
+            print('Utilities work: ' + str(test_filename))
             
-            print('✅ All basic tests passed!')
+            # Test API components
+            from api_pipeline import DIFFICULTY_LOOKUP
+            print('API pipeline imports successfully')
+            
+            # Test patch handler
+            from patch_handler import PatchHandler
+            print('Patch handler imports successfully')
+            
+            # Test platform detection
+            import platform
+            print('Running on: ' + platform.system() + ' ' + platform.release())
+            
+            print('All core functionality tests passed!')
         except Exception as e:
-            print(f'❌ Test failed: {e}')
+            print('Test failed: ' + str(e))
+            import traceback
+            traceback.print_exc()
             sys.exit(1)
         "
 
@@ -78,9 +110,19 @@ jobs:
         pip install flake8
         flake8 --ignore=E501,W503,E203 --max-line-length=120 main.py hack_data_manager.py config_manager.py
 
-    - name: Test build (PyInstaller dry run)
-      if: matrix.os != 'ubuntu-latest'  # Skip Linux for speed
+    - name: Test build prerequisites
       run: |
         pip install pyinstaller
         pyinstaller --version
-        echo "✅ PyInstaller is ready for ${{ matrix.platform }}"
+        
+        # Test that main.py can be analyzed by PyInstaller
+        python -c "
+        import PyInstaller.utils.hooks
+        print('PyInstaller is ready for ${{ matrix.platform }}')
+        
+        # Only test the version constant, not GUI components
+        import sys
+        sys.path.append('.')
+        from main import VERSION
+        print('Version: ' + str(VERSION))
+        "
