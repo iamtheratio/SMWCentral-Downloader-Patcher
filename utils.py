@@ -27,6 +27,23 @@ def resource_path(relative_path):
 def set_window_icon(window):
     """Set the application icon for any window or dialog"""
     try:
+        if platform.system() == "Linux":
+            # On Linux, use PNG icon with iconphoto
+            try:
+                from PIL import Image, ImageTk
+                icon_path = resource_path("assets/icons/smwc-downloader-64x64.png")
+                if os.path.exists(icon_path):
+                    icon_image = Image.open(icon_path)
+                    icon_photo = ImageTk.PhotoImage(icon_image)
+                    window.iconphoto(True, icon_photo)
+                    # Keep a reference to prevent garbage collection
+                    if not hasattr(window, '_icon_ref'):
+                        window._icon_ref = icon_photo
+                    return
+            except (ImportError, Exception):
+                pass
+        
+        # Fallback to .ico for Windows/macOS or if PNG method fails
         window.iconbitmap(resource_path("assets/icon.ico"))
     except (tk.TclError, AttributeError):
         pass  # Fallback silently if icon not found or not supported
