@@ -39,12 +39,15 @@ jobs:
     - name: Find existing pre-release
       id: find_prerelease
       run: |
-        PRE_TAG="${{ steps.get_version.outputs.VERSION }}-pre"
+        # Use v prefix for pre-release tag (e.g., v4.4-pre)
+        PRE_TAG="v${{ steps.get_version.outputs.VERSION }}-pre"
+        echo "Looking for pre-release tag: $PRE_TAG"
         # Check if pre-release exists
         PRERELEASE_ID=$(curl -s -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
           "https://api.github.com/repos/${{ github.repository }}/releases/tags/$PRE_TAG" \
           | jq -r '.id // "null"')
         echo "PRERELEASE_ID=$PRERELEASE_ID" >> $GITHUB_OUTPUT
+        echo "PRE_TAG=$PRE_TAG" >> $GITHUB_OUTPUT
         echo "Pre-release ID: $PRERELEASE_ID"
     # Extract changelog for current version from README
     - name: Extract changelog
@@ -69,34 +72,72 @@ jobs:
     - name: Promote pre-release to final release
       if: steps.find_prerelease.outputs.PRERELEASE_ID != 'null'
       run: |
-        # Update the existing pre-release to final release
-        curl -X PATCH \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/${{ github.repository }}/releases/${{ steps.find_prerelease.outputs.PRERELEASE_ID }}" \
-          -d '{
-            "tag_name": "${{ steps.get_version.outputs.TAG }}",
-            "name": "SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }}",
-            "body": "## SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }}\n\n🎮 **Multi-platform ROM hack downloader and patcher for Super Mario World Central**\n\n### Platform Support:\n- ✅ **Windows 10/11** (x64)\n- ✅ **macOS** (Universal: Intel + Apple Silicon)\n- ✅ **Linux** (x64)\n\n${{ steps.changelog.outputs.CHANGELOG }}\n\n### Installation Instructions:\n\n**Windows:**\n1. Download `SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip`\n2. Extract the ZIP file\n3. Run `SMWC Downloader.exe`\n4. If Windows Defender flags it, add an exclusion (see README)\n\n**macOS:**\n1. Download `SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg`\n2. Mount the DMG file\n3. Drag the app to your Applications folder\n4. Right-click → Open (first time only to bypass Gatekeeper)\n\n**Linux:**\n1. Download `SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz`\n2. Extract: `tar -xzf SMWC-Downloader-*.tar.gz`\n3. Run: `./smwc-downloader`\n4. May need to install `python3-tk` on some distributions\n\n### System Requirements:\n- **Windows**: Windows 10 (1903+) or Windows 11\n- **macOS**: macOS 10.15+ (Catalina or newer)\n- **Linux**: Modern distribution with GTK support\n\n> **Security Note**: These executables may trigger antivirus warnings due to PyInstaller packaging. This is a common false positive. See the README for exclusion instructions.",
-            "draft": false,
-            "prerelease": false
-          }'
-        echo "✅ Promoted pre-release to final release with README changelog"
+        echo "Promoting pre-release ${{ steps.find_prerelease.outputs.PRE_TAG }} to final release ${{ steps.get_version.outputs.TAG }}"
+        
+        # Use GitHub CLI to update the release (avoids JSON escaping issues)
+        gh release edit "${{ steps.find_prerelease.outputs.PRE_TAG }}" \
+          --tag "${{ steps.get_version.outputs.TAG }}" \
+          --title "SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }}" \
+          --notes "## SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }}
+
+        🎮 **Multi-platform ROM hack downloader and patcher for Super Mario World Central**
+
+        ### Platform Support:
+        - ✅ **Windows 10/11** (x64)  
+        - ✅ **macOS** (Universal: Intel + Apple Silicon)
+        - ✅ **Linux** (x64)
+
+        ${{ steps.changelog.outputs.CHANGELOG }}
+
+        ### Installation Instructions:
+
+        **Windows:**
+        1. Download \`SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip\`
+        2. Extract the ZIP file
+        3. Run \`SMWC Downloader.exe\`
+
+        **macOS:**
+        1. Download \`SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg\`
+        2. Mount the DMG file and drag to Applications folder
+        3. Right-click → Open (first time only to bypass Gatekeeper)
+
+        **Linux:**
+        1. Download \`SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz\`
+        2. Extract and run the installer or binary
+
+        > **Security Note**: These executables may trigger antivirus warnings due to PyInstaller packaging. This is a common false positive." \
+          --draft=false \
+          --prerelease=false
+        
+        echo "✅ Promoted pre-release to final release"
     # If no pre-release exists, create a new final release (fallback)
     - name: Create new final release
       if: steps.find_prerelease.outputs.PRERELEASE_ID == 'null'
       run: |
         echo "⚠️ No pre-release found for version ${{ steps.get_version.outputs.VERSION }}"
         echo "Creating new final release with README changelog..."
-        curl -X POST \
-          -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-          -H "Accept: application/vnd.github.v3+json" \
-          "https://api.github.com/repos/${{ github.repository }}/releases" \
-          -d '{
-            "tag_name": "${{ steps.get_version.outputs.TAG }}",
-            "name": "SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }}",
-            "body": "## SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }}\n\n🎮 **Multi-platform ROM hack downloader and patcher for Super Mario World Central**\n\n⚠️ **Note**: This release was created without a pre-release stage. Please ensure all builds are tested.\n\n### Platform Support:\n- ✅ **Windows 10/11** (x64)\n- ✅ **macOS** (Universal: Intel + Apple Silicon)\n- ✅ **Linux** (x64)\n\n${{ steps.changelog.outputs.CHANGELOG }}\n\n### Installation Instructions:\nPlease download the appropriate package for your platform and follow the installation guide in the README.\n\n> **Note**: If you see this message, consider using the pre-release workflow for better testing.",
-            "draft": false,
-            "prerelease": false
-          }'
+        
+        # Use GitHub CLI instead of curl to avoid JSON escaping issues
+        gh release create "${{ steps.get_version.outputs.TAG }}" \
+          --title "SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }}" \
+          --notes "## SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }}
+
+        🎮 **Multi-platform ROM hack downloader and patcher for Super Mario World Central**
+
+        ⚠️ **Note**: This release was created without a pre-release stage. Please ensure all builds are tested.
+
+        ### Platform Support:
+        - ✅ **Windows 10/11** (x64)
+        - ✅ **macOS** (Universal: Intel + Apple Silicon)
+        - ✅ **Linux** (x64)
+
+        ${{ steps.changelog.outputs.CHANGELOG }}
+
+        ### Installation Instructions:
+        Please download the appropriate package for your platform and follow the installation guide in the README.
+
+        > **Note**: If you see this message, consider using the pre-release workflow for better testing." \
+          --draft=false \
+          --prerelease=false
+        
         echo "✅ Created new final release with README changelog"
