@@ -102,9 +102,6 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 - **Mac**: `Desktop/SMWCentral Hacks/`
 - **Linux**: `~/Desktop/SMWCentral Hacks/`
 
-### ROM Won't Patch
-Make sure you have a clean, unmodified Super Mario World ROM. The app works with both US and Japanese versions.
-
 ## 📝 What You Need
 
 - **Your Operating System**: Windows 10+, macOS 10.15+, or modern Linux
