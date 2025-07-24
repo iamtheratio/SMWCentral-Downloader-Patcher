@@ -58,11 +58,12 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 **New Feature**: While downloads are in progress, the History tab is temporarily locked to prevent editing and maintain database integrity. You can view your history, but cannot make changes until all downloads complete.
 
 ### Managing Your Collection
-1. **View downloaded hacks**: Click the "History" tab to see all your downloaded ROMs
-2. **Track your progress**: Mark hacks as completed, add personal ratings (1-5 stars), and add notes
-3. **Edit completion details**: Click on completion dates, time to beat, or notes to edit them directly
-4. **Filter and sort**: Use filters to find specific hacks, sort by any column by clicking the header
-5. **Edit hack details**: Double-click any hack to open a detailed edit dialog
+1. **View your collection**: Click the "History" tab to see all your downloaded ROMs
+2. **Add hacks manually**: Use the "Add Hack" button to track hacks you've played from other sources
+3. **Track progress**: Mark hacks as completed, rate them (1-5 stars), and add personal notes
+4. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
+5. **Advanced editing**: Double-click any hack to open the full edit dialog
+6. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
 ### App Settings
 - **Download location**: Change where ROMs are saved
