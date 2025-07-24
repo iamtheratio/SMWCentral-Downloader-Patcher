@@ -67,9 +67,12 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 
 ### App Settings
 - **Download location**: Change where ROMs are saved
+- **Multi-type downloads**: Configure how hacks with multiple types (like "Kaizo, Tool-Assisted") are handled
+  - **Primary only**: Download to the main type folder only
+  - **Copy to all folders**: Create copies in each applicable type folder
 - **Auto-updates**: Choose if you want automatic app updates
 - **Theme**: Switch between light and dark modes
-- **API settings**: Adjust download speed and connection settings
+- **API Delay Slider**: Set delay from 0.0 to 3.0 seconds between API requests to avoid rate limiting issues
 
 ## ✨ Key Features
 
