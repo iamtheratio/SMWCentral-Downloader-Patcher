@@ -381,14 +381,24 @@ jobs:
         # Handle macOS DMG file (should already be a file, just move it to root)
         if [ -d "SMWC-Downloader-$VERSION-macOS-Universal.dmg" ]; then
           echo "Moving macOS DMG file..."
-          mv "SMWC-Downloader-$VERSION-macOS-Universal.dmg/SMWC-Downloader-$VERSION-macOS-Universal.dmg" .
+          # First, move the file out of the directory
+          mv "SMWC-Downloader-$VERSION-macOS-Universal.dmg/SMWC-Downloader-$VERSION-macOS-Universal.dmg" "temp-macos.dmg"
+          # Remove the directory
+          rm -rf "SMWC-Downloader-$VERSION-macOS-Universal.dmg"
+          # Rename the file to the correct name
+          mv "temp-macos.dmg" "SMWC-Downloader-$VERSION-macOS-Universal.dmg"
           echo "macOS DMG moved: $(ls -la SMWC-Downloader-$VERSION-macOS-Universal.dmg)"
         fi
         
         # Handle Linux tar.gz file (should already be a file, just move it to root)
         if [ -d "SMWC-Downloader-$VERSION-Linux-x64.tar.gz" ]; then
           echo "Moving Linux tar.gz file..."
-          mv "SMWC-Downloader-$VERSION-Linux-x64.tar.gz/SMWC-Downloader-$VERSION-Linux-x64.tar.gz" .
+          # First, move the file out of the directory
+          mv "SMWC-Downloader-$VERSION-Linux-x64.tar.gz/SMWC-Downloader-$VERSION-Linux-x64.tar.gz" "temp-linux.tar.gz"
+          # Remove the directory
+          rm -rf "SMWC-Downloader-$VERSION-Linux-x64.tar.gz"
+          # Rename the file to the correct name
+          mv "temp-linux.tar.gz" "SMWC-Downloader-$VERSION-Linux-x64.tar.gz"
           echo "Linux tar.gz moved: $(ls -la SMWC-Downloader-$VERSION-Linux-x64.tar.gz)"
         fi
         
