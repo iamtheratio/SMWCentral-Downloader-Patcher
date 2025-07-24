@@ -136,6 +136,8 @@ The app automatically checks for updates when you start it. When an update is av
 <details>
 <summary><strong>Version 4.4 - Latest Release</strong></summary>
 
+### v4.4.0
+
 ### 🚀 New Features
 - **Cross-Platform Support**: Full compatibility with Windows, macOS, and Linux
 - **Download State Management**: History tab is now locked during active downloads to prevent data corruption
@@ -146,19 +148,19 @@ The app automatically checks for updates when you start it. When an update is av
 <details>
 <summary><strong>Previous Versions</strong></summary>
 
-### Version 4.3
+### v4.3.0
 - Dashboard implementation with analytics and charts
 - History page with comprehensive filtering and editing
 - Theme support (light/dark modes)
 - Improved bulk download workflow
 
-### Version 4.2
+### v4.2.0
 - Multi-type download support
 - Enhanced search and filtering capabilities
 - Progress tracking improvements
 - Bug fixes and stability improvements
 
-### Version 4.1
+### v4.1.0
 - Initial release with core downloading functionality
 - Basic patching system
 - Simple history tracking
