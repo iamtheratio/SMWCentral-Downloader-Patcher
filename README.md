@@ -41,9 +41,10 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 
 ### First Time Setup
 1. **Launch the app** - it will open to the main dashboard
-2. **Set your ROM folder**: Click the folder icon to choose where you want your patched ROMs saved
-3. **Add your base ROM**: Click "Browse" next to "Super Mario World ROM" and select your clean SMW ROM file
-4. **You're ready!** The app will remember these settings
+2. **Go to Settings**: Click the "Settings" tab at the top of the app
+3. **Set your ROM folder**: Click the folder icon to choose where you want your patched ROMs saved
+4. **Add your base ROM**: Click "Browse" next to "Super Mario World ROM" and select your clean SMW ROM file
+5. **You're ready!** The app will remember these settings and you can return to the main dashboard
 
 ### Downloading ROM Hacks
 1. **Browse hacks**: The main screen shows all available hacks from SMWCentral
