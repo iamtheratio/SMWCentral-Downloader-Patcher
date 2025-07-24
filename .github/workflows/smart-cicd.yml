@@ -363,14 +363,38 @@ jobs:
     - name: Create release archives
       run: |
         VERSION="${{ steps.get_version.outputs.VERSION }}"
+        echo "Creating release archives for version: $VERSION"
+        
+        # List downloaded artifacts to debug
+        echo "Available artifacts:"
+        ls -la
+        
         # Create Windows zip file
         if [ -d "SMWC-Downloader-$VERSION-Windows-x64" ]; then
+          echo "Creating Windows ZIP archive..."
           cd "SMWC-Downloader-$VERSION-Windows-x64"
           zip -r "../SMWC-Downloader-$VERSION-Windows-x64.zip" .
           cd ..
+          echo "Windows ZIP created: $(ls -la SMWC-Downloader-$VERSION-Windows-x64.zip)"
         fi
-        # For macOS and Linux, just rename the existing files if needed
-        # (they should already be properly packaged)
+        
+        # Handle macOS DMG file (should already be a file, just move it to root)
+        if [ -d "SMWC-Downloader-$VERSION-macOS-Universal.dmg" ]; then
+          echo "Moving macOS DMG file..."
+          mv "SMWC-Downloader-$VERSION-macOS-Universal.dmg/SMWC-Downloader-$VERSION-macOS-Universal.dmg" .
+          echo "macOS DMG moved: $(ls -la SMWC-Downloader-$VERSION-macOS-Universal.dmg)"
+        fi
+        
+        # Handle Linux tar.gz file (should already be a file, just move it to root)
+        if [ -d "SMWC-Downloader-$VERSION-Linux-x64.tar.gz" ]; then
+          echo "Moving Linux tar.gz file..."
+          mv "SMWC-Downloader-$VERSION-Linux-x64.tar.gz/SMWC-Downloader-$VERSION-Linux-x64.tar.gz" .
+          echo "Linux tar.gz moved: $(ls -la SMWC-Downloader-$VERSION-Linux-x64.tar.gz)"
+        fi
+        
+        # Final check of release files
+        echo "Final release files:"
+        ls -la SMWC-Downloader-$VERSION-*
     - name: Create Pre-Release
       id: create_prerelease
       env:
