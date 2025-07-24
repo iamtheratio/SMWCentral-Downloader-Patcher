@@ -75,7 +75,8 @@ jobs:
       id: get_version
       shell: bash
       run: |
-        VERSION=$(python -c "import sys; sys.path.append('.'); from main import VERSION; print(VERSION)")
+        # Extract VERSION without importing tkinter
+        VERSION=$(grep -E '^VERSION = ' main.py | sed 's/VERSION = "\(.*\)"/\1/')
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
         echo "App version: $VERSION"
     - name: Set virtual display (Linux only)
@@ -348,7 +349,8 @@ jobs:
     - name: Get version from main.py
       id: get_version
       run: |
-        VERSION=$(python -c "import sys; sys.path.append('.'); from main import VERSION; print(VERSION)")
+        # Extract VERSION without importing tkinter
+        VERSION=$(grep -E '^VERSION = ' main.py | sed 's/VERSION = "\(.*\)"/\1/')
         echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
         echo "Pre-release version: $VERSION"
     - name: Download all artifacts
