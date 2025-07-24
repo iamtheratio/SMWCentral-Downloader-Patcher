@@ -31,7 +31,7 @@ def get_version():
             pass
         
         # Ultimate fallback
-        return "v4.3"
+        return "v4.4"
 
 def get_version_number():
     """Get just the numeric version (e.g., '4.3' from 'v4.3')"""

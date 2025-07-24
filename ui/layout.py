@@ -48,6 +48,10 @@ class MainLayout:
         # Store navigation reference for theme updates
         self.root.navigation = self.navigation
         
+        # Immediately apply theme colors to prevent flashing
+        self.navigation.update_theme()
+        self.root.update_idletasks()
+        
         # Pack content frame after navigation
         self.content_frame.pack(fill="both", expand=True)
         

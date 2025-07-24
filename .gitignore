@@ -2,6 +2,8 @@
 __pycache__/
 *.py[cod]
 *$py.class
+venv/
+.venv/
 
 # Distribution/packaging
 dist/
@@ -19,6 +21,13 @@ processed.json.backup
 processed.json.pre-v*.backup*
 processed.json.*backup*
 PADDING_GUIDE.md
+
+# Development files
+*.log
+*.tmp
+.DS_Store
+test_canvas.py
+test_*.py
 
 # VS Code
 .vscode/

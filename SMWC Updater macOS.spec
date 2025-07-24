@@ -1,4 +1,5 @@
 # -*- mode: python ; coding: utf-8 -*-
+# macOS-specific PyInstaller spec for SMWC Updater
 a = Analysis(
     ['standalone_updater.py'],
     pathex=[],
@@ -28,8 +29,23 @@ exe = EXE(
     runtime_tmpdir=None,
     console=True,
     disable_windowed_traceback=False,
-    argv_emulation=False,
-    target_arch=None,
+    argv_emulation=True,
+    target_arch='universal2',
     codesign_identity=None,
     entitlements_file=None,
+)
+app = BUNDLE(
+    exe,
+    name='SMWC Updater.app',
+    icon='assets/icon.icns',  # Use proper .icns file for macOS
+    bundle_identifier='com.iamtheratio.smwc-updater',
+    version='4.4.0',
+    info_plist={
+        'LSBackgroundOnly': False,
+        'NSHighResolutionCapable': True,
+        'CFBundleDisplayName': 'SMWC Updater',
+        'CFBundleShortVersionString': '4.4.0',
+        'CFBundleVersion': '4.4.0',
+        'NSRequiresAquaSystemAppearance': False,
+    },
 )

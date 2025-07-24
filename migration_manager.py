@@ -13,7 +13,12 @@ from utils import set_window_icon
 class MigrationManager:
     """Handles migration from pre-v3.1 to v3.1 processed.json format"""
     
-    def __init__(self, json_path="processed.json"):
+    def __init__(self, json_path=None):
+        # If no path specified, use the same path resolution as download operations
+        if json_path is None:
+            from utils import PROCESSED_JSON_PATH
+            json_path = PROCESSED_JSON_PATH
+            
         self.json_path = json_path
         self.backup_path = f"{json_path}.pre-v3.1.backup"
         
@@ -173,9 +178,9 @@ class MigrationManager:
                     messagebox.showerror(
                         "Upgrade Failed", 
                         f"An error occurred during the upgrade:\n\n{error_msg}\n\n"
-                        "Your original database file was preserved. Please contact support for assistance."
+                        "Your original database file was preserved. The application will continue with your existing data."
                     ),
-                    root.quit()
+                    callback() if callback else None  # Continue instead of quitting
                 ])
         
         thread = threading.Thread(target=migration_thread, daemon=True)

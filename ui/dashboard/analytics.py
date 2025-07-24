@@ -231,14 +231,34 @@ class DashboardAnalytics:
     def _calculate_time_metrics(self):
         """Calculate time-based performance metrics"""
         total_time = 0
-        completed_exits = 0  # Track exits from completed hacks in time period (include obsolete)
         completed_count = 0
         
         # Separate tracking for exit calculations
         exit_based_total_time = 0
         exit_based_total_exits = 0
         
-        # Use all data (including obsolete) for completion-based time metrics
+        # Calculate completed exits SEPARATELY from time metrics (don't require time_to_beat)
+        completed_exits = 0
+        for hack_id, hack_data in self.all_data.items():
+            if not hack_data.get('completed', False):
+                continue
+                
+            # Only include if it passes the date filter
+            if not self._should_include_hack(hack_data):
+                continue
+                
+            # Count exits from ALL completed hacks (regardless of time_to_beat)
+            exits = hack_data.get('exits', 0)
+            if isinstance(exits, str):
+                try:
+                    exits = int(exits)
+                except (ValueError, TypeError):
+                    exits = 0
+            
+            if exits > 0:
+                completed_exits += exits
+        
+        # Now calculate time-based metrics (these DO require time_to_beat > 0)
         for hack_id, hack_data in self.all_data.items():
             if not hack_data.get('completed', False):
                 continue
@@ -263,10 +283,7 @@ class DashboardAnalytics:
                 except (ValueError, TypeError):
                     exits = 0
             
-            # Track total exits for all completed hacks in time period (including obsolete)
-            if exits > 0:
-                completed_exits += exits
-            
+            # Only include in time calculations if hack has time_to_beat data
             if time_to_beat > 0:
                 total_time += time_to_beat
                 completed_count += 1
@@ -276,7 +293,7 @@ class DashboardAnalytics:
                     exit_based_total_time += time_to_beat
                     exit_based_total_exits += exits
         
-        # Store completed exits (filtered by time period)
+        # Store completed exits (calculated independently of time_to_beat)
         self.analytics_data['completed_exits'] = completed_exits
         
         # Calculate averages (convert to hours)

@@ -2,8 +2,15 @@ import tkinter as tk
 from tkinter import ttk
 from colors import get_colors
 import sv_ttk
-from PIL import Image, ImageTk  # Import PIL for image handling
+import platform
 from utils import resource_path  # Import resource path utility
+
+# Try to import PIL, but handle gracefully if not available
+try:
+    from PIL import Image, ImageTk
+    PIL_AVAILABLE = True
+except ImportError:
+    PIL_AVAILABLE = False
 
 class NavigationBar:
     """Handles the main navigation bar with tabs"""
@@ -19,6 +26,9 @@ class NavigationBar:
         self.moon_image = None  # Store image reference
         self.current_page = "Dashboard"
         
+        # Platform-specific cursor
+        self.hover_cursor = "pointinghand" if platform.system() == "Darwin" else "hand2"
+        
     def create(self):
         """Create the navigation bar"""
         # Get colors from theme
@@ -32,6 +42,12 @@ class NavigationBar:
             highlightthickness=0,
         )
         self.nav_bar.pack(fill="x", side="top", pady=0)
+        
+        # Force the color to stick with multiple attempts at different intervals
+        self.root.after(10, lambda: self.nav_bar.configure(bg=colors["nav_bg"]))
+        self.root.after(100, lambda: self.nav_bar.configure(bg=colors["nav_bg"]))
+        self.root.after(300, lambda: self.nav_bar.configure(bg=colors["nav_bg"]))
+        self.root.after(500, lambda: self.nav_bar.configure(bg=colors["nav_bg"]))
         
         # Add tabs - CENTERED VERTICALLY AND HORIZONTALLY
         tabs = ["Dashboard", "Download", "History", "Settings"]
@@ -57,7 +73,7 @@ class NavigationBar:
             })
             
             self.nav_bar.tag_bind(tab_id, "<Button-1>", lambda e, t=tab: self.show_page(t))
-            self.nav_bar.tag_bind(tab_id, "<Enter>", lambda e: self.nav_bar.config(cursor="hand2"))
+            self.nav_bar.tag_bind(tab_id, "<Enter>", lambda e: self.nav_bar.config(cursor=self.hover_cursor))
             self.nav_bar.tag_bind(tab_id, "<Leave>", lambda e: self.nav_bar.config(cursor=""))
         
         # Dynamic positioning for toggle
@@ -79,22 +95,26 @@ class NavigationBar:
             theme_switch.pack(side="left")
             theme_switch.state(['selected'] if sv_ttk.get_theme() == "dark" else [])
             
-            # Load PNG image instead of emoji
+            # Load PNG image instead of emoji (if PIL is available)
             try:
-                # Load and resize the moon image
-                image = Image.open(resource_path("assets/moon.png"))  # Use resource_path for bundled executable
-                image = image.resize((20, 20), Image.Resampling.LANCZOS)  # Resize to 20x20 pixels
-                self.moon_image = ImageTk.PhotoImage(image)
-                
-                self.moon_label = tk.Label(
-                    self.theme_frame,
-                    image=self.moon_image,  # Use image instead of text
-                    bg=colors["toggle_bg"],
-                    borderwidth=0,
-                    highlightthickness=0
-                )
+                if PIL_AVAILABLE:
+                    # Load and resize the moon image
+                    image = Image.open(resource_path("assets/moon.png"))  # Use resource_path for bundled executable
+                    image = image.resize((20, 20), Image.Resampling.LANCZOS)  # Resize to 20x20 pixels
+                    self.moon_image = ImageTk.PhotoImage(image)
+                    
+                    self.moon_label = tk.Label(
+                        self.theme_frame,
+                        image=self.moon_image,  # Use image instead of text
+                        bg=colors["toggle_bg"],
+                        borderwidth=0,
+                        highlightthickness=0
+                    )
+                else:
+                    # PIL not available, use emoji fallback
+                    raise ImportError("PIL not available")
             except Exception as e:
-                # Fallback to emoji if image loading fails
+                # Fallback to emoji if image loading fails or PIL not available
                 print(f"Could not load moon image: {e}")
                 self.moon_label = tk.Label(
                     self.theme_frame, 
@@ -133,7 +153,13 @@ class NavigationBar:
         """Update navigation bar colors when theme changes"""
         colors = get_colors()
         if self.nav_bar:
+            # Update navigation background immediately
             self.nav_bar.configure(bg=colors["nav_bg"])
+            
+            # Force immediate visual update
+            self.nav_bar.update_idletasks()
+            
+            # Update tab styles
             self._update_tab_styles(self.current_page)
             
             # Update toggle background rectangle
@@ -146,6 +172,11 @@ class NavigationBar:
             
             if self.moon_label:
                 self.moon_label.configure(bg=colors["toggle_bg"], fg=colors["nav_text"])
+            
+            # Ensure changes are visible immediately
+            self.nav_bar.update_idletasks()
+            if hasattr(self, 'root'):
+                self.root.update_idletasks()
     
     # Method to update toggle position dynamically
     def _update_toggle_position(self, event=None):

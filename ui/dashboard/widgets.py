@@ -144,7 +144,7 @@ class DashboardMetrics:
         completed_exits = self.analytics_data.get('completed_exits', 0)
         self._create_metric_card(
             bottom_row, "COMPLETED EXITS", 
-            str(completed_exits) if completed_exits > 0 else "N/A",
+            str(completed_exits),
             "🚪", colors.get("text"), 0, 0
         )
         

@@ -320,6 +320,20 @@ class TableFilters:
     
     def show_add_hack_dialog(self):
         """Show dialog to add a new hack manually"""
+        # Check if download is active - prevent adding during downloads
+        try:
+            from download_state_manager import is_download_active
+            if is_download_active():
+                from tkinter import messagebox
+                messagebox.showwarning(
+                    "Download in Progress", 
+                    "Cannot add new hacks while a download is in progress.\n\n"
+                    "Please wait for the download to complete or cancel it before adding hacks."
+                )
+                return
+        except ImportError:
+            pass  # Download state manager not available
+            
         if not self.data_manager:
             messagebox.showerror("Error", "Data manager not available")
             return

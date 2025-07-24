@@ -1,6 +1,7 @@
 """
 Standalone updater executable that handles file replacement
 This will be compiled as a separate executable to avoid PyInstaller temp directory issues
+Cross-platform support for Windows and macOS
 """
 import sys
 import os
@@ -8,6 +9,40 @@ import subprocess
 import time
 import shutil
 import argparse
+import platform
+
+def kill_process_by_name(process_name):
+    """Kill processes by name, cross-platform"""
+    system = platform.system().lower()
+    
+    try:
+        if system == "windows":
+            subprocess.run(['taskkill', '/f', '/im', process_name], 
+                          capture_output=True, check=False)
+        elif system == "darwin":  # macOS
+            subprocess.run(['pkill', '-f', process_name], 
+                          capture_output=True, check=False)
+        time.sleep(1)
+    except:
+        pass
+
+def start_application(app_path):
+    """Start application, cross-platform"""
+    system = platform.system().lower()
+    
+    try:
+        if system == "windows":
+            subprocess.Popen([app_path], 
+                            cwd=os.path.dirname(app_path),
+                            creationflags=subprocess.CREATE_NEW_CONSOLE)
+        elif system == "darwin":  # macOS
+            if app_path.endswith('.app'):
+                subprocess.Popen(['open', app_path])
+            else:
+                subprocess.Popen([app_path], cwd=os.path.dirname(app_path))
+        time.sleep(3)
+    except Exception as e:
+        print(f"Warning: Could not start application: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description='Update SMWCentral Downloader')
@@ -21,7 +56,7 @@ def main():
     update_exe = args.update_exe
     wait_seconds = args.wait_seconds
     
-    print(f"SMWCentral Downloader Updater")
+    print(f"SMWCentral Downloader Updater ({platform.system()})")
     print(f"Current executable: {current_exe}")
     print(f"Update executable: {update_exe}")
     print(f"Waiting {wait_seconds} seconds for main app to exit...")
@@ -30,43 +65,55 @@ def main():
     time.sleep(wait_seconds)
     
     # Kill any remaining processes
-    try:
-        exe_name = os.path.basename(current_exe)
-        subprocess.run(['taskkill', '/f', '/im', exe_name], 
-                      capture_output=True, check=False)
-        time.sleep(1)
-    except:
-        pass
+    app_name = os.path.basename(current_exe)
+    if app_name.endswith('.app'):
+        # For macOS .app bundles, kill by app name
+        app_name = app_name.replace('.app', '')
+    
+    kill_process_by_name(app_name)
     
     # Create backup
     backup_exe = current_exe + '.backup'
     try:
         if os.path.exists(current_exe):
-            shutil.copy2(current_exe, backup_exe)
+            if os.path.isdir(current_exe):  # macOS .app bundle
+                shutil.copytree(current_exe, backup_exe)
+            else:  # Windows .exe file
+                shutil.copy2(current_exe, backup_exe)
             print(f"Created backup: {backup_exe}")
     except Exception as e:
         print(f"Warning: Could not create backup: {e}")
     
     # Replace executable
     try:
-        shutil.copy2(update_exe, current_exe)
+        if os.path.isdir(update_exe):  # macOS .app bundle
+            if os.path.exists(current_exe):
+                shutil.rmtree(current_exe)
+            shutil.copytree(update_exe, current_exe)
+        else:  # Windows .exe file
+            shutil.copy2(update_exe, current_exe)
+            
         print(f"Successfully updated executable")
         
         # Clean up update file
         if os.path.exists(update_exe):
-            os.remove(update_exe)
+            if os.path.isdir(update_exe):
+                shutil.rmtree(update_exe)
+            else:
+                os.remove(update_exe)
             print(f"Cleaned up update file")
         
         # Start updated application
         print(f"Starting updated application...")
-        subprocess.Popen([current_exe], 
-                        cwd=os.path.dirname(current_exe),
-                        creationflags=subprocess.CREATE_NEW_CONSOLE)
+        start_application(current_exe)
         
         # Clean up backup after successful start
         time.sleep(3)
         if os.path.exists(backup_exe):
-            os.remove(backup_exe)
+            if os.path.isdir(backup_exe):
+                shutil.rmtree(backup_exe)
+            else:
+                os.remove(backup_exe)
             print(f"Cleaned up backup file")
             
         print("Update completed successfully!")
@@ -77,15 +124,28 @@ def main():
         # Restore backup if update failed
         if os.path.exists(backup_exe):
             try:
-                shutil.copy2(backup_exe, current_exe)
+                if os.path.exists(current_exe):
+                    if os.path.isdir(current_exe):
+                        shutil.rmtree(current_exe)
+                    else:
+                        os.remove(current_exe)
+                
+                if os.path.isdir(backup_exe):
+                    shutil.copytree(backup_exe, current_exe)
+                else:
+                    shutil.copy2(backup_exe, current_exe)
+                    
                 print(f"Restored backup")
                 
                 # Start original application
-                subprocess.Popen([current_exe], 
-                                cwd=os.path.dirname(current_exe),
-                                creationflags=subprocess.CREATE_NEW_CONSOLE)
+                start_application(current_exe)
                 
-                os.remove(backup_exe)
+                # Clean up backup
+                if os.path.isdir(backup_exe):
+                    shutil.rmtree(backup_exe)
+                else:
+                    os.remove(backup_exe)
+                    
             except Exception as restore_error:
                 print(f"Could not restore backup: {restore_error}")
         

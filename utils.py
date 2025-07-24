@@ -12,6 +12,7 @@ import re
 import shutil
 import tkinter as tk
 import sys
+import platform
 
 def resource_path(relative_path):
     """Get absolute path to resource, works for dev and for PyInstaller"""
@@ -26,8 +27,40 @@ def resource_path(relative_path):
 def set_window_icon(window):
     """Set the application icon for any window or dialog"""
     try:
+        if platform.system() == "Linux":
+            # On Linux, use PNG icon with iconphoto
+            try:
+                from PIL import Image, ImageTk
+                # Try multiple icon sizes for better compatibility
+                icon_sizes = ["64x64", "48x48", "32x32"]
+                for size in icon_sizes:
+                    icon_path = resource_path(f"assets/icons/smwc-downloader-{size}.png")
+                    if os.path.exists(icon_path):
+                        icon_image = Image.open(icon_path)
+                        icon_photo = ImageTk.PhotoImage(icon_image)
+                        window.iconphoto(True, icon_photo)
+                        # Keep a reference to prevent garbage collection
+                        if not hasattr(window, '_icon_ref'):
+                            window._icon_ref = icon_photo
+                        return
+                        
+                # If no PNG icons found, try the default from assets root
+                fallback_icon = resource_path("assets/icon.ico")
+                if os.path.exists(fallback_icon):
+                    # Try to convert .ico to usable format on Linux
+                    icon_image = Image.open(fallback_icon)
+                    icon_photo = ImageTk.PhotoImage(icon_image)
+                    window.iconphoto(True, icon_photo)
+                    window._icon_ref = icon_photo
+                    return
+            except (ImportError, Exception) as e:
+                print(f"Linux icon loading failed: {e}")  # Debug info
+                pass
+        
+        # Fallback to .ico for Windows/macOS or if PNG method fails
         window.iconbitmap(resource_path("assets/icon.ico"))
-    except (tk.TclError, AttributeError):
+    except (tk.TclError, AttributeError) as e:
+        print(f"Icon setting failed: {e}")  # Debug info
         pass  # Fallback silently if icon not found or not supported
 
 # Difficulty mappings
@@ -493,26 +526,58 @@ def move_hack_to_new_difficulty(output_dir, hack_type, old_diff, new_diff, filen
     return False
 
 # Processed tracking
-def load_processed(path="processed.json"):
+def load_processed(path=None):
+    if path is None:
+        path = PROCESSED_JSON_PATH
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
 
-def save_processed(data, path="processed.json"):
+def save_processed(data, path=None):
+    if path is None:
+        path = PROCESSED_JSON_PATH
+    # Ensure directory exists
+    os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, indent=2)
+
+def get_user_data_path(filename):
+    """Get platform-specific user data directory for storing app files"""
+    system = platform.system()
+    
+    if system == "Windows":
+        # For Windows: Store data files next to the executable for portability
+        if getattr(sys, 'frozen', False):
+            # Running as PyInstaller executable
+            app_data_dir = os.path.dirname(sys.executable)
+        else:
+            # Running as script in development
+            app_data_dir = os.path.dirname(os.path.abspath(__file__))
+    elif system == "Darwin":  # macOS
+        # Use proper macOS location
+        home = os.path.expanduser("~")
+        app_data_dir = os.path.join(home, "Library", "Application Support", "SMWC Downloader")
+    else:  # Linux and others
+        # Use proper Linux location
+        home = os.path.expanduser("~")
+        app_data_dir = os.path.join(home, ".smwc-downloader")
+    
+    return os.path.join(app_data_dir, filename)
+
+
+# Centralized file paths - single source of truth for all application data files
+PROCESSED_JSON_PATH = get_user_data_path("processed.json")
+CONFIG_JSON_PATH = get_user_data_path("config.json")
 
 # Get base directory (project root)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Config paths
-CONFIG_FILE = os.path.join(BASE_DIR, "config.json")
-PROCESSED_FILE = os.path.join(BASE_DIR, "processed.json")
-
-# Ensure files exist
-if not os.path.exists(CONFIG_FILE):
-    with open(CONFIG_FILE, 'w') as f:
+# Ensure cross-platform config file exists in proper location
+if not os.path.exists(CONFIG_JSON_PATH):
+    # Create the directory if it doesn't exist
+    os.makedirs(os.path.dirname(CONFIG_JSON_PATH), exist_ok=True)
+    with open(CONFIG_JSON_PATH, 'w') as f:
         json.dump({
             "flips_path": "",
             "base_rom_path": "",

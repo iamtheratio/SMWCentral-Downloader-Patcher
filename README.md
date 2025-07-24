@@ -1,255 +1,173 @@
-# SMWCentral Downloader & Patcher v4.3
+# SMWC Downloader & Patcher
 
-A powerful desktop application for downloading, organizing, and patching Super Mario World ROM hacks from SMWCentral. Streamline your hack discovery and management with advanced filtering, bulk downloads, comprehensive analytics, and automatic updates.
+🎮 **Download and play Super Mario World ROM hacks with one click**
 
-![Dashboard](images/ss_app_dashboard_v4.3.png)
+A simple desktop app that automatically downloads, patches, and organizes ROM hacks from SMWCentral. Works on Windows, Mac, and Linux.
+
+![App Screenshot](images/ss_app_dashboard_v4.3.png)
 
 ## 📋 Table of Contents
 
-- [User Setup Guide](#-user-setup-guide)
-- [Features](#-features)
-- [File Organization](#-file-organization)
-- [Technical Details](#-technical-details)
-- [Changelog](#-changelog)
-- [Troubleshooting](#-troubleshooting)
-- [Contributing](#-contributing)
-- [License](#-license)
+- [🎯 App Features](#-app-features)
+- [📥 Download & Install](#-download--install)
+  - [Windows (10/11)](#windows-1011)
+  - [Mac (macOS 10.15+)](#mac-macos-1015)
+  - [Linux (Ubuntu, Debian, Fedora, etc.)](#linux-ubuntu-debian-fedora-etc)
+- [🚀 How to Use](#-how-to-use)
+  - [First Time Setup](#first-time-setup)
+  - [Downloading ROM Hacks](#downloading-rom-hacks)
+  - [Managing Your Collection](#managing-your-collection)
+  - [App Settings](#app-settings)
+- [✨ Key Features](#-key-features)
+- [🛠️ Troubleshooting](#️-troubleshooting)
+- [📝 What You Need](#-what-you-need)
+- [🔄 Updates](#-updates)
+- [📝 Changelog](#-changelog)
 
-## 🚀 User Setup Guide
+## 🎯 App Features
 
-### Step 1: Download & Install
-1. **Download** the latest release from the [releases page](../../releases)
-2. **Extract** all files to a folder of your choice (e.g., `C:\SMWCentral Downloader\`)
-3. **Run** `SMWC Downloader.exe` to start the application
+### Browse & Download
+![Download View](images/ss_app_download_v4.3.png)
 
-### Step 2: First-Time Configuration
-1. **Navigate to Settings** (click the Settings tab at the top)
-2. **Set Base ROM Path**: 
-   - Click "Browse" next to "Base ROM Path"
-   - Select your clean Super Mario World ROM file (.smc or .sfc)
-   - ⚠️ **Important**: Use an unmodified, original SMW ROM
-3. **Set Output Directory**:
-   - Click "Browse" next to "Output Directory" 
-   - Choose where you want your patched hacks to be saved
-   - The app will create organized folders automatically
+### Manage Your Collection
+![History View](images/ss_app_history_v4.3.png)
 
-### Step 3: Start Using
-1. **Go to Download page** to search and download individual hacks
-2. **Use Dashboard** to view your collection statistics
-3. **Check History** to manage your downloaded hacks and add manual entries
-4. **Explore Settings** for additional customization options
+### Customize Settings
+![Settings View](images/ss_app_settings_v4.3.png)
 
-### Quick Tips
-- 💡 Use filters on the Download page to find hacks by difficulty, type, or features
-- 💡 **Click "▼ Search Criteria"** to collapse/expand search filters and get more results viewing space
-- 💡 **Click "Add Hack"** in History to manually track hacks you've played elsewhere
-- 💡 The app automatically organizes hacks into folders by type and difficulty
-- 💡 Toggle between light/dark themes using the moon icon in the top navigation
-- 💡 Use Ctrl+L to quickly clear the log output
-- 💡 The app automatically checks for updates - just click "Update Now" when prompted
-- 💡 Check Settings > "Check for Updates" to manually look for new versions
+## 📥 Download & Install
 
-## ✨ Features
+### Windows (10/11)
+1. Download `SMWC-Downloader-Windows-x64.zip` from the [Releases page](../../releases)
+2. Extract the ZIP file to any folder you want (like your Desktop or Program Files)
+3. Double-click `SMWC Downloader.exe` to run the app
+4. **If Windows shows a security warning**: Click "More info" → "Run anyway" (this is normal for new apps)
 
-### 🔍 Advanced Hack Discovery
-- **Individual Download Page**: Browse and filter through thousands of hacks with advanced search options
-- **Smart Filtering**: Filter by difficulty, type, authors, completion status, and more
-- **Collapsible Search Interface**: Toggle search criteria visibility to maximize results viewing space
-- **Responsive Layout**: Search results area automatically expands when search criteria is collapsed
-- **Comprehensive Search**: Button-triggered search with advanced filtering capabilities
-- **Detailed Previews**: View hack information, screenshots, and ratings before downloading
-- **Improved UI Layout**: Reorganized filter controls for better usability and workflow
+### Mac (macOS 10.15+)
+1. Download `SMWC-Downloader-macOS-Universal.dmg` from the [Releases page](../../releases)
+2. Open the DMG file and drag the app to your Applications folder
+3. **First time only**: Right-click the app → "Open" → "Open" (to bypass security warning)
+4. After that, you can launch it normally from Applications or Spotlight
 
-![Download Page](images/ss_app_download_v4.3.png)
+### Linux (Ubuntu, Debian, Fedora, etc.)
+1. Download `SMWC-Downloader-Linux-x64.tar.gz` from the [Releases page](../../releases)
+2. Extract: `tar -xzf SMWC-Downloader-*.tar.gz`
+3. Run the installer: `./install.sh` (this adds the app to your Applications menu)
+4. Launch from Applications menu or run `smwc-downloader` in terminal
 
-### 📥 Intelligent Download System
-- **Bulk Downloads**: Select and download multiple hacks simultaneously
-- **Smart Organization**: Automatically organizes hacks by type and difficulty
-- **Multi-Type Support**: Handles Standard, Kaizo, Puzzle, Tool-Assisted, and Pit hacks
-- **Cancellable Downloads**: Stop download operations at any time
-- **Duplicate Detection**: Prevents downloading the same hack twice and automatically manages obsolete versions
+## 🚀 How to Use
 
-### 📊 Comprehensive Analytics
-- **Collection Overview**: Visual dashboard showing your hack statistics
-- **Progress Tracking**: Track completion status and personal ratings
-- **Type Distribution**: See your preferences across different hack categories
-- **Advanced Metrics**: Detailed analytics about your gaming habits
+### First Time Setup
+1. **Launch the app** - it will open to the main dashboard
+2. **Go to Settings**: Click the "Settings" tab at the top of the app
+3. **Set your ROM folder**: Click the folder icon to choose where you want your patched ROMs saved
+4. **Add your base ROM**: Click "Browse" next to "Super Mario World ROM" and select your clean SMW ROM file
+5. **You're ready!** The app will remember these settings and you can return to the main dashboard
 
-### 🗂️ Powerful History Management
-- **Complete History**: View all downloaded hacks with detailed information
-- **Manual Entry**: Add hacks manually to track your progress without ROM files
-- **Real-time Filtering**: Instant search results as you type in the name filter
-- **Advanced Sorting**: Sort by any column with visual indicators
-- **Inline Editing**: Edit hack details directly in the table
-- **Full CRUD Support**: Create, read, update, and delete hack entries
-- **Duplicate Prevention**: Smart duplicate detection with user confirmation
-- **Bulk Operations**: Update multiple hacks at once
-- **Export Options**: Export your collection data
-- **Obsolete Filtering**: Filter to show/hide obsolete hack versions for better collection management
+### Downloading ROM Hacks
+1. **Set your filters**: Use the filter options to narrow down what you want to search for (difficulty, type, author, etc.)
+2. **Search for hacks**: Click the "Search Hacks" button to pull data from the SMWCentral API based on your filters
+3. **Select hacks to download**: Click the checkmark in the first column for each hack you want to download
+   - **Tip**: Click the column header to select ALL hacks at once
+4. **Start downloading**: Click "Download & Patch" to begin downloading and patching your selected hacks
+5. **Wait for completion**: The app will automatically download each hack and apply it to your base ROM
+6. **Play**: Your patched ROMs will be saved to your chosen folder, ready to play in any emulator
 
-![Add Hack Dialog](images/ss_app_history_addhack_v4.3.png)
+**New Feature**: While downloads are in progress, the History tab is temporarily locked to prevent editing and maintain database integrity. You can view your history, but cannot make changes until all downloads complete.
 
-### ⚙️ Professional Configuration
-- **Flexible Settings**: Configure base ROM paths, output directories, and preferences
-- **Theme Support**: Switch between light and dark themes
-- **Multi-Type Downloads**: Choose to download hacks to multiple type folders
-- **Performance Options**: Adjust download delays and concurrent operations
-- **Auto-Update System**: Automatically checks for and installs application updates
+### Managing Your Collection
+1. **View your collection**: Click the "History" tab to see all your downloaded ROMs
+2. **Add hacks manually**: Use the "Add Hack" button to track hacks you've played from other sources
+3. **Track progress**: Mark hacks as completed, rate them (1-5 stars), and add personal notes
+4. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
+5. **Advanced editing**: Double-click any hack to open the full edit dialog
+6. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
-### 🔄 Automatic Updates
-- **Background Checks**: Quietly checks for new versions when you start the app
-- **One-Click Updates**: Download and install updates with a single click
-- **Safe Installation**: Creates backups and safely replaces files during updates
-- **Fast Restarts**: Lightning-quick app restart process (under 6 seconds total)
-- **Update History**: View update logs in Settings for transparency
+### App Settings
+- **Download location**: Change where ROMs are saved
+- **Multi-type downloads**: Configure how hacks with multiple types (like "Kaizo, Tool-Assisted") are handled
+  - **Primary only**: Download to the main type folder only
+  - **Copy to all folders**: Create copies in each applicable type folder
+- **Auto-updates**: Choose if you want automatic app updates
+- **Theme**: Switch between light and dark modes
+- **API Delay Slider**: Set delay from 0.0 to 3.0 seconds between API requests to avoid rate limiting issues
 
-![Settings Page](images/ss_app_settings_v4.3.png)
+## ✨ Key Features
 
-## � File Organization
+- **Automatic patching**: Downloads the hack and applies it to your ROM automatically
+- **Progress tracking**: Mark hacks as completed, rate them, and add personal notes
+- **Smart organization**: Keeps track of what you've downloaded with detailed history
+- **Advanced filtering**: Find specific hacks by name, author, difficulty, or type
+- **Auto-updates**: App keeps itself updated with new features
+- **Cross-platform**: Identical experience on Windows, Mac, and Linux
 
-The application automatically organizes your hacks in a clean structure:
+## 🛠️ Troubleshooting
 
-```
-Output Directory/
-├── Standard/
-├── Kaizo/
-├── Puzzle/
-├── Tool-Assisted/
-└── Pit/
-    └── (Each type contains 8 difficulty folders: 01-Newcomer through 08-No Difficulty)
-```
+### Windows Security Warning
+Windows may show "Windows protected your PC" when running the app. This is normal for new applications. Click "More info" → "Run anyway" to continue.
 
-**All hack types** use difficulty-based subfolders for consistent organization.
+### Mac Security Warning
+macOS may say the app is from an "unidentified developer." Right-click the app → "Open" → "Open" to bypass this. You only need to do this once.
 
-## � Technical Details
+### Linux: App Won't Start
+If the app won't launch, install these packages:
+- **Ubuntu/Debian**: `sudo apt install python3-tk`
+- **Fedora**: `sudo dnf install tkinter`
 
-### Requirements
-- **OS**: Windows 10 or later
-- **Storage**: ~20 MB for application + space for your hack collection
-- **Network**: Internet connection for downloading hacks
-- **ROM**: Clean Super Mario World ROM file
+### Can't Find Downloaded ROMs
+Check the folder path shown in Settings. By default, ROMs are saved to:
+- **Windows**: `Desktop\SMWCentral Hacks\`
+- **Mac**: `Desktop/SMWCentral Hacks/`
+- **Linux**: `~/Desktop/SMWCentral Hacks/`
 
-### File Formats
-- **Input**: Supports .zip files containing .ips or .bps patches from SMWCentral
-- **Output**: Generates patched .smc/.sfc ROM files ready to play
-- **Database**: Uses JSON format for hack metadata and progress tracking
-- **Configuration**: Automatic migration system for seamless upgrades
+## 📝 What You Need
 
-### Key Files
-- **`config.json`**: Application configuration and settings
-- **`processed.json`**: Database of downloaded hacks and metadata
-- **`README.md`**: This documentation file
+- **Your Operating System**: Windows 10+, macOS 10.15+, or modern Linux
+- **A clean SMW ROM**: Unmodified Super Mario World ROM file (.smc or .sfc)
+- **Storage space**: About 20 MB for the app, plus space for your ROM collection
+- **Internet connection**: Required for downloading hacks and app updates
+
+## 🔄 Updates
+
+The app automatically checks for updates when you start it. When an update is available, you'll see a notification. Click "Update" to download and install the latest version. Your settings and downloaded ROMs are preserved during updates.
 
 ## 📝 Changelog
 
-### v4.3.0 - UI Polish & Obsolete Filter Release *(Latest)*
-- **New**: Obsolete Records filter in History page to show/hide superseded hack versions
-- **Enhanced**: Download page layout improvements - search buttons repositioned for better workflow
-- **Enhanced**: Select All/Deselect All button moved to right side for improved accessibility  
-- **Improved**: Button positioning and user interface flow on Download page
-- **Improved**: History page data loading to support obsolete record filtering
+<details>
+<summary><strong>Version 4.4 - Latest Release</strong></summary>
 
-### v4.2.0 - Manual Hack Management Release
-- **New**: Add Hack dialog for manually adding hacks to your history
-- **New**: Edit manually added hacks with full CRUD operations
-- **New**: Delete functionality for user-created hack entries (usr_ prefix)
-- **New**: Duplicate title validation with user confirmation dialog
-- **New**: Support for personal hack tracking without ROM files
-- **Enhanced**: History page now supports both downloaded and manually added hacks
-- **Enhanced**: Improved button spacing and layout in edit dialogs
-- **Enhanced**: Better data integrity with proper difficulty capitalization
-- **Fixed**: Dialog button order and spacing for consistent UX
-- **Fixed**: Data loading issues when editing hacks
+### v4.4.0
 
-### v4.1.1 - UI Enhancement Release
-- **New**: Collapsible search criteria section on Download page for better space utilization
-- **Enhanced**: Responsive search results area that expands when filters are collapsed
-- **Enhanced**: Improved button visibility and layout on smaller displays (laptops, netbooks)
-- **Enhanced**: Better space management and user interface efficiency
-- **Fixed**: Download & Patch button now always visible regardless of screen size
-- **Optimized**: Simplified layout calculations for more reliable UI behavior
+### 🚀 New Features
+- **Cross-Platform Support**: Full compatibility with Windows, macOS, and Linux
+- **Download State Management**: History tab is now locked during active downloads to prevent data corruption
+- **Enhanced Dashboard Analytics**: Improved accuracy and data tracking for collection metrics
 
-### v4.1.0 - Auto-Update Release
-- **New**: Automatic update system with background checking
-- **New**: One-click updates with safe installation process
-- **New**: Lightning-fast restart mechanism (95% faster app closing)
-- **New**: Update progress tracking and logging
-- **Enhanced**: Settings page now includes update management
-- **Enhanced**: Improved application startup and shutdown performance
-- **Fixed**: Various stability improvements and optimizations
+</details>
 
-### v4.0.0 - Major Release
-- **New**: Individual Download page with advanced filtering
-- **New**: Comprehensive Dashboard with analytics
-- **New**: Multi-type hack support system
-- **Enhanced**: History page with inline editing
-- **Enhanced**: Improved Settings with more options
-- **Enhanced**: Modern UI with light/dark theme support
-- **Fixed**: Numerous stability and performance improvements
+<details>
+<summary><strong>Previous Versions</strong></summary>
 
-## 🆘 Troubleshooting
+### v4.3.0
+- Dashboard implementation with analytics and charts
+- History page with comprehensive filtering and editing
+- Theme support (light/dark modes)
+- Improved bulk download workflow
 
-### Common Issues
+### v4.2.0
+- Multi-type download support
+- Enhanced search and filtering capabilities
+- Progress tracking improvements
+- Bug fixes and stability improvements
 
-**Downloads not working?**
-- Check your internet connection
-- Verify the hack is still available on SMWCentral
-- Make sure you have write permissions to the output directory
+### v4.1.0
+- Initial release with core downloading functionality
+- Basic patching system
+- Simple history tracking
+- Windows-only support
 
-**Patches failing?**
-- Ensure your base ROM is a clean, unmodified Super Mario World ROM
-- Check that you have enough disk space
-- Verify the ROM file isn't corrupted
-
-**Application won't start?**
-- Make sure you have the latest Windows updates
-- Try running as administrator
-- Check that your antivirus isn't blocking the application
-
-**Updates not working?**
-- Ensure you have internet connectivity
-- Check that your antivirus isn't blocking the update process
-- Try manually checking for updates from Settings
-- Restart the application if update checks seem stuck
-
-### How the Auto-Updater Works
-The application includes a sophisticated update system designed to be safe and user-friendly:
-
-1. **Background Checking**: Every time you start the app, it quietly checks GitHub for new releases
-2. **User Notification**: If an update is found, you'll see a popup with release notes and options
-3. **Safe Download**: The update is downloaded to a temporary location and verified
-4. **Backup & Replace**: Your current version is backed up before installing the new one
-5. **Quick Restart**: The app closes and reopens with the new version (takes about 5-6 seconds total)
-6. **Automatic Cleanup**: Temporary files and backups are cleaned up automatically
-
-The updater is designed to be **completely safe** - if anything goes wrong during the update process, your original version will be automatically restored.
-
-### Getting Help
-If you encounter issues:
-1. Check the application logs for error messages
-2. Try restarting the application
-3. Verify your configuration settings
-4. Create an issue on the GitHub repository with details
-
-## 🤝 Contributing
-
-This project welcomes contributions! Whether it's bug reports, feature requests, or code contributions, your help makes this tool better for everyone.
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-**What this means:**
-- ✅ **Free to use** - Download and use the software for any purpose
-- ✅ **Free to modify** - Change the code to suit your needs  
-- ✅ **Free to distribute** - Share copies with others
-- ✅ **Commercial use allowed** - Use in commercial projects
-- ✅ **Open source** - Source code is available for inspection and contribution
-
-The only requirement is to include the original copyright notice in any copies or substantial portions of the software.
+</details>
 
 ---
 
-**Version**: 4.3.0  
-**Last Updated**: July 2025  
-**Platforms**: Windows 10/11
+**Made for the Super Mario World ROM hacking community** ❤️

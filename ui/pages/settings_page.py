@@ -164,9 +164,15 @@ class SettingsPage:
         # Load current settings FIRST
         self._load_multi_type_settings()
         
-        # Bind changes to save settings
-        self.multi_type_enabled_var.trace("w", self._save_multi_type_settings)
-        self.download_mode_var.trace("w", self._save_multi_type_settings)
+        # Bind changes to save settings (cross-version tkinter compatibility)
+        try:
+            # Python 3.6+
+            self.multi_type_enabled_var.trace_add("write", self._save_multi_type_settings)
+            self.download_mode_var.trace_add("write", self._save_multi_type_settings)
+        except AttributeError:
+            # Older Python versions
+            self.multi_type_enabled_var.trace("w", self._save_multi_type_settings)
+            self.download_mode_var.trace("w", self._save_multi_type_settings)
         
         # Update section
         update_frame = ttk.Frame(multi_type_frame)

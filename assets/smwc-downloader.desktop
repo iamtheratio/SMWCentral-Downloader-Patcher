@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=SMWC Downloader & Patcher
+Comment=Multi-platform ROM hack downloader and patcher for Super Mario World Central
+Exec=smwc-downloader
+Icon=smwc-downloader
+Terminal=false
+Categories=Game;Utility;
+Keywords=smw;mario;rom;hack;download;patch;
+StartupNotify=true
+MimeType=application/x-smwc-hack;
+StartupWMClass=SMWC Downloader

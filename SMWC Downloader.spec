@@ -1,6 +1,4 @@
 # -*- mode: python ; coding: utf-8 -*-
-
-
 a = Analysis(
     ['main.py'],
     pathex=[],
@@ -15,7 +13,6 @@ a = Analysis(
     optimize=0,
 )
 pyz = PYZ(a.pure)
-
 exe = EXE(
     pyz,
     a.scripts,
@@ -26,7 +23,7 @@ exe = EXE(
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=True,
+    upx=False,  # Disable UPX compression to reduce antivirus false positives
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,
