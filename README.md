@@ -108,7 +108,6 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 - **A clean SMW ROM**: Unmodified Super Mario World ROM file (.smc or .sfc)
 - **Storage space**: About 20 MB for the app, plus space for your ROM collection
 - **Internet connection**: Required for downloading hacks and app updates
-- **An emulator**: To play your patched ROMs (SNES9x, RetroArch, etc.)
 
 ## 🔄 Updates
 
