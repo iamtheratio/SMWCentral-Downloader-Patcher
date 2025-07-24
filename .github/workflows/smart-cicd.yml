@@ -3,6 +3,11 @@ name: Smart CI/CD Pipeline
 # GitHub will migrate macos-latest to macOS 15 on August 4, 2025
 # See: https://github.com/actions/runner-images/issues/12520
 # When ready for macOS 15, update to macos-15 or macos-latest
+
+permissions:
+  contents: write
+  actions: read
+  
 on:
   push:
     branches: [ main, develop ]
@@ -368,56 +373,36 @@ jobs:
         # (they should already be properly packaged)
     - name: Create Pre-Release
       id: create_prerelease
-      uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ steps.get_version.outputs.VERSION }}-pre
-        release_name: SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }} (Pre-Release)
-        body: |
-          ## 🚧 Pre-Release: SMWC Downloader & Patcher ${{ steps.get_version.outputs.VERSION }}
-          **This is a pre-release version for testing and review.**
-          🎮 **Multi-platform ROM hack downloader and patcher for Super Mario World Central**
-          ### 📥 Downloads Available:
-          - **Windows**: `SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip`
-          - **macOS**: `SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg`
-          - **Linux**: `SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz`
-          ### ⚠️ Pre-Release Notes:
-          - This version is ready for testing but not yet final
-          - Auto-updater will **NOT** automatically update to pre-releases
-          - Manual testing and feedback welcome
-          - Final release will be published separately
-          ### 🔧 Manual Installation:
-          - **Windows**: Extract ZIP and run `SMWC Downloader.exe`
-          - **macOS**: Mount DMG and drag to Applications
-          - **Linux**: Extract tar.gz and run executable
-          > **Note**: You can safely test this without affecting your current installation.
-        draft: false
-        prerelease: true
-    - name: Upload Windows Pre-Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_prerelease.outputs.upload_url }}
-        asset_path: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip
-        asset_name: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Windows-x64.zip
-        asset_content_type: application/zip
-    - name: Upload macOS Pre-Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_prerelease.outputs.upload_url }}
-        asset_path: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg 
-        asset_name: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-macOS-Universal.dmg
-        asset_content_type: application/x-apple-diskimage
-    - name: Upload Linux Pre-Release Asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_prerelease.outputs.upload_url }}
-        asset_path: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz/SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz       
-        asset_name: SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz
-        asset_content_type: application/gzip
+      run: |
+        VERSION="${{ steps.get_version.outputs.VERSION }}"
+        # Create pre-release using GitHub CLI
+        gh release create "${VERSION}-pre" \
+          --title "SMWC Downloader & Patcher ${VERSION} (Pre-Release)" \
+          --notes "## 🚧 Pre-Release: SMWC Downloader & Patcher ${VERSION}
+        **This is a pre-release version for testing and review.**
+        
+        🎮 **Multi-platform ROM hack downloader and patcher for Super Mario World Central**
+        
+        ### 📥 Downloads Available:
+        - **Windows**: \`SMWC-Downloader-${VERSION}-Windows-x64.zip\`
+        - **macOS**: \`SMWC-Downloader-${VERSION}-macOS-Universal.dmg\`
+        - **Linux**: \`SMWC-Downloader-${VERSION}-Linux-x64.tar.gz\`
+        
+        ### ⚠️ Pre-Release Notes:
+        - This version is ready for testing but not yet final
+        - Auto-updater will **NOT** automatically update to pre-releases
+        - Manual testing and feedback welcome
+        - Final release will be published separately
+        
+        ### 🔧 Manual Installation:
+        - **Windows**: Extract ZIP and run \`SMWC Downloader.exe\`
+        - **macOS**: Mount DMG and drag to Applications
+        - **Linux**: Extract tar.gz and run executable
+        
+        > **Note**: You can safely test this without affecting your current installation." \
+          --prerelease \
+          SMWC-Downloader-${VERSION}-Windows-x64.zip \
+          SMWC-Downloader-${VERSION}-macOS-Universal.dmg \
+          SMWC-Downloader-${VERSION}-Linux-x64.tar.gz

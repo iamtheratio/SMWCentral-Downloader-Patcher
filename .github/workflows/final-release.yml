@@ -1,4 +1,9 @@
 name: Final Release
+
+permissions:
+  contents: write
+  actions: read
+
 on:
   push:
     tags:
