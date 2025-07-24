@@ -140,28 +140,6 @@ The app automatically checks for updates when you start it. When an update is av
 - **Cross-Platform Support**: Full compatibility with Windows, macOS, and Linux
 - **Download State Management**: History tab is now locked during active downloads to prevent data corruption
 - **Enhanced Dashboard Analytics**: Improved accuracy and data tracking for collection metrics
-- **Multi-Type Download Configuration**: Added settings to control how hacks with multiple types are handled
-- **API Delay Control**: Added user-configurable API delay slider (0.0-3.0 seconds) to prevent rate limiting
-
-### 🔧 Improvements
-- **Cross-Platform Icon Support**: Proper icon handling across all operating systems (.ico for Windows, .icns for macOS, .png for Linux)
-- **Enhanced User Experience**: Streamlined first-time setup instructions and workflow
-- **Collection Management**: Improved history editing with inline editing capabilities and double-click dialogs
-- **Dashboard Accuracy**: Updated analytics calculations and removed inaccurate widgets
-- **Build System**: Enhanced GitHub Actions workflow for automated cross-platform builds
-
-### 🐛 Bug Fixes
-- **Privacy Protection**: Removed personal data from application builds
-- **Linux Desktop Integration**: Added proper .desktop files and icon installation
-- **macOS Compatibility**: Fixed universal binary support and proper icon handling  
-- **Download Completion**: Improved download cancellation handling and completion messaging
-- **Resource Path Handling**: Enhanced cross-platform compatibility for user data paths
-
-### 🛠️ Technical Changes
-- **PyInstaller Specs**: Updated build configurations for all platforms
-- **Dependencies**: Improved PIL/Pillow import handling and compatibility
-- **Code Cleanup**: Refactored multiple components for better maintainability
-- **Testing**: Enhanced debug capabilities and analytics data validation
 
 </details>
 
