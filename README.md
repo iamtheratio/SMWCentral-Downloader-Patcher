@@ -47,17 +47,22 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 5. **You're ready!** The app will remember these settings and you can return to the main dashboard
 
 ### Downloading ROM Hacks
-1. **Browse hacks**: The main screen shows all available hacks from SMWCentral
-2. **Filter and search**: Use the search box or filters to find specific hacks
-3. **View details**: Click on any hack to see screenshots, description, and ratings
-4. **Download**: Click the "Download" button - the app handles everything automatically
-5. **Play**: Your patched ROM will be saved to your chosen folder, ready to play in any emulator
+1. **Set your filters**: Use the filter options to narrow down what you want to search for (difficulty, type, author, etc.)
+2. **Search for hacks**: Click the "Search Hacks" button to pull data from the SMWCentral API based on your filters
+3. **Select hacks to download**: Click the checkmark in the first column for each hack you want to download
+   - **Tip**: Click the column header to select ALL hacks at once
+4. **Start downloading**: Click "Download & Patch" to begin downloading and patching your selected hacks
+5. **Wait for completion**: The app will automatically download each hack and apply it to your base ROM
+6. **Play**: Your patched ROMs will be saved to your chosen folder, ready to play in any emulator
+
+**New Feature**: While downloads are in progress, the History tab is temporarily locked to prevent editing and maintain database integrity. You can view your history, but cannot make changes until all downloads complete.
 
 ### Managing Your Collection
 1. **View downloaded hacks**: Click the "History" tab to see all your downloaded ROMs
-2. **Organize**: Sort by name, author, date downloaded, or rating
-3. **Re-download**: If you lose a ROM, just download it again from your history
-4. **Open folder**: Click the folder icon to quickly open where your ROMs are stored
+2. **Track your progress**: Mark hacks as completed, add personal ratings (1-5 stars), and add notes
+3. **Edit completion details**: Click on completion dates, time to beat, or notes to edit them directly
+4. **Filter and sort**: Use filters to find specific hacks, sort by any column by clicking the header
+5. **Edit hack details**: Double-click any hack to open a detailed edit dialog
 
 ### App Settings
 - **Download location**: Change where ROMs are saved
@@ -68,10 +73,9 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 ## ✨ Key Features
 
 - **Automatic patching**: Downloads the hack and applies it to your ROM automatically
-- **Smart organization**: Keeps track of what you've downloaded and when
-- **Built-in screenshots**: See what hacks look like before downloading
-- **Rating system**: Community ratings help you find the best hacks
-- **Search and filter**: Find specific hacks by name, author, difficulty, or type
+- **Progress tracking**: Mark hacks as completed, rate them, and add personal notes
+- **Smart organization**: Keeps track of what you've downloaded with detailed history
+- **Advanced filtering**: Find specific hacks by name, author, difficulty, or type
 - **Auto-updates**: App keeps itself updated with new features
 - **Cross-platform**: Identical experience on Windows, Mac, and Linux
 
