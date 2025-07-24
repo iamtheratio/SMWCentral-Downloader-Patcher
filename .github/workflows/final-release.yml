@@ -71,6 +71,8 @@ jobs:
     # If pre-release exists, promote it to final release
     - name: Promote pre-release to final release
       if: steps.find_prerelease.outputs.PRERELEASE_ID != 'null'
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         echo "Promoting pre-release ${{ steps.find_prerelease.outputs.PRE_TAG }} to final release ${{ steps.get_version.outputs.TAG }}"
         
@@ -113,6 +115,8 @@ jobs:
     # If no pre-release exists, create a new final release (fallback)
     - name: Create new final release
       if: steps.find_prerelease.outputs.PRERELEASE_ID == 'null'
+      env:
+        GH_TOKEN: ${{ github.token }}
       run: |
         echo "⚠️ No pre-release found for version ${{ steps.get_version.outputs.VERSION }}"
         echo "Creating new final release with README changelog..."
