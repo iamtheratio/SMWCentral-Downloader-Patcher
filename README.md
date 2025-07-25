@@ -22,6 +22,11 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 3. Double-click `SMWC Downloader.exe` to run the app
 4. **If Windows shows a security warning**: Click "More info" → "Run anyway" (this is normal for new apps)
 
+> **⚠️ IMPORTANT**: Windows may flag this app because it's new and unsigned. This is normal! If you see warnings:
+> - **Browser**: Click "Keep" if download gets blocked
+> - **Windows Defender**: Click "More info" → "Run anyway" 
+> - **To prevent future warnings**: Add the app folder to Windows Defender exclusions in Settings → Update & Security → Windows Security → Virus & threat protection → Exclusions
+
 ### Mac (macOS 10.15+)
 1. Download `SMWC-Downloader-macOS-Universal.dmg` from the [Releases page](../../releases)
 2. Open the DMG file and drag the app to your Applications folder
