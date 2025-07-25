@@ -23,7 +23,7 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 4. **If Windows shows a security warning**: Click "More info" → "Run anyway" (this is normal for new apps)
 
 > [!IMPORTANT]
-> **⚠️ IMPORTANT**: Windows may flag this app because it's new and unsigned. This is normal! If you see warnings:
+> Windows may flag this app because it's new and unsigned. This is normal! If you see warnings:
 > - **Browser**: Click "Keep" if download gets blocked
 > - **Windows Defender**: Click "More info" → "Run anyway" 
 > - **To prevent future warnings**: Add the app folder to Windows Defender exclusions in Settings → Update & Security → Windows Security → Virus & threat protection → Exclusions
