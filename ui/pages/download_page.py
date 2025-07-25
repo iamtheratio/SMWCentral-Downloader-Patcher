@@ -66,7 +66,8 @@ class DownloadPage:
         # Create results component in the middle LAST - this will fill remaining space
         self.results = DownloadResults(
             main_container,
-            callback_selection_change=self._update_selection_display
+            callback_selection_change=self._update_selection_display,
+            filters=self.filters  # Pass filters reference for "Show Only New" functionality
         )
         
         return self.frame
@@ -220,8 +221,11 @@ class DownloadPage:
         self.filters.set_searching_state(True)
         self.results.set_status("🔍 Searching...")
         
-        # Clear previous results
+        # Clear previous results and selections
         self.results.clear_results()
+        
+        # Immediately update the download button to reflect cleared selection
+        self._update_selection_display()
         
         # Start search in background thread
         self.search_thread = threading.Thread(target=self._perform_search, args=(config, time_period))
@@ -229,7 +233,7 @@ class DownloadPage:
         self.search_thread.start()
     
     def _perform_search(self, config, time_period):
-        """Perform the actual search with efficient time period filtering"""
+        """Perform the actual search with progressive result display and efficient time period filtering"""
         try:
             # Check for cancellation right at the start
             if self.search_cancelled:
@@ -259,6 +263,9 @@ class DownloadPage:
             
             if include_waiting:
                 search_modes.append(True)  # Also search waiting hacks if enabled
+            
+            # Initialize progressive display
+            self.frame.after(0, lambda: self.results.initialize_progressive_display())
             
             # Search the specified hack types
             for waiting_mode in search_modes:
@@ -297,6 +304,9 @@ class DownloadPage:
                             self._log(f"No more hacks found on page {page}, stopping search", "Information")
                             break
                         
+                        # Process page results for time filtering and progressive display
+                        page_results = []
+                        
                         # If we have a time period filter, check if we've gone past the cutoff
                         if cutoff_timestamp:
                             # Check for cancellation before processing results
@@ -304,7 +314,6 @@ class DownloadPage:
                                 self._log(f"❌ Search cancelled before processing time period filter on page {page}", "Information")
                                 return
                             
-                            page_hacks = []
                             all_past_cutoff = True
                             oldest_timestamp = None
                             
@@ -322,31 +331,22 @@ class DownloadPage:
                                             oldest_timestamp = hack_timestamp
                                         
                                         if hack_timestamp >= cutoff_timestamp:
-                                            page_hacks.append(hack)
+                                            page_results.append(hack)
                                             all_past_cutoff = False
                                         # If hack is older than cutoff, don't include it
                                     except (ValueError, TypeError):
                                         # If we can't parse the date, include it anyway
-                                        page_hacks.append(hack)
+                                        page_results.append(hack)
                                         all_past_cutoff = False
                                 else:
                                     # If no time data, include it anyway
-                                    page_hacks.append(hack)
+                                    page_results.append(hack)
                                     all_past_cutoff = False
-                            
-                            all_results.extend(page_hacks)
                             
                             # Log page results for debugging
                             from datetime import datetime
                             oldest_date = datetime.fromtimestamp(oldest_timestamp).strftime("%Y-%m-%d") if oldest_timestamp else "Unknown"
-                            self._log(f"Page {page}: Found {len(page_hacks)}/{len(hacks)} hacks within time period. Oldest: {oldest_date}", "Information")
-                            
-                            # OPTIMIZATION: If this page has fewer than 50 hacks (typical page size),
-                            # we've reached the end of available data from the API
-                            expected_page_size = 50  # SMWCentral typical page size
-                            if len(hacks) < expected_page_size:
-                                self._log(f"Page {page} returned {len(hacks)} hacks (less than {expected_page_size}), reached end of data", "Information")
-                                break
+                            self._log(f"Page {page}: Found {len(page_results)}/{len(hacks)} hacks within time period. Oldest: {oldest_date}", "Information")
                             
                             # If all hacks on this page are past the cutoff date, stop searching
                             if all_past_cutoff and len(hacks) > 0:
@@ -354,27 +354,35 @@ class DownloadPage:
                                 break
                         else:
                             # No time filtering - include all results
-                            all_results.extend(hacks)
-                            
-                            # OPTIMIZATION: Still check for end of data even without time filtering
-                            expected_page_size = 50  # SMWCentral typical page size
-                            if len(hacks) < expected_page_size:
-                                self._log(f"Page {page} returned {len(hacks)} hacks (less than {expected_page_size}), reached end of data", "Information")
-                                # Don't break here for non-time searches, let normal pagination handle it
+                            page_results = hacks
                         
-                        # Update status
+                        # Apply "No Difficulty" filtering to page results if needed
+                        if has_no_difficulty:
+                            page_results = self._apply_difficulty_filtering(page_results, selected_difficulties)
+                        
+                        # Add page results to total and display progressively
+                        all_results.extend(page_results)
+                        
+                        # Update UI with progressive results after each page
                         if self.search_cancelled:
                             return
                         
                         if len(search_modes) > 1:  # Searching both types
                             hack_type = "waiting" if waiting_mode else "moderated"
-                            self.frame.after(0, lambda: self.results.set_status(
-                                f"🔍 Found {len(all_results)} hacks so far... (searching {hack_type})"
-                            ))
+                            status_text = f"🔍 Found {len(all_results)} hacks so far... (searching {hack_type})"
                         else:  # Only searching moderated
-                            self.frame.after(0, lambda: self.results.set_status(
-                                f"🔍 Found {len(all_results)} hacks so far..."
-                            ))
+                            status_text = f"🔍 Found {len(all_results)} hacks so far..."
+                        
+                        # Progressive display: add new page results immediately
+                        self.frame.after(0, lambda pr=page_results.copy(), st=status_text: 
+                                        self.results.add_progressive_results(pr, st))
+                        
+                        # OPTIMIZATION: Check if we've reached expected end of data
+                        expected_page_size = 50  # SMWCentral typical page size
+                        if len(hacks) < expected_page_size:
+                            self._log(f"Page {page} returned {len(hacks)} hacks (less than {expected_page_size}), reached end of data", "Information")
+                            if not cutoff_timestamp:  # Only break for non-time filtered searches
+                                break
                         
                         # Check if we've reached the last page (API tells us)
                         if page >= result.get("last_page", 1):
@@ -387,16 +395,13 @@ class DownloadPage:
                         self._log(f"Error searching page {page}: {str(e)}", "Error")
                         break
             
-            # Final check for cancellation before displaying results
+            # Final check for cancellation before completing
             if self.search_cancelled:
-                self._log("Search was cancelled, not displaying results", "Information")
+                self._log("Search was cancelled, not completing", "Information")
                 return
             
-            # Apply "No Difficulty" filtering if needed
-            filtered_results = self._apply_difficulty_filtering(all_results, config.get("difficulties", []))
-            
-            # Update UI with results (no need for client-side time filtering now)
-            self.frame.after(0, lambda: self.results.display_results(filtered_results, time_period))
+            # Complete the progressive display with final results
+            self.frame.after(0, lambda: self.results.complete_progressive_display(all_results, time_period))
             self.frame.after(0, lambda: self._search_completed())
             
         except Exception as e:
@@ -490,9 +495,13 @@ class DownloadPage:
         self._update_selection_display()
     
     def _update_selection_display(self):
-        """Update the download button state based on selection"""
+        """Update the download button state based on selection and refresh downloaded styling"""
         count = self.results.get_selected_count()
         self.download_button_component.update_state(count)
+        
+        # Also refresh downloaded hack styling in case new hacks were downloaded
+        if hasattr(self.results, 'refresh_downloaded_styling'):
+            self.results.refresh_downloaded_styling()
     
     def _download_selected(self):
         """Download the selected hacks using the bulk download pipeline"""
@@ -501,6 +510,10 @@ class DownloadPage:
         if not selected_hacks:
             messagebox.showwarning("No Selection", "Please select at least one hack to download.")
             return
+        
+        # Capture the IDs of hacks that were selected at the start of download
+        # These will be unchecked after download completes (if successful)
+        original_selected_hack_ids = [str(hack.get("id", "")) for hack in selected_hacks]
         
         # Check if required settings are configured
         config = ConfigManager()
@@ -585,6 +598,20 @@ class DownloadPage:
                     self.frame.after(0, lambda: self.download_button_component.set_completion_message("🛑 Download process cancelled!"))
                 else:
                     self.frame.after(0, lambda: self.download_button_component.set_completion_message("✅ All downloads completed!"))
+                    
+                    # Uncheck the originally selected hacks that were downloaded
+                    # This allows users to continue selecting new hacks during download process
+                    def uncheck_downloaded_hacks():
+                        # Refresh downloaded hack styling first to catch newly downloaded hacks
+                        self.results.refresh_downloaded_styling()
+                        
+                        # Uncheck the hacks that were originally selected for download
+                        self.results.uncheck_hacks_by_ids(original_selected_hack_ids)
+                        
+                        # Log the action for user feedback
+                        self._log(f"✅ Unchecked {len(original_selected_hack_ids)} downloaded hacks - any newly selected hacks remain checked", "Information")
+                    
+                    self.frame.after(0, uncheck_downloaded_hacks)
                 
                 self.frame.after(0, lambda: self._update_selection_display())
         
@@ -617,6 +644,10 @@ class DownloadPage:
         """Called when the page becomes visible"""
         if self.frame:
             self._log("📋 Single Download page loaded - ready to search and download individual hacks", "Information")
+            
+            # Update theme colors to ensure correct colors are applied for current theme
+            if self.results and hasattr(self.results, 'update_theme_colors'):
+                self.results.update_theme_colors()
     
     def hide(self):
         """Called when the page becomes hidden"""

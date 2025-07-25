@@ -134,11 +134,26 @@ The app automatically checks for updates when you start it. When an update is av
 ## 📝 Changelog
 
 <details>
-<summary><strong>Version 4.4 - Latest Release</strong></summary>
+<summary><strong>Version 4.5 - Latest Release</strong></summary>
 
-### v4.4.0
+### v4.5.0
 
 ### 🚀 New Features
+- **Progressive Data Loading**: Download page now displays search results as each page is loaded from the API, allowing instant review of data instead of waiting for all pages to complete
+- **Already Downloaded Indicator**: Hacks already in your collection are now displayed in italic with muted text color (both light and dark themes) to easily distinguish what you already own
+- **Enhanced User Experience**: Real-time feedback and visual cues improve the download workflow efficiency
+
+### 🔧 Improvements
+- **Faster Search Experience**: Start browsing results immediately as data loads
+- **Better Collection Management**: Visual distinction between new and already-downloaded content
+- **Theme-Aware Formatting**: Downloaded hack indicators work seamlessly across light and dark modes
+
+</details>
+
+<details>
+<summary><strong>Previous Versions</strong></summary>
+
+### v4.4.0
 - **Cross-Platform Support**: Full compatibility with Windows, macOS, and Linux
 - **Download State Management**: History tab is now locked during active downloads to prevent data corruption
 - **Enhanced Dashboard Analytics**: Improved accuracy and data tracking for collection metrics

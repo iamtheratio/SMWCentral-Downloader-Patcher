@@ -51,7 +51,7 @@ try:
 except ImportError:
     pywinstyles = None
 
-VERSION = "v4.4"
+VERSION = "v4.5"
 
 
 def apply_theme_to_titlebar(root):
@@ -163,6 +163,22 @@ def toggle_theme_callback(root):
                     root.dashboard_page._refresh_dashboard()
                 except Exception as e:
                     print(f"Error refreshing dashboard during theme toggle: {e}")
+        
+        # Update download page theme colors if it exists
+        # Access the actual DownloadPage object through the navigation's layout system
+        if hasattr(root, 'navigation') and hasattr(root.navigation, 'page_manager'):
+            # We need to access the actual DownloadPage object, not the frame stored in page manager
+            # The frames are stored in page_manager.pages, but the actual objects are in the layout
+            main_layout = getattr(root, 'main_layout', None)
+            if main_layout and hasattr(main_layout, 'download_page'):
+                download_page = main_layout.download_page
+                
+                if hasattr(download_page, 'results') and download_page.results:
+                    if hasattr(download_page.results, 'update_theme_colors'):
+                        try:
+                            download_page.results.update_theme_colors()
+                        except Exception as e:
+                            print(f"Error updating download page theme: {e}")
 
     # Single update at the very end
     root.update_idletasks()
@@ -506,14 +522,11 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                 current_title = clean_hack_title(hack_name)
                 should_process = detect_and_handle_duplicates(processed, hack_id, current_title, log)
 
-                if not should_process:
-                    if log:
+                # Always save hack data regardless of obsolete status - user has the files
+                is_obsolete_version = not should_process
 
-                        log(f"⚪ Skipping obsolete version: {hack_name} (ID {hack_id})", "Information")
-                    skipped_hacks += 1
-                    # Still need to save the processed data with obsolete marking
-                    save_processed(processed)
-                    continue
+                if is_obsolete_version and log:
+                    log(f"⚪ Downloaded obsolete version: {hack_name} (ID {hack_id})", "Information")
 
                 # Check for any remaining duplicate warning (different from obsolete detection)
                 duplicate_id = None
@@ -547,12 +560,17 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     "demo": bool(raw_fields.get("demo", False)),
                     "authors": hack.get("authors", []),
                     "exits": raw_fields.get("length", hack.get("length", 0)) or 0,
-                    "obsolete": bool(raw_fields.get("obsolete", False))  # NEW: Track obsolete status
+                    "obsolete": is_obsolete_version  # Use the duplicate detection result
                 }
 
-                if log:
-                    log(f"✅ Successfully processed: {hack_name}", "Information")
-                successful_downloads += 1
+                if is_obsolete_version:
+                    if log:
+                        log(f"✅ Successfully downloaded obsolete version: {hack_name}", "Information")
+                    skipped_hacks += 1  # Count as skipped since it's obsolete
+                else:
+                    if log:
+                        log(f"✅ Successfully processed: {hack_name}", "Information")
+                    successful_downloads += 1
 
                 # Save progress after each successful download
                 save_processed(processed)

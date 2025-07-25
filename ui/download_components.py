@@ -35,6 +35,7 @@ class DownloadFilters:
         self.collab_var = tk.StringVar(value="Any")
         self.demo_var = tk.StringVar(value="Any")
         self.include_waiting_var = tk.BooleanVar(value=False)
+        self.show_only_new_var = tk.BooleanVar(value=False)
         
         # UI components and state
         self.search_button = None
@@ -168,7 +169,7 @@ class DownloadFilters:
             ttk.Radiobutton(sa1_radio_frame, text=option, variable=self.sa1_var, value=option).pack(side="left", padx=(0, 5))
     
     def _create_row3(self, parent):
-        """Create third row: Description, Include Waiting"""
+        """Create third row: Description, Include Waiting, Show Only Non-Downloaded"""
         row3_frame = ttk.Frame(parent)
         row3_frame.pack(fill="x", pady=(0, 0))
         
@@ -188,6 +189,16 @@ class DownloadFilters:
             waiting_frame,
             text="Include Waiting",
             variable=self.include_waiting_var
+        ).pack(pady=(2, 0))
+        
+        # Show Only Non-Downloaded checkbox
+        new_filter_frame = ttk.Frame(row3_frame)
+        new_filter_frame.pack(side="left", padx=(15, 0))
+        ttk.Label(new_filter_frame, text="").pack(anchor="w")  # Empty label for alignment
+        ttk.Checkbutton(
+            new_filter_frame,
+            text="Show Only Non-Downloaded",
+            variable=self.show_only_new_var
         ).pack(pady=(2, 0))
     
     def create_search_buttons(self, parent):
@@ -248,6 +259,7 @@ class DownloadFilters:
         self.collab_var.set("Any")
         self.demo_var.set("Any")
         self.include_waiting_var.set(False)
+        self.show_only_new_var.set(False)
     
     def build_search_config(self):
         """Build API search configuration from filter inputs"""
@@ -296,9 +308,10 @@ class DownloadFilters:
 class DownloadResults:
     """Results table component for single download page"""
     
-    def __init__(self, parent, callback_selection_change):
+    def __init__(self, parent, callback_selection_change, filters=None):
         self.parent = parent
         self.callback_selection_change = callback_selection_change
+        self.filters = filters  # Reference to SearchControls for filter access
         
         # Table state
         self.tree = None
@@ -309,8 +322,87 @@ class DownloadResults:
         self.sort_reverse = True  # Default to descending (newest first)
         self.select_all_state = False  # Track select all checkbox state
         
+        # Progressive loading state
+        self.is_progressive_loading = False
+        self.downloaded_hack_ids = set()  # Cache of downloaded hack IDs for styling
+        
         # Create the results section
         self._create_results()
+        self._load_downloaded_hacks()
+        
+    def _load_downloaded_hacks(self):
+        """Load the set of downloaded hack IDs for styling purposes"""
+        try:
+            from hack_data_manager import HackDataManager
+            hack_manager = HackDataManager()
+            # Get all hack IDs including obsolete versions for downloaded styling
+            # We want to show ALL downloaded hacks as italic, even obsolete versions
+            all_hacks = hack_manager.get_all_hacks(include_obsolete=True)
+            self.downloaded_hack_ids = set(hack['id'] for hack in all_hacks)
+        except Exception:
+            # If we can't load for any reason, just use empty set
+            self.downloaded_hack_ids = set()
+    
+    def refresh_downloaded_styling(self):
+        """Refresh the downloaded hack cache and update visual styling of all items"""
+        # Only reload downloaded hack IDs if not already loaded (optimization)
+        if not hasattr(self, 'downloaded_hack_ids') or not self.downloaded_hack_ids:
+            self._load_downloaded_hacks()
+        
+        # Update the styling of all visible items efficiently
+        if self.tree and self.tree.get_children():
+            # Batch process all items to reduce individual tree operations
+            items_to_update = []
+            
+            for item in self.tree.get_children():
+                item_index = self.tree.index(item)
+                if item_index < len(self.search_results):
+                    hack = self.search_results[item_index]
+                    hack_id = str(hack.get("id", ""))
+                    is_downloaded = hack_id in self.downloaded_hack_ids
+                    
+                    # Get current selection state
+                    current_values = self.tree.item(item, "values")
+                    is_selected = current_values[0] == "✓"
+                    
+                    # Determine the correct tag
+                    if is_selected:
+                        tag = "downloaded_selected" if is_downloaded else "selected"
+                    else:
+                        tag = "downloaded" if is_downloaded else "unselected"
+                    
+                    items_to_update.append((item, tag))
+            
+            # Apply all tag updates at once
+            for item, tag in items_to_update:
+                self.tree.item(item, tags=(tag,))
+
+    def update_theme_colors(self):
+        """Update tag configurations when theme changes"""
+        if not self.tree:
+            return
+            
+        from colors import get_colors
+        colors = get_colors()
+        
+        # Update tag configurations with new theme colors
+        self.tree.tag_configure("selected", 
+                              background=colors["table_selected"], 
+                              foreground=colors["table_selected_text"])
+        self.tree.tag_configure("unselected", background="", foreground="")
+        self.tree.tag_configure("downloaded", 
+                              foreground=colors["table_downloaded"], 
+                              font=("Segoe UI", 9, "italic"))
+        self.tree.tag_configure("downloaded_selected", 
+                              background=colors["table_downloaded_selected"], 
+                              foreground=colors["table_downloaded_selected_text"], 
+                              font=("Segoe UI", 9, "italic"))
+        
+        # Need to refresh styling to ensure items have correct tags for current theme
+        # This ensures downloaded+selected items get the right color combination
+        self.refresh_downloaded_styling()
+
+
         
     def _create_results(self):
         """Create the search results table with simple, responsive layout"""
@@ -380,9 +472,33 @@ class DownloadResults:
         self.status_label = ttk.Label(results_frame, text="", font=("Segoe UI", 9))
         self.status_label.grid(row=2, column=0, columnspan=2, pady=(10, 0))
         
-        # Configure tag styles for selection
-        self.tree.tag_configure("selected", background="#404040" if sv_ttk.get_theme() == "dark" else "#E3F2FD")
-        self.tree.tag_configure("unselected", background="")
+        # Configure tag styles for selection and downloaded status
+        from colors import get_colors
+        colors = get_colors()
+        
+        self.tree.tag_configure("selected", 
+                              background=colors["table_selected"], 
+                              foreground=colors["table_selected_text"])
+        self.tree.tag_configure("unselected", background="", foreground="")
+        self.tree.tag_configure("downloaded", 
+                              foreground=colors["table_downloaded"], 
+                              font=("Segoe UI", 9, "italic"))
+        self.tree.tag_configure("downloaded_selected", 
+                              background=colors["table_downloaded_selected"], 
+                              foreground=colors["table_downloaded_selected_text"], 
+                              font=("Segoe UI", 9, "italic"))
+        
+        # Footer with download indicator explanation
+        footer_frame = ttk.Frame(results_frame)
+        footer_frame.grid(row=3, column=0, columnspan=2, pady=(5, 0))
+        
+        info_label = ttk.Label(footer_frame, text="💡 ", font=("Segoe UI", 8))
+        info_label.pack(side="left")
+        
+        explanation_label = ttk.Label(footer_frame, 
+                                     text="Italic entries are already in your collection", 
+                                     font=("Segoe UI", 8, "italic"))
+        explanation_label.pack(side="left")
     
     def _sort_by_column(self, column):
         """Sort the table by the specified column"""
@@ -462,35 +578,47 @@ class DownloadResults:
             self._toggle_selection(selection[0])
     
     def _toggle_selection(self, item):
-        """Toggle selection state of an item"""
+        """Toggle selection state of an item with proper downloaded styling"""
         current_values = list(self.tree.item(item, "values"))
+        current_tags = self.tree.item(item, "tags")
+        
+        # Determine if this item is downloaded
+        item_index = self.tree.index(item)
+        is_downloaded = False
+        hack = None
+        
+        # Safely get hack data with bounds checking
+        if item_index < len(self.search_results):
+            hack = self.search_results[item_index]
+            hack_id = str(hack.get("id", ""))
+            is_downloaded = hack_id in self.downloaded_hack_ids
         
         if current_values[0] == "":
             # Select the item
             current_values[0] = "✓"
-            self.tree.item(item, values=current_values, tags=("selected",))
+            # Choose tag based on downloaded status
+            tag = "downloaded_selected" if is_downloaded else "selected"
+            self.tree.item(item, values=current_values, tags=(tag,))
             
-            # Add to selected hacks
-            item_index = self.tree.index(item)
-            if item_index < len(self.search_results):
-                self.selected_hacks.append(self.search_results[item_index])
+            # Add to selected hacks (only if we have valid hack data)
+            if hack is not None and hack not in self.selected_hacks:
+                self.selected_hacks.append(hack)
         else:
             # Deselect the item
             current_values[0] = ""
-            self.tree.item(item, values=current_values, tags=("unselected",))
+            # Choose tag based on downloaded status
+            tag = "downloaded" if is_downloaded else "unselected"
+            self.tree.item(item, values=current_values, tags=(tag,))
             
-            # Remove from selected hacks
-            item_index = self.tree.index(item)
-            if item_index < len(self.search_results):
-                hack_to_remove = self.search_results[item_index]
-                if hack_to_remove in self.selected_hacks:
-                    self.selected_hacks.remove(hack_to_remove)
+            # Remove from selected hacks (only if we have valid hack data)
+            if hack is not None and hack in self.selected_hacks:
+                self.selected_hacks.remove(hack)
         
         # Notify parent of selection change
         self.callback_selection_change()
     
     def toggle_select_all(self):
-        """Toggle selection state of all visible items"""
+        """Toggle selection state of all visible items with proper downloaded styling"""
         if not self.tree or not self.tree.get_children():
             return
         
@@ -506,62 +634,135 @@ class DownloadResults:
             current_values = list(self.tree.item(item, "values"))
             item_index = self.tree.index(item)
             
+            # Determine if this item is downloaded with bounds checking
+            is_downloaded = False
+            hack = None
+            if item_index < len(self.search_results):
+                hack = self.search_results[item_index]
+                hack_id = str(hack.get("id", ""))
+                is_downloaded = hack_id in self.downloaded_hack_ids
+            
             if self.select_all_state:
                 # Select the item
                 current_values[0] = "✓"
-                self.tree.item(item, values=current_values, tags=("selected",))
+                # Choose tag based on downloaded status
+                tag = "downloaded_selected" if is_downloaded else "selected"
+                self.tree.item(item, values=current_values, tags=(tag,))
                 
-                # Add to selected hacks if not already there
-                if item_index < len(self.search_results):
-                    hack = self.search_results[item_index]
-                    if hack not in self.selected_hacks:
-                        self.selected_hacks.append(hack)
+                # Add to selected hacks if not already there (only if we have valid hack data)
+                if hack is not None and hack not in self.selected_hacks:
+                    self.selected_hacks.append(hack)
             else:
                 # Deselect the item
                 current_values[0] = ""
-                self.tree.item(item, values=current_values, tags=("unselected",))
+                # Choose tag based on downloaded status
+                tag = "downloaded" if is_downloaded else "unselected"
+                self.tree.item(item, values=current_values, tags=(tag,))
                 
-                # Remove from selected hacks
-                if item_index < len(self.search_results):
-                    hack = self.search_results[item_index]
-                    if hack in self.selected_hacks:
-                        self.selected_hacks.remove(hack)
+                # Remove from selected hacks (only if we have valid hack data)
+                if hack is not None and hack in self.selected_hacks:
+                    self.selected_hacks.remove(hack)
         
         # Notify parent of selection change
         self.callback_selection_change()
 
-    def display_results(self, results, time_period_filter="All Time"):
-        """Display search results in the table (time filtering now handled server-side)"""
-        self.search_results = results
+    def initialize_progressive_display(self):
+        """Initialize the table for progressive loading"""
+        self.is_progressive_loading = True
         
-        # Reset select all state when displaying new results
-        self.select_all_state = False
-        self.tree.heading("select", text="✓")
+        # Refresh downloaded hack cache before search to catch any newly downloaded hacks
+        self._load_downloaded_hacks()
         
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
         
-        # Add results to table
-        for hack in results:
+        # Reset state
+        self.search_results = []
+        self.selected_hacks = []
+        self.select_all_state = False
+        self.tree.heading("select", text="✓")
+    
+    def add_progressive_results(self, new_results, status_text):
+        """Add new page results to the table immediately (progressive loading)"""
+        if not self.is_progressive_loading:
+            return
+        
+        # Apply "Show Only Non-Downloaded" filter if enabled before adding to tree
+        filtered_new_results = new_results
+        if self.filters and self.filters.show_only_new_var.get():
+            # Filter out already-downloaded hacks
+            filtered_new_results = []
+            for hack in new_results:
+                hack_id = str(hack.get("id", ""))
+                if hack_id not in self.downloaded_hack_ids:
+                    filtered_new_results.append(hack)
+        
+        # During progressive loading, search_results should only contain what's visible in the tree
+        # This ensures tree indices match search_results indices for proper selection handling
+        self.search_results.extend(filtered_new_results)
+        
+        # Add each filtered hack to the tree
+        for hack in filtered_new_results:
             self._add_hack_to_tree(hack)
         
-        # Sort results by default column
+        # Update status
+        self.set_status(status_text)
+        
+        # Note: We don't sort during progressive loading to maintain performance
+        # Sorting will happen when the search completes
+    
+    def complete_progressive_display(self, final_results, time_period_filter="All Time"):
+        """Complete the progressive display and finalize the results"""
+        self.is_progressive_loading = False
+        
+        # Apply "Show Only Non-Downloaded" filter to get the final filtered set
+        filtered_results = final_results
+        if self.filters and self.filters.show_only_new_var.get():
+            # Filter out already-downloaded hacks
+            filtered_results = []
+            for hack in final_results:
+                hack_id = str(hack.get("id", ""))
+                if hack_id not in self.downloaded_hack_ids:
+                    filtered_results.append(hack)
+        
+        # search_results should already contain the filtered results from progressive loading
+        # but we'll update it to the final filtered set to ensure consistency
+        self.search_results = filtered_results
+        
+        # Now that loading is complete, sort the results
         if self.search_results:
-            self._update_sort_headers()  # Update headers to show sort direction
+            self._update_sort_headers()
             self._sort_results()
         
-        # Update status (time filtering already applied server-side)
+        # Update final status
         total_results = len(self.search_results)
-        if time_period_filter != "All Time":
-            status_text = f"✅ Found {total_results} hacks (filtered by {time_period_filter})"
+        original_count = len(final_results)
+        
+        if self.filters and self.filters.show_only_new_var.get() and total_results != original_count:
+            # Show both filtered and total counts
+            if time_period_filter != "All Time":
+                status_text = f"✅ Found {total_results} non-downloaded hacks ({original_count} total, filtered by {time_period_filter})"
+            else:
+                status_text = f"✅ Found {total_results} non-downloaded hacks ({original_count} total)"
         else:
-            status_text = f"✅ Found {total_results} hacks"
+            # Standard status message
+            if time_period_filter != "All Time":
+                status_text = f"✅ Found {total_results} hacks (filtered by {time_period_filter})"
+            else:
+                status_text = f"✅ Found {total_results} hacks"
         
         self.set_status(status_text)
+
+    def display_results(self, results, time_period_filter="All Time"):
+        """Display search results in the table (legacy method for compatibility)"""
+        # This method is kept for compatibility but now just calls the progressive methods
+        self.initialize_progressive_display()
+        self.add_progressive_results(results, f"Found {len(results)} hacks")
+        self.complete_progressive_display(results, time_period_filter)
     
     def _add_hack_to_tree(self, hack):
-        """Add a single hack to the tree view"""
+        """Add a single hack to the tree view with downloaded status styling"""
         # Format the data for display
         title = hack.get("name", "Unknown")
         
@@ -630,6 +831,13 @@ class DownloadResults:
         if len(authors) > 20:
             authors = authors[:17] + "..."
         
+        # Check if this hack is already downloaded
+        hack_id = str(hack.get("id", ""))
+        is_downloaded = hack_id in self.downloaded_hack_ids
+        
+        # Choose appropriate tag based on download status
+        tag = "downloaded" if is_downloaded else "unselected"
+        
         self.tree.insert("", "end", values=(
             "",  # Empty for unselected
             title,
@@ -639,7 +847,7 @@ class DownloadResults:
             exits,
             authors,
             date
-        ), tags=("unselected",))
+        ), tags=(tag,))
     
     def clear_results(self):
         """Clear search results"""
@@ -653,7 +861,7 @@ class DownloadResults:
             self.tree.heading("select", text="✓")
     
     def clear_selection(self):
-        """Clear all selections"""
+        """Clear all selections with proper downloaded styling"""
         self.selected_hacks = []
         
         # Reset select all state
@@ -664,7 +872,17 @@ class DownloadResults:
         for item in self.tree.get_children():
             current_values = list(self.tree.item(item, "values"))
             current_values[0] = ""
-            self.tree.item(item, values=current_values, tags=("unselected",))
+            
+            # Determine if this item is downloaded to set proper tag with bounds checking
+            item_index = self.tree.index(item)
+            is_downloaded = False
+            if item_index < len(self.search_results):
+                hack = self.search_results[item_index]
+                hack_id = str(hack.get("id", ""))
+                is_downloaded = hack_id in self.downloaded_hack_ids
+            
+            tag = "downloaded" if is_downloaded else "unselected"
+            self.tree.item(item, values=current_values, tags=(tag,))
     
     def set_status(self, text):
         """Set the status label text"""
@@ -678,6 +896,54 @@ class DownloadResults:
     def get_selected_hacks(self):
         """Get the list of selected hacks"""
         return self.selected_hacks.copy()
+
+    def uncheck_hacks_by_ids(self, hack_ids_to_uncheck):
+        """Uncheck specific hacks by their IDs, keeping all other selections intact"""
+        if not hack_ids_to_uncheck or not self.tree:
+            return
+        
+        # Convert hack IDs to strings for comparison
+        hack_ids_set = set(str(hack_id) for hack_id in hack_ids_to_uncheck)
+        
+        # Track which hacks to remove from selected_hacks
+        hacks_to_remove = []
+        
+        # Go through all tree items and uncheck matching hack IDs
+        for item in self.tree.get_children():
+            item_index = self.tree.index(item)
+            if item_index < len(self.search_results):
+                hack = self.search_results[item_index]
+                hack_id = str(hack.get("id", ""))
+                
+                # If this hack was downloaded, uncheck it
+                if hack_id in hack_ids_set:
+                    current_values = list(self.tree.item(item, "values"))
+                    
+                    # Only uncheck if it's currently checked
+                    if current_values[0] == "✓":
+                        current_values[0] = ""
+                        
+                        # Determine proper tag based on downloaded status
+                        is_downloaded = hack_id in self.downloaded_hack_ids
+                        tag = "downloaded" if is_downloaded else "unselected"
+                        self.tree.item(item, values=current_values, tags=(tag,))
+                        
+                        # Mark hack for removal from selected_hacks
+                        hacks_to_remove.append(hack)
+        
+        # Remove unchecked hacks from selected_hacks list
+        for hack in hacks_to_remove:
+            if hack in self.selected_hacks:
+                self.selected_hacks.remove(hack)
+        
+        # Update select all state if all items are now unselected
+        if not self.selected_hacks:
+            self.select_all_state = False
+            if self.tree:
+                self.tree.heading("select", text="✓")
+        
+        # Notify parent of selection change
+        self.callback_selection_change()
 
 
 class DownloadButton:

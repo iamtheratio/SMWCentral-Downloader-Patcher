@@ -39,13 +39,13 @@ app = BUNDLE(
     name='SMWC Updater.app',
     icon='assets/icon.icns',  # Use proper .icns file for macOS
     bundle_identifier='com.iamtheratio.smwc-updater',
-    version='4.4.0',
+    version='4.5.0',
     info_plist={
         'LSBackgroundOnly': False,
         'NSHighResolutionCapable': True,
         'CFBundleDisplayName': 'SMWC Updater',
-        'CFBundleShortVersionString': '4.4.0',
-        'CFBundleVersion': '4.4.0',
+        'CFBundleShortVersionString': '4.5.0',
+        'CFBundleVersion': '4.5.0',
         'NSRequiresAquaSystemAppearance': False,
     },
 )

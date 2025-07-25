@@ -39,7 +39,7 @@ app = BUNDLE(
     name='SMWC Downloader.app',
     icon='assets/icon.icns',  # Use proper .icns file for macOS
     bundle_identifier='com.iamtheratio.smwc-downloader',
-    version='4.4.0',
+    version='4.5.0',
     info_plist={
         'LSBackgroundOnly': False,
         'NSHighResolutionCapable': True,
