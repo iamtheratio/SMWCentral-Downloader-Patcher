@@ -24,6 +24,7 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 
 > [!IMPORTANT]
 > Windows may flag this app because it's new and unsigned. This is normal!
+> 
 > **If you see warnings:**
 > - **Browser**: Click "Keep" if download gets blocked
 > - **Windows Defender**: Click "More info" → "Run anyway" 
