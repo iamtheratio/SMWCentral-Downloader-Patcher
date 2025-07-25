@@ -22,6 +22,7 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 3. Double-click `SMWC Downloader.exe` to run the app
 4. **If Windows shows a security warning**: Click "More info" → "Run anyway" (this is normal for new apps)
 
+> [!IMPORTANT]
 > **⚠️ IMPORTANT**: Windows may flag this app because it's new and unsigned. This is normal! If you see warnings:
 > - **Browser**: Click "Keep" if download gets blocked
 > - **Windows Defender**: Click "More info" → "Run anyway" 
