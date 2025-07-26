@@ -410,15 +410,15 @@ class DownloadResults:
         results_frame.pack(fill="both", expand=True, pady=(0, 10))  # Changed: fill="both" and expand=True to fill available space
         
         # Create treeview for results - no fixed height so it can expand dynamically
-        columns = ("select", "title", "type", "difficulty", "rating", "exits", "authors", "date")
+        columns = ("select", "title", "type", "difficulty", "rating", "downloads", "exits", "authors", "date")
         # Remove fixed height to allow dynamic expansion when search criteria is collapsed
         self.tree = ttk.Treeview(results_frame, columns=columns, show="headings")
         
         # Configure headers and columns
-        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Exit(s)", "Author(s)", "Date"]
-        widths = [40, 250, 90, 100, 70, 60, 150, 90]
-        min_widths = [35, 200, 70, 80, 60, 50, 120, 80]
-        anchors = ["center", "w", "center", "center", "center", "center", "w", "center"]
+        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Downloads", "Exit(s)", "Author(s)", "Date"]
+        widths = [40, 220, 90, 100, 70, 100, 60, 150, 90]
+        min_widths = [35, 180, 70, 80, 60, 80, 50, 120, 80]
+        anchors = ["center", "w", "center", "center", "center", "center", "center", "w", "center"]
         
         for i, (col, header, width, min_width, anchor) in enumerate(zip(columns, headers, widths, min_widths, anchors)):
             if col == "select":
@@ -518,7 +518,7 @@ class DownloadResults:
     def _update_sort_headers(self):
         """Update column headers to show sort direction"""
         headers = {"title": "Title", "type": "Type", "difficulty": "Difficulty", 
-                  "rating": "Rating", "exits": "Exit(s)", "authors": "Author(s)", "date": "Date"}
+                  "rating": "Rating", "downloads": "Downloads", "exits": "Exit(s)", "authors": "Author(s)", "date": "Date"}
         
         for col, base_text in headers.items():
             if col == self.sort_column:
@@ -549,12 +549,14 @@ class DownloadResults:
             items_data.sort(key=lambda x: x[2][3], reverse=self.sort_reverse)
         elif self.sort_column == "rating":
             items_data.sort(key=lambda x: float(x[2][4]) if x[2][4] != "N/A" else -1, reverse=self.sort_reverse)
-        elif self.sort_column == "exits":
+        elif self.sort_column == "downloads":
             items_data.sort(key=lambda x: int(x[2][5]) if x[2][5] != "N/A" else -1, reverse=self.sort_reverse)
+        elif self.sort_column == "exits":
+            items_data.sort(key=lambda x: int(x[2][6]) if x[2][6] != "N/A" else -1, reverse=self.sort_reverse)
         elif self.sort_column == "authors":
-            items_data.sort(key=lambda x: x[2][6].lower(), reverse=self.sort_reverse)
+            items_data.sort(key=lambda x: x[2][7].lower(), reverse=self.sort_reverse)
         elif self.sort_column == "date":
-            items_data.sort(key=lambda x: x[2][7], reverse=self.sort_reverse)
+            items_data.sort(key=lambda x: x[2][8], reverse=self.sort_reverse)
         
         # Reorder items in tree
         for index, (hack, item, values) in enumerate(items_data):
@@ -790,6 +792,14 @@ class DownloadResults:
             except (ValueError, TypeError):
                 rating = "N/A"
         
+        # Get downloads count
+        downloads = hack.get("downloads", "N/A")
+        if downloads and downloads != "N/A":
+            try:
+                downloads = str(int(downloads))
+            except (ValueError, TypeError):
+                downloads = "N/A"
+        
         # Get exits (length field)
         exits = raw_fields.get("length") or hack.get("length", "N/A")
         if exits and exits != "N/A":
@@ -844,6 +854,7 @@ class DownloadResults:
             hack_type,
             difficulty,
             rating,
+            downloads,
             exits,
             authors,
             date
