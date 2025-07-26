@@ -94,7 +94,7 @@ def apply_font_settings(root, style):
     # Configure smaller font for History page table data only
     style.configure("History.Treeview",
                     font=("Segoe UI", 10),  # Smaller font for history table data
-                    rowheight=22)  # Slightly smaller row height
+                    rowheight=25)  # Slightly smaller row height
 
     # Keep History headers at normal size
     style.configure("History.Treeview.Heading",
