@@ -71,6 +71,53 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 5. **Advanced editing**: Double-click any hack to open the full edit dialog
 6. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
+#### Input Format Guide
+
+When editing **Completed Date** and **Time to Beat** fields, the app supports flexible input formats:
+
+**📅 Date Formats:**
+- `MM/DD/YYYY` - Example: `12/25/2024`
+- `MM-DD-YYYY` - Example: `12-25-2024`
+- `MM.DD.YYYY` - Example: `12.25.2024` *(period delimiters)*
+- `YYYY/MM/DD` - Example: `2024/12/25`
+- `YYYY-MM-DD` - Example: `2024-12-25`
+
+**⏱️ Time to Beat Formats:**
+
+<details>
+<summary><strong>Click to expand supported time formats</strong></summary>
+
+**Colon-Separated Formats:**
+- `HH:MM:SS` - Hours:Minutes:Seconds
+  - Examples: `1:30:45` = 1 hour, 30 minutes, 45 seconds
+  - Examples: `12:05:30` = 12 hours, 5 minutes, 30 seconds
+- `MM:SS` - Minutes:Seconds  
+  - Examples: `90:30` = 90 minutes, 30 seconds
+  - Examples: `5:15` = 5 minutes, 15 seconds
+
+**Letter Suffix Formats:**
+- `XhYmZs` - Hours, minutes, seconds with letters
+  - Examples: `2h 30m 15s` = 2 hours, 30 minutes, 15 seconds
+  - Examples: `1h 45m` = 1 hour, 45 minutes
+  - Examples: `90m` = 90 minutes | `45s` = 45 seconds
+  - *Flexible spacing: `2h30m15s` = `2h 30m 15s` = `2h  30m   15s`*
+
+**Extended Day Formats:**
+- `XdYhZmWs` - Days, hours, minutes, seconds
+  - Examples: `14d 10h 2m 1s` = 14 days, 10 hours, 2 minutes, 1 second
+  - Examples: `7d 12h` = 7 days, 12 hours | `2d` = 2 days
+- *Advanced: Shortened formats like `14d 10` (assumes hours) are also supported*
+
+**Word-Based Formats:**
+- `X minutes` or `X mins`
+  - Examples: `150 minutes` = 150 minutes | `90 mins` = 90 minutes
+
+**Simple Number Format:**
+- `X` - Just a number (assumes minutes)
+  - Examples: `90` = 90 minutes | `5` = 5 minutes | `120` = 120 minutes
+
+</details>
+
 ### App Settings
 - **Download location**: Change where ROMs are saved
 - **Multi-type downloads**: Configure how hacks with multiple types (like "Kaizo, Tool-Assisted") are handled
