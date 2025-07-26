@@ -22,6 +22,7 @@ class TableFilters:
         self.demo_filter = tk.StringVar(value="All")
         self.user_content_filter = tk.StringVar(value="Any")  # Default to "Any" for dropdown
         self.obsolete_filter = tk.StringVar(value="No")  # Default to "No" for obsolete records
+        self.author_filter = tk.StringVar()  # Author search filter
         
     def create_filter_ui(self, parent, data_manager):
         """Create filter UI elements"""
@@ -96,27 +97,35 @@ class TableFilters:
         # More dropdown filters...
         self._create_remaining_dropdowns(dropdowns_frame)
         
-        # User Created Records and Obsolete Records filters (below dropdowns)
+        # User Created Records, Obsolete Records, and Author filters (below dropdowns)
         bottom_filters_frame = ttk.Frame(parent)
         bottom_filters_frame.pack(fill="x", pady=(8, 0))
         
         # User Created Records filter (left side)
         user_records_frame = ttk.Frame(bottom_filters_frame)
-        user_records_frame.pack(side="left", padx=(0, 30))
+        user_records_frame.pack(side="left", padx=(0, 12))
         ttk.Label(user_records_frame, text="User Created Records:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         user_records_combo = ttk.Combobox(user_records_frame, textvariable=self.user_content_filter,
-                                        values=["Any", "Yes", "No"], state="readonly", width=12)
+                                        values=["Any", "Yes", "No"], state="readonly", width=14)
         user_records_combo.pack(anchor="w", pady=(2, 0))
         user_records_combo.bind("<<ComboboxSelected>>", lambda e: self.apply_callback())
         
-        # Obsolete Records filter (right side)
+        # Obsolete Records filter (middle)
         obsolete_records_frame = ttk.Frame(bottom_filters_frame)
-        obsolete_records_frame.pack(side="left")
+        obsolete_records_frame.pack(side="left", padx=(0, 12))
         ttk.Label(obsolete_records_frame, text="Obsolete Records:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         obsolete_records_combo = ttk.Combobox(obsolete_records_frame, textvariable=self.obsolete_filter,
-                                            values=["Any", "Yes", "No"], state="readonly", width=12)
+                                            values=["Any", "Yes", "No"], state="readonly", width=14)
         obsolete_records_combo.pack(anchor="w", pady=(2, 0))
         obsolete_records_combo.bind("<<ComboboxSelected>>", lambda e: self.apply_callback())
+        
+        # Author filter (right side)
+        author_frame = ttk.Frame(bottom_filters_frame)
+        author_frame.pack(side="left")
+        ttk.Label(author_frame, text="Author(s):", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        author_entry = ttk.Entry(author_frame, textvariable=self.author_filter, width=19)
+        author_entry.pack(anchor="w", pady=(2, 0))
+        author_entry.bind("<KeyRelease>", lambda e: self.apply_callback())
         
     def _create_remaining_dropdowns(self, parent):
         """Create completed and rating dropdowns"""
@@ -217,6 +226,7 @@ class TableFilters:
         self.demo_filter.set("All")
         self.user_content_filter.set("Any")  # Reset to "Any" for dropdown
         self.obsolete_filter.set("No")  # Reset to "No" for obsolete records
+        self.author_filter.set("")  # Clear author filter
         self.apply_callback()
         
     def refresh_dropdown_values(self, data_manager):
@@ -251,6 +261,20 @@ class TableFilters:
         name_filter_text = self.name_filter.get().strip().lower()
         if name_filter_text and name_filter_text not in hack.get("title", "").lower():
             return False
+        
+        # Author filter
+        author_filter_text = self.author_filter.get().strip().lower()
+        if author_filter_text:
+            authors = hack.get("authors", [])
+            if isinstance(authors, list):
+                # Check if any author contains the filter text
+                author_match = any(author_filter_text in author.lower() for author in authors if isinstance(author, str))
+                if not author_match:
+                    return False
+            elif isinstance(authors, str):
+                # Handle case where authors is a string instead of list
+                if author_filter_text not in authors.lower():
+                    return False
             
         # Type filter
         type_filter_value = self.type_filter.get()

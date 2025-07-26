@@ -106,6 +106,7 @@ class HackDataManager:
                     "collaboration": hack_data.get("collaboration", False),
                     "demo": hack_data.get("demo", False),
                     "obsolete": hack_data.get("obsolete", False),  # NEW: Include obsolete status
+                    "authors": hack_data.get("authors", []),  # Include authors for filtering
                     # Removed file_path for privacy - contains usernames
                     "completed": hack_data.get("completed", False),
                     "completed_date": hack_data.get("completed_date", ""),

@@ -769,7 +769,7 @@ class HistoryPage:
         page_size_combo.pack(side="left", padx=(0, 5))
         page_size_combo.bind("<<ComboboxSelected>>", self._on_page_size_change)
         
-        ttk.Label(left_frame, text="per page").pack(side="left")
+        ttk.Label(left_frame, text="").pack(side="left")
         
         # Center - Page info
         center_frame = ttk.Frame(pagination_frame)
