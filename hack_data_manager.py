@@ -6,7 +6,7 @@ from datetime import datetime
 
 
 class HackDataManager:
-    """Manages hack data from processed.json with history tracking"""
+    """Manages hack data from processed.json with collection tracking"""
 
     def __init__(self, json_path=None, logger=None):
         # If no path specified, use the same path resolution as download operations

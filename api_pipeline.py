@@ -492,7 +492,7 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 "exits": new_metadata.get("exits", 0),
                 "authors": new_metadata.get("authors", []),
                 "obsolete": new_metadata.get("obsolete", False),  # NEW: Track obsolete status
-                # History tracking fields - preserve existing values
+                # Collection tracking fields - preserve existing values
                 "completed": existing_hack.get("completed", False),
                 "completed_date": existing_hack.get("completed_date", ""),
                 "personal_rating": existing_hack.get("personal_rating", 0),
@@ -533,7 +533,7 @@ def save_hack_to_processed_json(hack_data, file_path, hack_type):
         "exits": hack_data.get("length", 0),  # API length becomes exits
         "authors": hack_data.get("authors", []),  # Authors array
         
-        # History tracking fields
+        # Collection tracking fields
         "completed": False,
         "completed_date": "",
         "personal_rating": 0,

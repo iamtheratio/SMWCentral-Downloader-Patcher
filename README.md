@@ -64,7 +64,7 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 8. **Play**: Your patched ROMs will be saved to your chosen folder, ready to play in any emulator
 
 ### Managing Your Collection
-1. **View your collection**: Click the "History" tab to see all your downloaded ROMs
+1. **View your collection**: Click the "Collection" tab to see all your downloaded ROMs
 2. **Add hacks manually**: Use the "Add Hack" button to track hacks you've played from other sources
 3. **Track progress**: Mark hacks as completed, rate them (1-5 stars), and add personal notes
 4. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
@@ -162,12 +162,12 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 
 ### v4.4.0
 - **Cross-Platform Support**: Full compatibility with Windows, macOS, and Linux
-- **Download State Management**: History tab is now locked during active downloads to prevent data corruption
+- **Download State Management**: Collection tab is now locked during active downloads to prevent data corruption
 - **Enhanced Dashboard Analytics**: Improved accuracy and data tracking for collection metrics
 
 ### v4.3.0
 - Dashboard implementation with analytics and charts
-- History page with comprehensive filtering and editing
+- Collection page with comprehensive filtering and editing
 - Theme support (light/dark modes)
 - Improved bulk download workflow
 
@@ -180,7 +180,7 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 ### v4.1.0
 - Initial release with core downloading functionality
 - Basic patching system
-- Simple history tracking
+- Simple collection tracking
 - Windows-only support
 
 </details>

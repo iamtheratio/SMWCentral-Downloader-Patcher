@@ -198,7 +198,7 @@ class NotesValidator:
         return notes_string
 
 
-class HackHistoryInlineEditor(InlineEditor):
+class HackCollectionInlineEditor(InlineEditor):
     """Extended inline editor that knows how to find hack data"""
     
     def __init__(self, tree, data_manager, parent_page, logger=None):

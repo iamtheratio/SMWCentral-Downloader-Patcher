@@ -91,13 +91,13 @@ def apply_font_settings(root, style):
     style.configure("Treeview.Heading",
                     font=("Segoe UI", 10, "bold"))  # Bold headers
 
-    # Configure smaller font for History page table data only
-    style.configure("History.Treeview",
-                    font=("Segoe UI", 10),  # Smaller font for history table data
+    # Configure smaller font for Collection page table data only
+    style.configure("Collection.Treeview",
+                    font=("Segoe UI", 10),  # Smaller font for collection table data
                     rowheight=25)  # Slightly smaller row height
 
-    # Keep History headers at normal size
-    style.configure("History.Treeview.Heading",
+    # Keep Collection headers at normal size
+    style.configure("Collection.Treeview.Heading",
                     font=("Segoe UI", 10, "bold"))  # Same size as other headers
 
     # Configure custom button style for both themes
@@ -206,7 +206,7 @@ def run_pipeline_wrapper(*args, **kwargs):
     """Wrapper function to handle both bulk downloads and single downloads"""
     from download_state_manager import set_download_active
     
-    # Mark download as active to lock history editing
+    # Mark download as active to lock collection editing
     set_download_active(True)
     
     try:
@@ -221,7 +221,7 @@ def run_pipeline_wrapper(*args, **kwargs):
             # This is a regular bulk download call
             run_pipeline(*args, **kwargs)
     finally:
-        # Always unlock history editing when download finishes
+        # Always unlock collection editing when download finishes
         set_download_active(False)
 
 
@@ -722,13 +722,13 @@ def main():
 
         # Add cleanup handler for when app closes
         def on_closing():
-            # Force save any pending changes in history
+            # Force save any pending changes in collection
             if hasattr(root, 'navigation') and hasattr(root.navigation, 'page_manager'):
                 pages = root.navigation.page_manager.pages
-                if 'History' in pages:
-                    history_page = pages['History']
-                    if hasattr(history_page, 'cleanup'):
-                        history_page.cleanup()
+                if 'Collection' in pages:
+                    collection_page = pages['Collection']
+                    if hasattr(collection_page, 'cleanup'):
+                        collection_page.cleanup()
 
             # Aggressive thread cleanup to prevent shutdown errors
             try:

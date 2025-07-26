@@ -628,7 +628,7 @@ class DownloadPage:
             cancel_pipeline()
             self._log("🛑 Download cancellation requested by user", "Information")
             
-            # Unlock history editing since download is cancelled
+            # Unlock collection editing since download is cancelled
             set_download_active(False)
             
             # Reset button state and clear any messages

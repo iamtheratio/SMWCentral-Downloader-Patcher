@@ -4,7 +4,7 @@ from .navigation import NavigationBar
 from .page_manager import PageManager
 from .theme_controls import ThemeControls
 from .version_display import VersionDisplay
-from .pages import DashboardPage, DownloadPage, SettingsPage, HistoryPage
+from .pages import DashboardPage, DownloadPage, SettingsPage, CollectionPage
 
 class MainLayout:
     """Main UI layout manager - now simplified and modular"""
@@ -31,7 +31,7 @@ class MainLayout:
         self.dashboard_page = None
         self.single_download_page = None
         self.bulk_download_page = None
-        self.hack_history_page = None
+        self.hack_collection_page = None
     
     def create(self):
         """Create the main UI layout"""
@@ -105,10 +105,10 @@ class MainLayout:
         if hasattr(self.settings_page, 'frame') and hasattr(self.logger, 'log_text'):
             self.root.log_text = self.logger.log_text
         
-        # Create history page (renamed from hack history)
-        self.history_page = HistoryPage(self.content_frame, self.logger)
-        history_frame = self.history_page.create()
-        self.page_manager.add_page("History", history_frame)
+        # Create collection page (renamed from hack history)
+        self.collection_page = CollectionPage(self.content_frame, self.logger)
+        collection_frame = self.collection_page.create()
+        self.page_manager.add_page("Collection", collection_frame)
     
     def get_download_button(self):
         """Return the download button reference - deprecated for Settings page"""

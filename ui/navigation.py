@@ -50,7 +50,7 @@ class NavigationBar:
         self.root.after(500, lambda: self.nav_bar.configure(bg=colors["nav_bg"]))
         
         # Add tabs - CENTERED VERTICALLY AND HORIZONTALLY
-        tabs = ["Dashboard", "Download", "History", "Settings"]
+        tabs = ["Dashboard", "Download", "Collection", "Settings"]
         tab_width = 140
         
         for i, tab in enumerate(tabs):

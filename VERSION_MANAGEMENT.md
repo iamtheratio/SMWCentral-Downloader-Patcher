@@ -32,7 +32,7 @@ When you change the version in `main.py`, it automatically updates:
    - Generated dynamically during build
 
 3. **UI Components**
-   - History page version display
+   - Collection page version display
    - Any other UI components that show version
 
 ## Usage

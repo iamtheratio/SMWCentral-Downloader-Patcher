@@ -576,7 +576,7 @@ class AddHackDialog:
         time_frame = ttk.Frame(stats_row1)
         time_frame.pack(side="left")
         ttk.Label(time_frame, text="Time to Beat:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        self.time_to_beat_var = tk.StringVar(value="")  # Empty by default like history page
+        self.time_to_beat_var = tk.StringVar(value="")  # Empty by default like collection page
         time_entry = ttk.Entry(time_frame, textvariable=self.time_to_beat_var, font=("Segoe UI", 10), width=12)
         time_entry.pack(pady=(5, 0))
         time_entry.bind("<FocusOut>", self._on_time_focus_out)  # Format time on focus out
@@ -795,7 +795,7 @@ class AddHackDialog:
         return " ".join(parts)
     
     def _parse_time_input(self, time_str):
-        """Parse user time input and convert to seconds (same as history page)"""
+        """Parse user time input and convert to seconds (same as collection page)"""
         if not time_str or time_str.strip() == "":
             return 0
         
@@ -870,7 +870,7 @@ class AddHackDialog:
                          "• 14d 10h 2m 1s")
     
     def _on_completed_change(self, *args):
-        """Handle completed radio button changes - auto-set date like history page"""
+        """Handle completed radio button changes - auto-set date like collection page"""
         if self.completed_var.get() == "Yes" and not self.completed_date_var.get().strip():
             # Auto-set to today's date when marking completed
             from datetime import datetime
@@ -881,7 +881,7 @@ class AddHackDialog:
             self.completed_date_var.set("")
     
     def _on_completed_date_change(self, *args):
-        """Handle completed date changes - auto-set completed status like history page"""
+        """Handle completed date changes - auto-set completed status like collection page"""
         date_text = self.completed_date_var.get().strip()
         if date_text and self.completed_var.get() == "No":
             # Auto-set completed to Yes when date is added
@@ -912,7 +912,7 @@ class AddHackDialog:
                     continue
     
     def _on_time_focus_out(self, event):
-        """Handle time field focus out - format display like history page"""
+        """Handle time field focus out - format display like collection page"""
         time_text = self.time_to_beat_var.get().strip()
         if time_text:
             try:
@@ -947,7 +947,7 @@ class AddHackDialog:
         # Validate completed date if provided
         completed_date = self.completed_date_var.get().strip()
         if completed_date:
-            # Use the same validation as history page
+            # Use the same validation as collection page
             from datetime import datetime
             date_formats = [
                 "%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%d/%m/%Y", "%m-%d-%Y", "%d-%m-%Y",
@@ -969,7 +969,7 @@ class AddHackDialog:
             if not date_valid:
                 errors.append("Completed date must be in valid format (e.g., 2025-01-15)")
         
-        # Validate time to beat (using same logic as history page)
+        # Validate time to beat (using same logic as collection page)
         time_str = self.time_to_beat_var.get().strip()
         if time_str:
             # First try to parse as formatted display (e.g. "1h 30m 15s")
@@ -997,7 +997,7 @@ class AddHackDialog:
         authors_text = self.authors_var.get().strip()
         authors = [author.strip() for author in authors_text.split(",")] if authors_text else []
         
-        # Parse time to beat using the same logic as history page
+        # Parse time to beat using the same logic as collection page
         time_str = self.time_to_beat_var.get().strip()
         time_seconds = 0
         if time_str:
@@ -1092,7 +1092,7 @@ class AddHackDialog:
                 "completed": self.completed_var.get() == "Yes",
                 "completed_date": self.completed_date_var.get().strip(),
                 "personal_rating": self.rating_var.get(),  # Now using IntVar directly
-                "time_to_beat": time_seconds,  # Store as seconds like history page
+                "time_to_beat": time_seconds,  # Store as seconds like collection page
                 "notes": self.notes_var.get().strip(),
                 "obsolete": False,
                 "file_path": "",  # No file path for user-added hacks
@@ -1123,7 +1123,7 @@ class AddHackDialog:
             from tkinter import messagebox
             result = messagebox.askokcancel(
                 "Duplicate Title Warning",
-                f"WARNING: Hack '{title}' already exists in History.\n\n"
+                f"WARNING: Hack '{title}' already exists in Collection.\n\n"
                 f"Found {len(matching_hacks)} existing hack(s) with this title:\n" +
                 "\n".join([f"• {hack_title} (ID: {hack_id})" for hack_id, hack_title in matching_hacks[:3]]) +
                 (f"\n... and {len(matching_hacks) - 3} more" if len(matching_hacks) > 3 else "") +
