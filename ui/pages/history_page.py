@@ -147,9 +147,9 @@ class HistoryPage:
         table_frame = ttk.Frame(self.frame)
         table_frame.pack(fill="both", expand=True)
         
-        # Create treeview
+        # Create treeview with custom History style
         columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
-        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15)
+        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15, style="History.Treeview")
         
         # Configure headers and columns
         headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
