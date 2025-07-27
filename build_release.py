@@ -139,7 +139,7 @@ A desktop application for downloading and patching Super Mario World ROM hacks f
 
 - Download and patch Super Mario World ROM hacks from SMWCentral
 - **NEW**: Download completion messages - clear feedback when fast downloads finish
-- **NEW**: Obsolete Records filter in History page to show/hide superseded hack versions
+- **NEW**: Obsolete Records filter in Collection page to show/hide superseded hack versions
 - **ENHANCED**: Download page layout improvements with better button positioning
 - **ENHANCED**: Select All/Deselect All functionality fixes
 - Manual hack entry system - track hacks you've played elsewhere
@@ -150,7 +150,7 @@ A desktop application for downloading and patching Super Mario World ROM hacks f
 - Comprehensive hack management and filtering
 - Multi-type hack support (Standard, Kaizo, Puzzle, etc.)
 - Search and browse hacks with advanced filtering
-- Download history and progress tracking
+- Download collection and progress tracking
 
 ## Important Notes
 

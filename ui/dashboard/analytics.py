@@ -288,10 +288,17 @@ class DashboardAnalytics:
                 total_time += time_to_beat
                 completed_count += 1
                 
-                # Only include in exit calculations if hack has BOTH time and exit data
+                # For exit calculations: if hack has both time and exit data, use actual exits
+                # If hack has time but no exit data (exits = 0), use a reasonable default of 50 exits
+                # This allows time-based hacks to contribute to avg_time_per_exit calculations
                 if exits > 0:
                     exit_based_total_time += time_to_beat
                     exit_based_total_exits += exits
+                else:
+                    # Use default exit count for completed hacks with time but no exit data
+                    default_exits = 50  # Reasonable average for most SMW hacks
+                    exit_based_total_time += time_to_beat
+                    exit_based_total_exits += default_exits
         
         # Store completed exits (calculated independently of time_to_beat)
         self.analytics_data['completed_exits'] = completed_exits

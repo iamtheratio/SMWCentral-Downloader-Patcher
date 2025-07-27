@@ -187,7 +187,7 @@ A desktop application for downloading and patching Super Mario World ROM hacks f
 - Comprehensive hack management and filtering
 - Multi-type hack support (Standard, Kaizo, Puzzle, etc.)
 - Search and browse hacks with advanced filtering
-- Download history and progress tracking
+- Download collection and progress tracking
 - Dark/Light theme support
 - Automatic update system
 

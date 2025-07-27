@@ -22,6 +22,7 @@ class TableFilters:
         self.demo_filter = tk.StringVar(value="All")
         self.user_content_filter = tk.StringVar(value="Any")  # Default to "Any" for dropdown
         self.obsolete_filter = tk.StringVar(value="No")  # Default to "No" for obsolete records
+        self.author_filter = tk.StringVar()  # Author search filter
         
     def create_filter_ui(self, parent, data_manager):
         """Create filter UI elements"""
@@ -96,27 +97,35 @@ class TableFilters:
         # More dropdown filters...
         self._create_remaining_dropdowns(dropdowns_frame)
         
-        # User Created Records and Obsolete Records filters (below dropdowns)
+        # User Created Records, Obsolete Records, and Author filters (below dropdowns)
         bottom_filters_frame = ttk.Frame(parent)
         bottom_filters_frame.pack(fill="x", pady=(8, 0))
         
         # User Created Records filter (left side)
         user_records_frame = ttk.Frame(bottom_filters_frame)
-        user_records_frame.pack(side="left", padx=(0, 30))
+        user_records_frame.pack(side="left", padx=(0, 12))
         ttk.Label(user_records_frame, text="User Created Records:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         user_records_combo = ttk.Combobox(user_records_frame, textvariable=self.user_content_filter,
-                                        values=["Any", "Yes", "No"], state="readonly", width=12)
+                                        values=["Any", "Yes", "No"], state="readonly", width=14)
         user_records_combo.pack(anchor="w", pady=(2, 0))
         user_records_combo.bind("<<ComboboxSelected>>", lambda e: self.apply_callback())
         
-        # Obsolete Records filter (right side)
+        # Obsolete Records filter (middle)
         obsolete_records_frame = ttk.Frame(bottom_filters_frame)
-        obsolete_records_frame.pack(side="left")
+        obsolete_records_frame.pack(side="left", padx=(0, 12))
         ttk.Label(obsolete_records_frame, text="Obsolete Records:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         obsolete_records_combo = ttk.Combobox(obsolete_records_frame, textvariable=self.obsolete_filter,
-                                            values=["Any", "Yes", "No"], state="readonly", width=12)
+                                            values=["Any", "Yes", "No"], state="readonly", width=14)
         obsolete_records_combo.pack(anchor="w", pady=(2, 0))
         obsolete_records_combo.bind("<<ComboboxSelected>>", lambda e: self.apply_callback())
+        
+        # Author filter (right side)
+        author_frame = ttk.Frame(bottom_filters_frame)
+        author_frame.pack(side="left")
+        ttk.Label(author_frame, text="Author(s):", font=("Segoe UI", 9, "bold")).pack(anchor="w")
+        author_entry = ttk.Entry(author_frame, textvariable=self.author_filter, width=19)
+        author_entry.pack(anchor="w", pady=(2, 0))
+        author_entry.bind("<KeyRelease>", lambda e: self.apply_callback())
         
     def _create_remaining_dropdowns(self, parent):
         """Create completed and rating dropdowns"""
@@ -217,6 +226,7 @@ class TableFilters:
         self.demo_filter.set("All")
         self.user_content_filter.set("Any")  # Reset to "Any" for dropdown
         self.obsolete_filter.set("No")  # Reset to "No" for obsolete records
+        self.author_filter.set("")  # Clear author filter
         self.apply_callback()
         
     def refresh_dropdown_values(self, data_manager):
@@ -251,6 +261,20 @@ class TableFilters:
         name_filter_text = self.name_filter.get().strip().lower()
         if name_filter_text and name_filter_text not in hack.get("title", "").lower():
             return False
+        
+        # Author filter
+        author_filter_text = self.author_filter.get().strip().lower()
+        if author_filter_text:
+            authors = hack.get("authors", [])
+            if isinstance(authors, list):
+                # Check if any author contains the filter text
+                author_match = any(author_filter_text in author.lower() for author in authors if isinstance(author, str))
+                if not author_match:
+                    return False
+            elif isinstance(authors, str):
+                # Handle case where authors is a string instead of list
+                if author_filter_text not in authors.lower():
+                    return False
             
         # Type filter
         type_filter_value = self.type_filter.get()
@@ -552,7 +576,7 @@ class AddHackDialog:
         time_frame = ttk.Frame(stats_row1)
         time_frame.pack(side="left")
         ttk.Label(time_frame, text="Time to Beat:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
-        self.time_to_beat_var = tk.StringVar(value="")  # Empty by default like history page
+        self.time_to_beat_var = tk.StringVar(value="")  # Empty by default like collection page
         time_entry = ttk.Entry(time_frame, textvariable=self.time_to_beat_var, font=("Segoe UI", 10), width=12)
         time_entry.pack(pady=(5, 0))
         time_entry.bind("<FocusOut>", self._on_time_focus_out)  # Format time on focus out
@@ -771,7 +795,7 @@ class AddHackDialog:
         return " ".join(parts)
     
     def _parse_time_input(self, time_str):
-        """Parse user time input and convert to seconds (same as history page)"""
+        """Parse user time input and convert to seconds (same as collection page)"""
         if not time_str or time_str.strip() == "":
             return 0
         
@@ -846,7 +870,7 @@ class AddHackDialog:
                          "• 14d 10h 2m 1s")
     
     def _on_completed_change(self, *args):
-        """Handle completed radio button changes - auto-set date like history page"""
+        """Handle completed radio button changes - auto-set date like collection page"""
         if self.completed_var.get() == "Yes" and not self.completed_date_var.get().strip():
             # Auto-set to today's date when marking completed
             from datetime import datetime
@@ -857,7 +881,7 @@ class AddHackDialog:
             self.completed_date_var.set("")
     
     def _on_completed_date_change(self, *args):
-        """Handle completed date changes - auto-set completed status like history page"""
+        """Handle completed date changes - auto-set completed status like collection page"""
         date_text = self.completed_date_var.get().strip()
         if date_text and self.completed_var.get() == "No":
             # Auto-set completed to Yes when date is added
@@ -888,7 +912,7 @@ class AddHackDialog:
                     continue
     
     def _on_time_focus_out(self, event):
-        """Handle time field focus out - format display like history page"""
+        """Handle time field focus out - format display like collection page"""
         time_text = self.time_to_beat_var.get().strip()
         if time_text:
             try:
@@ -923,7 +947,7 @@ class AddHackDialog:
         # Validate completed date if provided
         completed_date = self.completed_date_var.get().strip()
         if completed_date:
-            # Use the same validation as history page
+            # Use the same validation as collection page
             from datetime import datetime
             date_formats = [
                 "%Y-%m-%d", "%Y/%m/%d", "%m/%d/%Y", "%d/%m/%Y", "%m-%d-%Y", "%d-%m-%Y",
@@ -945,7 +969,7 @@ class AddHackDialog:
             if not date_valid:
                 errors.append("Completed date must be in valid format (e.g., 2025-01-15)")
         
-        # Validate time to beat (using same logic as history page)
+        # Validate time to beat (using same logic as collection page)
         time_str = self.time_to_beat_var.get().strip()
         if time_str:
             # First try to parse as formatted display (e.g. "1h 30m 15s")
@@ -973,7 +997,7 @@ class AddHackDialog:
         authors_text = self.authors_var.get().strip()
         authors = [author.strip() for author in authors_text.split(",")] if authors_text else []
         
-        # Parse time to beat using the same logic as history page
+        # Parse time to beat using the same logic as collection page
         time_str = self.time_to_beat_var.get().strip()
         time_seconds = 0
         if time_str:
@@ -1068,7 +1092,7 @@ class AddHackDialog:
                 "completed": self.completed_var.get() == "Yes",
                 "completed_date": self.completed_date_var.get().strip(),
                 "personal_rating": self.rating_var.get(),  # Now using IntVar directly
-                "time_to_beat": time_seconds,  # Store as seconds like history page
+                "time_to_beat": time_seconds,  # Store as seconds like collection page
                 "notes": self.notes_var.get().strip(),
                 "obsolete": False,
                 "file_path": "",  # No file path for user-added hacks
@@ -1099,7 +1123,7 @@ class AddHackDialog:
             from tkinter import messagebox
             result = messagebox.askokcancel(
                 "Duplicate Title Warning",
-                f"WARNING: Hack '{title}' already exists in History.\n\n"
+                f"WARNING: Hack '{title}' already exists in Collection.\n\n"
                 f"Found {len(matching_hacks)} existing hack(s) with this title:\n" +
                 "\n".join([f"• {hack_title} (ID: {hack_id})" for hack_id, hack_title in matching_hacks[:3]]) +
                 (f"\n... and {len(matching_hacks) - 3} more" if len(matching_hacks) > 3 else "") +

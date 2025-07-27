@@ -8,32 +8,11 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 
 ## 📋 Table of Contents
 
-- [🎯 App Features](#-app-features)
 - [📥 Download & Install](#-download--install)
-  - [Windows (10/11)](#windows-1011)
-  - [Mac (macOS 10.15+)](#mac-macos-1015)
-  - [Linux (Ubuntu, Debian, Fedora, etc.)](#linux-ubuntu-debian-fedora-etc)
 - [🚀 How to Use](#-how-to-use)
-  - [First Time Setup](#first-time-setup)
-  - [Downloading ROM Hacks](#downloading-rom-hacks)
-  - [Managing Your Collection](#managing-your-collection)
-  - [App Settings](#app-settings)
-- [✨ Key Features](#-key-features)
 - [🛠️ Troubleshooting](#️-troubleshooting)
 - [📝 What You Need](#-what-you-need)
-- [🔄 Updates](#-updates)
 - [📝 Changelog](#-changelog)
-
-## 🎯 App Features
-
-### Browse & Download
-![Download View](images/ss_app_download_v4.3.png)
-
-### Manage Your Collection
-![History View](images/ss_app_history_v4.3.png)
-
-### Customize Settings
-![Settings View](images/ss_app_settings_v4.3.png)
 
 ## 📥 Download & Install
 
@@ -42,6 +21,14 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 2. Extract the ZIP file to any folder you want (like your Desktop or Program Files)
 3. Double-click `SMWC Downloader.exe` to run the app
 4. **If Windows shows a security warning**: Click "More info" → "Run anyway" (this is normal for new apps)
+
+> [!IMPORTANT]
+> Windows may flag this app because it's new and unsigned. This is normal!
+> 
+> **If you see warnings:**
+> - **Browser**: Click "Keep" if download gets blocked
+> - **Windows Defender**: Click "More info" → "Run anyway" 
+> - **To prevent future warnings**: Add the app folder to Windows Defender exclusions in Settings → Update & Security → Windows Security → Virus & threat protection → Exclusions
 
 ### Mac (macOS 10.15+)
 1. Download `SMWC-Downloader-macOS-Universal.dmg` from the [Releases page](../../releases)
@@ -66,22 +53,47 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 
 ### Downloading ROM Hacks
 1. **Set your filters**: Use the filter options to narrow down what you want to search for (difficulty, type, author, etc.)
-2. **Search for hacks**: Click the "Search Hacks" button to pull data from the SMWCentral API based on your filters
-3. **Select hacks to download**: Click the checkmark in the first column for each hack you want to download
+2. **Choose display mode**: Use the "Show only non-downloaded hacks" checkbox to hide hacks you already own, making it easier to find new content
+3. **Search for hacks**: Click the "Search Hacks" button to pull data from the SMWCentral API based on your filters
+4. **Browse results as they load**: Results appear progressively as each page loads - no need to wait for all data to finish loading
+5. **Select hacks to download**: Click the checkmark in the first column for each hack you want to download
    - **Tip**: Click the column header to select ALL hacks at once
-4. **Start downloading**: Click "Download & Patch" to begin downloading and patching your selected hacks
-5. **Wait for completion**: The app will automatically download each hack and apply it to your base ROM
-6. **Play**: Your patched ROMs will be saved to your chosen folder, ready to play in any emulator
-
-**New Feature**: While downloads are in progress, the History tab is temporarily locked to prevent editing and maintain database integrity. You can view your history, but cannot make changes until all downloads complete.
+   - **Already downloaded hacks** are shown in italic with muted colors to help you identify what you already own
+6. **Start downloading**: Click "Download & Patch" to begin downloading and patching your selected hacks
+7. **Wait for completion**: The app will automatically download each hack and apply it to your base ROM
+8. **Play**: Your patched ROMs will be saved to your chosen folder, ready to play in any emulator
 
 ### Managing Your Collection
-1. **View your collection**: Click the "History" tab to see all your downloaded ROMs
+1. **View your collection**: Click the "Collection" tab to see all your downloaded ROMs
 2. **Add hacks manually**: Use the "Add Hack" button to track hacks you've played from other sources
 3. **Track progress**: Mark hacks as completed, rate them (1-5 stars), and add personal notes
 4. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
 5. **Advanced editing**: Double-click any hack to open the full edit dialog
 6. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
+
+#### Input Format Guide
+
+When editing **Completed Date** and **Time to Beat** fields, the app supports flexible input formats:
+
+**📅 Date Formats:**
+- `MM/DD/YYYY` - Example: `12/25/2024`
+- `MM-DD-YYYY` - Example: `12-25-2024`
+- `MM.DD.YYYY` - Example: `12.25.2024`
+- `YYYY/MM/DD` - Example: `2024/12/25`
+- `YYYY-MM-DD` - Example: `2024-12-25`
+
+**⏱️ Time to Beat Formats:**
+
+| Format Type | Pattern | Examples | Description |
+|-------------|---------|----------|-------------|
+| **Colon-Separated** | `HH:MM:SS` | `1:30:45`, `12:05:30` | Hours:Minutes:Seconds |
+| | `MM:SS` | `90:30`, `5:15` | Minutes:Seconds |
+| **Letter Suffix** | `XhYmZs` | `2h 30m 15s`, `1h 45m`, `90m`, `45s` | Hours/minutes/seconds with letters |
+| | *Flexible spacing* | `2h30m15s` = `2h 30m 15s` | Spaces optional |
+| **Day Formats** | `XdYhZmWs` | `14d 10h 2m 1s`, `7d 12h`, `2d` | Days/hours/minutes/seconds |
+| | *Shortened* | `14d 10` (assumes hours) | Advanced shorthand |
+| **Word-Based** | `X minutes/mins` | `150 minutes`, `90 mins` | Full word formats |
+| **Simple Number** | `X` | `90`, `5`, `120` | Just a number (assumes minutes) |
 
 ### App Settings
 - **Download location**: Change where ROMs are saved
@@ -89,17 +101,8 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
   - **Primary only**: Download to the main type folder only
   - **Copy to all folders**: Create copies in each applicable type folder
 - **Auto-updates**: Choose if you want automatic app updates
-- **Theme**: Switch between light and dark modes
+- **Theme**: Switch between light and dark modes with instant, smooth transitions and optimized performance
 - **API Delay Slider**: Set delay from 0.0 to 3.0 seconds between API requests to avoid rate limiting issues
-
-## ✨ Key Features
-
-- **Automatic patching**: Downloads the hack and applies it to your ROM automatically
-- **Progress tracking**: Mark hacks as completed, rate them, and add personal notes
-- **Smart organization**: Keeps track of what you've downloaded with detailed history
-- **Advanced filtering**: Find specific hacks by name, author, difficulty, or type
-- **Auto-updates**: App keeps itself updated with new features
-- **Cross-platform**: Identical experience on Windows, Mac, and Linux
 
 ## 🛠️ Troubleshooting
 
@@ -127,30 +130,44 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 - **Storage space**: About 20 MB for the app, plus space for your ROM collection
 - **Internet connection**: Required for downloading hacks and app updates
 
-## 🔄 Updates
-
-The app automatically checks for updates when you start it. When an update is available, you'll see a notification. Click "Update" to download and install the latest version. Your settings and downloaded ROMs are preserved during updates.
-
-## 📝 Changelog
+##  Changelog
 
 <details>
-<summary><strong>Version 4.4 - Latest Release</strong></summary>
+<summary><strong>Version 4.5 - Latest Release</strong></summary>
 
-### v4.4.0
+### v4.5.0
 
 ### 🚀 New Features
-- **Cross-Platform Support**: Full compatibility with Windows, macOS, and Linux
-- **Download State Management**: History tab is now locked during active downloads to prevent data corruption
-- **Enhanced Dashboard Analytics**: Improved accuracy and data tracking for collection metrics
+- **Progressive Data Loading**: Results display as each page loads from the API for instant review
+- **Already Downloaded Indicator**: Downloaded hacks shown in italic with muted colors
+- **Smart Collection Filtering**: "Show only non-downloaded hacks" checkbox for faster browsing
+- **Enhanced Theme System**: Improved color management and visual consistency
+- **Performance Optimizations**: Faster theme updates and UI responsiveness
+
+### 🔧 Improvements
+- **Search Experience**: Browse results immediately as data loads
+- **Collection Management**: Better visual distinction and filtering for owned content
+- **Theme Performance**: Optimized color updates across light and dark modes
+- **UI Polish**: Consistent visual elements during theme transitions
+
+### 🐛 Bug Fixes
+- Fixed dark gray selection colors appearing in light mode
+- Resolved delays in theme color updates for downloaded indicators
+- Fixed visual inconsistencies during theme switching
 
 </details>
 
 <details>
 <summary><strong>Previous Versions</strong></summary>
 
+### v4.4.0
+- **Cross-Platform Support**: Full compatibility with Windows, macOS, and Linux
+- **Download State Management**: Collection tab is now locked during active downloads to prevent data corruption
+- **Enhanced Dashboard Analytics**: Improved accuracy and data tracking for collection metrics
+
 ### v4.3.0
 - Dashboard implementation with analytics and charts
-- History page with comprehensive filtering and editing
+- Collection page with comprehensive filtering and editing
 - Theme support (light/dark modes)
 - Improved bulk download workflow
 
@@ -163,7 +180,7 @@ The app automatically checks for updates when you start it. When an update is av
 ### v4.1.0
 - Initial release with core downloading functionality
 - Basic patching system
-- Simple history tracking
+- Simple collection tracking
 - Windows-only support
 
 </details>
