@@ -73,7 +73,7 @@ class MigrationManager:
         """Show migration dialog to user"""
         result = messagebox.askyesno(
             "Database Upgrade Required - v3.1",
-            "SMWC Downloader & Patcher v3.1 includes enhanced Hack History features:\n\n"
+            "SMWC Downloader & Patcher v3.1 includes enhanced Hack Collection features:\n\n"
             "🕒 Time to Beat tracking for completed hacks\n"
             "🧠 Additional metadata (Authors, Exit count)\n"
             "🔄 Improved metadata synchronization\n\n"
@@ -164,7 +164,7 @@ class MigrationManager:
                     messagebox.showinfo(
                         "Upgrade Complete!", 
                         "Your hack database has been successfully upgraded to v3.1!\n\n"
-                        "You can now use the enhanced Hack History features including Time to Beat tracking.\n\n"
+                        "You can now use the enhanced Hack Collection features including Time to Beat tracking.\n\n"
                         "A backup of your original database was saved as 'processed.json.pre-v3.1.backup'."
                     ),
                     callback() if callback else None
@@ -360,7 +360,7 @@ class MigrationManager:
             hack_data["collaboration"] = api_metadata.get("collaboration", False)
             hack_data["demo"] = api_metadata.get("demo", False)
         
-        # Add history tracking fields
+        # Add collection tracking fields
         hack_data.setdefault("completed", False)
         hack_data.setdefault("completed_date", "")
         hack_data.setdefault("personal_rating", 0)

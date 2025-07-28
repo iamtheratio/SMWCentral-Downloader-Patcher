@@ -49,6 +49,13 @@ def get_colors():
             "tooltip_fg": "#e0e0e0",  # Light gray text
             "tooltip_border": "#555555",  # Medium gray border
             
+            # Download table selection colors - NEW
+            "table_selected": "#404040",      # Dark gray for selected rows
+            "table_selected_text": "#ffffff", # White text for selected rows
+            "table_downloaded": "#808080",    # Gray text for downloaded items
+            "table_downloaded_selected": "#1c1c1c",  # Dark gray background for downloaded+selected
+            "table_downloaded_selected_text": "#808080",  # Gray text for downloaded+selected
+            
             # Difficulty line chart colors - NEW
             "diff_newcomer": "#4FC3F7",     # Light Blue
             "diff_casual": "#66BB6A",       # Light Green  
@@ -103,6 +110,13 @@ def get_colors():
             "tooltip_bg": "#ffffe0",  # Light yellow background
             "tooltip_fg": "#000000",  # Black text
             "tooltip_border": "#888888",  # Gray border
+            
+            # Download table selection colors - NEW
+            "table_selected": "#E0E0E0",      # Light gray for selected rows
+            "table_selected_text": "#000000", # Black text for selected rows
+            "table_downloaded": "#888888",    # Gray text for downloaded items
+            "table_downloaded_selected": "#ffffff",  # Light gray background for downloaded+selected  
+            "table_downloaded_selected_text": "#888888",  # Gray text for downloaded+selected
             
             # Difficulty line chart colors - NEW
             "diff_newcomer": "#1976D2",     # Blue

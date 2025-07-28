@@ -50,7 +50,7 @@ class NavigationBar:
         self.root.after(500, lambda: self.nav_bar.configure(bg=colors["nav_bg"]))
         
         # Add tabs - CENTERED VERTICALLY AND HORIZONTALLY
-        tabs = ["Dashboard", "Download", "History", "Settings"]
+        tabs = ["Dashboard", "Download", "Collection", "Settings"]
         tab_width = 140
         
         for i, tab in enumerate(tabs):
@@ -137,6 +137,37 @@ class NavigationBar:
         self.current_page = page_name
         self.page_manager.show_page(page_name)
         self._update_tab_styles(page_name)
+        
+        # Refresh dashboard when Dashboard tab is clicked
+        if page_name == "Dashboard":
+            # Small delay to ensure page is shown first
+            self.root.after(50, self._refresh_dashboard_if_available)
+        # Refresh collection when Collection tab is clicked
+        elif page_name == "Collection":
+            # Small delay to ensure page is shown first
+            self.root.after(50, self._refresh_collection_if_available)
+    
+    def _refresh_dashboard_if_available(self):
+        """Refresh dashboard data if dashboard page is available"""
+        try:
+            if hasattr(self.root, 'main_layout') and hasattr(self.root.main_layout, 'dashboard_page'):
+                dashboard_page = self.root.main_layout.dashboard_page
+                if hasattr(dashboard_page, '_refresh_dashboard') and callable(dashboard_page._refresh_dashboard):
+                    dashboard_page._refresh_dashboard()
+        except Exception:
+            # Silent error handling - don't interrupt navigation if refresh fails
+            pass
+    
+    def _refresh_collection_if_available(self):
+        """Refresh collection data if collection page is available"""
+        try:
+            if hasattr(self.root, 'main_layout') and hasattr(self.root.main_layout, 'collection_page'):
+                collection_page = self.root.main_layout.collection_page
+                if hasattr(collection_page, '_refresh_data_and_table') and callable(collection_page._refresh_data_and_table):
+                    collection_page._refresh_data_and_table()
+        except Exception:
+            # Silent error handling - don't interrupt navigation if refresh fails
+            pass
     
     def _update_tab_styles(self, active_page):
         """Update tab styling based on active page"""

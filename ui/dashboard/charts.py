@@ -301,7 +301,7 @@ class DashboardCharts:
                              text=f"No data available for {filter_type}", 
                              font=("Segoe UI", 12), fill=colors.get("text_secondary"))
             canvas.create_text(width//2, height//2 + 15, 
-                             text="Enter your Time to Beat in Hack History to see stats appear here!", 
+                             text="Enter your Time to Beat in Hack Collection to see stats appear here!", 
                              font=("Segoe UI", 10), fill=colors.get("text_secondary"))
             return
         

@@ -36,6 +36,9 @@ def setup_ui(root, run_pipeline_func, toggle_theme_callback, version=None):
     # Build UI
     layout.create()
     
+    # Store layout reference in root for theme updates
+    root.main_layout = layout
+    
     # Return the download button for external reference
     return layout.get_download_button()
 

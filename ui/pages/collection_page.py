@@ -6,7 +6,7 @@ import platform
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from hack_data_manager import HackDataManager
-from ui.history_components import InlineEditor, DateValidator, NotesValidator, HackHistoryInlineEditor
+from ui.collection_components import InlineEditor, DateValidator, NotesValidator, HackCollectionInlineEditor
 from ui.components.table_filters import TableFilters
 from ui_constants import get_page_padding, get_section_padding
 
@@ -22,8 +22,8 @@ except ImportError:
     from version_manager import get_version
     VERSION = get_version()
 
-class HistoryPage:
-    """Simplified hack history page with extracted components"""
+class CollectionPage:
+    """Simplified hack collection page with extracted components"""
     
     def __init__(self, parent, logger=None):
         self.parent = parent
@@ -40,11 +40,11 @@ class HistoryPage:
         self.sort_column = "title"
         self.sort_reverse = False
         
-        # Initialize components - USE HackHistoryInlineEditor instead of InlineEditor
+        # Initialize components - USE HackCollectionInlineEditor instead of InlineEditor
         self.filters = TableFilters(self._apply_filters)
-        self.date_editor = HackHistoryInlineEditor(None, self.data_manager, self, logger)
-        self.notes_editor = HackHistoryInlineEditor(None, self.data_manager, self, logger)
-        self.time_editor = HackHistoryInlineEditor(None, self.data_manager, self, logger)  # v3.1 NEW
+        self.date_editor = HackCollectionInlineEditor(None, self.data_manager, self, logger)
+        self.notes_editor = HackCollectionInlineEditor(None, self.data_manager, self, logger)
+        self.time_editor = HackCollectionInlineEditor(None, self.data_manager, self, logger)  # v3.1 NEW
         
         # Table and data
         self.tree = None
@@ -57,7 +57,7 @@ class HistoryPage:
             self.logger.log(message, level)
         
     def create(self):
-        """Create the hack history page"""
+        """Create the hack collection page"""
         self.frame = ttk.Frame(self.parent, padding=get_page_padding())
         
         # Create filter section
@@ -111,7 +111,7 @@ class HistoryPage:
             self._refresh_data_and_table()
             total_hacks = len(self.data_manager.get_all_hacks())
             completed_hacks = sum(1 for hack in self.data_manager.get_all_hacks() if hack.get("completed", False))
-            self._log(f"📊 Hack History page loaded - {total_hacks} total hacks, {completed_hacks} completed", "Information")
+            self._log(f"📊 Hack Collection page loaded - {total_hacks} total hacks, {completed_hacks} completed", "Information")
     
     def hide(self):
         """Called when the page becomes hidden"""
@@ -136,7 +136,7 @@ class HistoryPage:
         if hasattr(self, 'download_status_label') and self.download_status_label:
             if download_active:
                 self.download_status_label.config(
-                    text="⚠️ Download in progress - History editing is temporarily disabled",
+                    text="⚠️ Download in progress - Collection editing is temporarily disabled",
                     foreground="#FF6B6B"  # Red
                 )
             else:
@@ -147,9 +147,9 @@ class HistoryPage:
         table_frame = ttk.Frame(self.frame)
         table_frame.pack(fill="both", expand=True)
         
-        # Create treeview
+        # Create treeview with custom Collection style
         columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
-        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15)
+        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15, style="Collection.Treeview")
         
         # Configure headers and columns
         headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
@@ -315,7 +315,7 @@ class HistoryPage:
             if is_download_active():
                 messagebox.showwarning(
                     "Download in Progress", 
-                    "Cannot edit hack history while a download is in progress.\n\n"
+                    "Cannot edit hack collection while a download is in progress.\n\n"
                     "Please wait for the download to complete or cancel it before making changes."
                 )
                 return
@@ -366,7 +366,7 @@ class HistoryPage:
             if is_download_active():
                 messagebox.showwarning(
                     "Download in Progress", 
-                    "Cannot edit hack history while a download is in progress.\n\n"
+                    "Cannot edit hack collection while a download is in progress.\n\n"
                     "Please wait for the download to complete or cancel it before making changes."
                 )
                 return
@@ -769,7 +769,7 @@ class HistoryPage:
         page_size_combo.pack(side="left", padx=(0, 5))
         page_size_combo.bind("<<ComboboxSelected>>", self._on_page_size_change)
         
-        ttk.Label(left_frame, text="per page").pack(side="left")
+        ttk.Label(left_frame, text="").pack(side="left")
         
         # Center - Page info
         center_frame = ttk.Frame(pagination_frame)

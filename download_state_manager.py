@@ -1,6 +1,6 @@
 """
 Simple Download State Manager
-Simple global flag to prevent history editing during downloads
+Simple global flag to prevent collection editing during downloads
 """
 
 # Simple global flags - no complex threading
