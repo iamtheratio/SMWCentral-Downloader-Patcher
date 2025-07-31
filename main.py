@@ -51,7 +51,7 @@ try:
 except ImportError:
     pywinstyles = None
 
-VERSION = "v4.5"
+VERSION = "v4.6"
 
 
 def apply_theme_to_titlebar(root):

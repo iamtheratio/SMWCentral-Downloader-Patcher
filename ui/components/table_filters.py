@@ -803,36 +803,7 @@ class AddHackDialog:
         
         import re
         
-        # Pattern for flexible shortened formats with days
-        pattern_flexible = re.match(r'(?:(\d+)d\s*)?(?:(\d+)h?\s*)?(?:(\d+)m?\s*)?(?:(\d+)s?\s*)?$', time_str.lower())
-        if pattern_flexible and any(pattern_flexible.groups()):
-            days = int(pattern_flexible.group(1) or 0)
-            hours = int(pattern_flexible.group(2) or 0)
-            minutes = int(pattern_flexible.group(3) or 0) 
-            seconds = int(pattern_flexible.group(4) or 0)
-            
-            # If there's a 'd' in the input, treat it as the day format
-            if 'd' in time_str.lower():
-                return days * 86400 + hours * 3600 + minutes * 60 + seconds
-            
-            # If no 'd', check for standard letter suffixes
-            if re.search(r'[hms]', time_str.lower()):
-                return hours * 3600 + minutes * 60 + seconds
-        
-        # Pattern for "2h 30m 15s" or "2h 30m" or "90m" etc. - must have letter suffix
-        pattern_units = re.match(r'(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s\s*)?$', time_str.lower())
-        if pattern_units and any(pattern_units.groups()) and re.search(r'[hms]', time_str.lower()):
-            hours = int(pattern_units.group(1) or 0)
-            minutes = int(pattern_units.group(2) or 0) 
-            seconds = int(pattern_units.group(3) or 0)
-            return hours * 3600 + minutes * 60 + seconds
-        
-        # Pattern for "150 minutes" or "90 mins"
-        pattern_minutes = re.match(r'(\d+)\s*(?:minutes?|mins?)$', time_str.lower())
-        if pattern_minutes:
-            return int(pattern_minutes.group(1)) * 60
-        
-        # Pattern for "HH:MM:SS" or "MM:SS"
+        # Pattern for "HH:MM:SS" or "MM:SS" - handle this first to avoid regex conflicts
         if ':' in time_str:
             parts = time_str.split(':')
             try:
@@ -844,6 +815,29 @@ class AddHackDialog:
                     return minutes * 60 + seconds
             except ValueError:
                 pass
+        
+        # Pattern for "150 minutes" or "90 mins"
+        pattern_minutes = re.match(r'(\d+)\s*(?:minutes?|mins?)$', time_str.lower())
+        if pattern_minutes:
+            return int(pattern_minutes.group(1)) * 60
+        
+        # Pattern for "2h 30m 15s" or "2h 30m" or "90m" etc. - must have letter suffix
+        pattern_units = re.match(r'(?:(\d+)h\s*)?(?:(\d+)m\s*)?(?:(\d+)s\s*)?$', time_str.lower())
+        if pattern_units and any(pattern_units.groups()) and re.search(r'[hms]', time_str.lower()):
+            hours = int(pattern_units.group(1) or 0)
+            minutes = int(pattern_units.group(2) or 0) 
+            seconds = int(pattern_units.group(3) or 0)
+            return hours * 3600 + minutes * 60 + seconds
+        
+        # Pattern for flexible shortened formats with days (only if 'd' is present)
+        if 'd' in time_str.lower():
+            pattern_flexible = re.match(r'(?:(\d+)d\s*)?(?:(\d+)h?\s*)?(?:(\d+)m?\s*)?(?:(\d+)s?\s*)?$', time_str.lower())
+            if pattern_flexible and any(pattern_flexible.groups()):
+                days = int(pattern_flexible.group(1) or 0)
+                hours = int(pattern_flexible.group(2) or 0)
+                minutes = int(pattern_flexible.group(3) or 0) 
+                seconds = int(pattern_flexible.group(4) or 0)
+                return days * 86400 + hours * 3600 + minutes * 60 + seconds
         
         # Just a number - assume minutes
         if time_str.isdigit():
