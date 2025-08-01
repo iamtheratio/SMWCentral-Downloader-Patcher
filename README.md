@@ -133,7 +133,43 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 ##  Changelog
 
 <details>
-<summary><strong>Version 4.5 - Latest Release</strong></summary>
+<summary><strong>Version 4.6 - Latest Release</strong></summary>
+
+### v4.6.0
+
+### 🐛 Bug Fixes
+- **Time Parsing Accuracy**: Fixed critical bug where time inputs like "27m 22s" were incorrectly parsed as "2h 7m 22s"
+- **Input Format Reliability**: Improved regex pattern matching order to handle all time formats correctly
+- **Data Integrity**: Ensures accurate time-to-beat tracking in Collection page
+
+### 🔧 Improvements
+- **Auto-Refresh on Navigation**: Dashboard and Collection pages now automatically refresh data when navigating between tabs
+- **Enhanced Input Validation**: Better handling of edge cases in time parsing (supports days, overflow values, etc.)
+
+</details>
+
+<details>
+<summary><strong>Previous Versions</strong></summary>
+
+### v4.5.0
+
+### 🚀 New Features
+- **Progressive Data Loading**: Results display as each page loads from the API for instant review
+- **Already Downloaded Indicator**: Downloaded hacks shown in italic with muted colors
+- **Smart Collection Filtering**: "Show only non-downloaded hacks" checkbox for faster browsing
+- **Enhanced Theme System**: Improved color management and visual consistency
+- **Performance Optimizations**: Faster theme updates and UI responsiveness
+
+### 🔧 Improvements
+- **Search Experience**: Browse results immediately as data loads
+- **Collection Management**: Better visual distinction and filtering for owned content
+- **Theme Performance**: Optimized color updates across light and dark modes
+- **UI Polish**: Consistent visual elements during theme transitions
+
+### 🐛 Bug Fixes
+- Fixed dark gray selection colors appearing in light mode
+- Resolved delays in theme color updates for downloaded indicators
+- Fixed visual inconsistencies during theme switching
 
 ### v4.5.0
 
