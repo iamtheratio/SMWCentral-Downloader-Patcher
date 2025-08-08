@@ -33,27 +33,29 @@ class TableFilters:
         grid_container = ttk.Frame(filter_frame)
         grid_container.pack(fill="x")
         
-        # Column 1 - Name and dropdowns
+        # Right side - Radio button columns (pack first to reserve space)
+        right_container = ttk.Frame(grid_container)
+        right_container.pack(side="right")
+        
+        # Column 3 - Collab and Demo
+        col3_frame = ttk.Frame(right_container)
+        col3_frame.pack(side="right", padx=(15, 0))
+        self._create_radio_filters_col3(col3_frame)
+        
+        # Column 2 - HoF and SA-1
+        col2_frame = ttk.Frame(right_container)
+        col2_frame.pack(side="right", padx=(15, 0))
+        self._create_radio_filters_col2(col2_frame)
+        
+        # Column 1 - Name and dropdowns (pack after to use remaining space)
         col1_frame = ttk.Frame(grid_container)
-        col1_frame.pack(side="left", fill="x", padx=(0, 15))
+        col1_frame.pack(side="left", fill="x", expand=True, padx=(0, 20))
         
         # Name filter
         self._create_name_filter(col1_frame)
         
         # Dropdown filters
         self._create_dropdown_filters(col1_frame, data_manager)
-        
-        # Column 2 - HoF and SA-1
-        col2_frame = ttk.Frame(grid_container)
-        col2_frame.pack(side="left", padx=(0, 15))
-        
-        self._create_radio_filters_col2(col2_frame)
-        
-        # Column 3 - Collab and Demo
-        col3_frame = ttk.Frame(grid_container)
-        col3_frame.pack(side="right")
-        
-        self._create_radio_filters_col3(col3_frame)
         
         # Clear button
         self._create_clear_button(filter_frame)
@@ -65,7 +67,7 @@ class TableFilters:
         name_frame = ttk.Frame(parent)
         name_frame.pack(fill="x", pady=(0, 8))
         ttk.Label(name_frame, text="Name:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
-        name_entry = ttk.Entry(name_frame, textvariable=self.name_filter, width=90)
+        name_entry = ttk.Entry(name_frame, textvariable=self.name_filter)
         name_entry.pack(fill="x", pady=(2, 0))
         name_entry.bind("<KeyRelease>", lambda e: self.apply_callback())
         
@@ -76,7 +78,7 @@ class TableFilters:
         
         # Type filter
         type_frame = ttk.Frame(dropdowns_frame)
-        type_frame.pack(side="left", padx=(0, 12))
+        type_frame.pack(side="left", padx=(0, 10))
         ttk.Label(type_frame, text="Type:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         types = ["All"] + data_manager.get_unique_types()
         self.type_combo = ttk.Combobox(type_frame, textvariable=self.type_filter, 
@@ -86,7 +88,7 @@ class TableFilters:
         
         # Difficulty filter
         diff_frame = ttk.Frame(dropdowns_frame)
-        diff_frame.pack(side="left", padx=(0, 12))
+        diff_frame.pack(side="left", padx=(0, 10))
         ttk.Label(diff_frame, text="Difficulty:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         difficulties = ["All"] + data_manager.get_unique_difficulties()
         self.diff_combo = ttk.Combobox(diff_frame, textvariable=self.difficulty_filter, 
@@ -101,37 +103,37 @@ class TableFilters:
         bottom_filters_frame = ttk.Frame(parent)
         bottom_filters_frame.pack(fill="x", pady=(8, 0))
         
-        # User Created Records filter (left side)
+        # User Created Records filter
         user_records_frame = ttk.Frame(bottom_filters_frame)
-        user_records_frame.pack(side="left", padx=(0, 12))
+        user_records_frame.pack(side="left", padx=(0, 10))
         ttk.Label(user_records_frame, text="User Created Records:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         user_records_combo = ttk.Combobox(user_records_frame, textvariable=self.user_content_filter,
                                         values=["Any", "Yes", "No"], state="readonly", width=14)
         user_records_combo.pack(anchor="w", pady=(2, 0))
         user_records_combo.bind("<<ComboboxSelected>>", lambda e: self.apply_callback())
         
-        # Obsolete Records filter (middle)
+        # Obsolete Records filter
         obsolete_records_frame = ttk.Frame(bottom_filters_frame)
-        obsolete_records_frame.pack(side="left", padx=(0, 12))
+        obsolete_records_frame.pack(side="left", padx=(0, 10))
         ttk.Label(obsolete_records_frame, text="Obsolete Records:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         obsolete_records_combo = ttk.Combobox(obsolete_records_frame, textvariable=self.obsolete_filter,
                                             values=["Any", "Yes", "No"], state="readonly", width=14)
         obsolete_records_combo.pack(anchor="w", pady=(2, 0))
         obsolete_records_combo.bind("<<ComboboxSelected>>", lambda e: self.apply_callback())
         
-        # Author filter (right side)
+        # Author filter - expandable to use remaining space
         author_frame = ttk.Frame(bottom_filters_frame)
-        author_frame.pack(side="left")
+        author_frame.pack(side="left", fill="x", expand=True)
         ttk.Label(author_frame, text="Author(s):", font=("Segoe UI", 9, "bold")).pack(anchor="w")
-        author_entry = ttk.Entry(author_frame, textvariable=self.author_filter, width=19)
-        author_entry.pack(anchor="w", pady=(2, 0))
+        author_entry = ttk.Entry(author_frame, textvariable=self.author_filter)
+        author_entry.pack(fill="x", pady=(2, 0))
         author_entry.bind("<KeyRelease>", lambda e: self.apply_callback())
         
     def _create_remaining_dropdowns(self, parent):
         """Create completed and rating dropdowns"""
         # Completed filter
         completed_frame = ttk.Frame(parent)
-        completed_frame.pack(side="left", padx=(0, 12))
+        completed_frame.pack(side="left", padx=(0, 10))
         ttk.Label(completed_frame, text="Completed:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         completed_combo = ttk.Combobox(completed_frame, textvariable=self.completed_filter,
                                      values=["All", "Yes", "No"], state="readonly", width=14)
