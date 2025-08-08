@@ -138,9 +138,9 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 ### v4.7.0
 
 ### 🔧 Improvements
-- **Enhanced Download Selection**: Click anywhere on a search result row to select/deselect hacks for download (previously required clicking the first column)
-- **Clearer Filter Controls**: Renamed "Search Criteria" to "Show/Hide Filters" for better user understanding
-- **Version Update**: Application updated to version 4.7
+- **Enhanced Download Selection**: Click anywhere on a search result row to select/deselect hacks for download
+- **Improved Filter Layout**: Responsive filter sections work better when window is maximized
+- **Clearer Filter Controls**: Renamed "Search Criteria" to "Show/Hide Filters" for better clarity
 
 </details>
 
