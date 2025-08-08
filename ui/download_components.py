@@ -75,16 +75,12 @@ class DownloadFilters:
         row1_frame = ttk.Frame(parent)
         row1_frame.pack(fill="x", pady=(0, 10))
         
-        # Name field (takes more space)
-        name_frame = ttk.Frame(row1_frame)
-        name_frame.pack(side="left", fill="x", expand=True)
-        ttk.Label(name_frame, text="Name:").pack(anchor="w")
-        name_entry = ttk.Entry(name_frame, textvariable=self.name_var, width=40)
-        name_entry.pack(fill="x", pady=(2, 0))
-        self.entry_widgets.append(name_entry)
+        # Right side container for radio buttons - pack first to reserve space
+        right_container = ttk.Frame(row1_frame)
+        right_container.pack(side="right")
         
         # Collab radio buttons
-        collab_frame = ttk.Frame(row1_frame)
+        collab_frame = ttk.Frame(right_container)
         collab_frame.pack(side="right", padx=(20, 10))
         ttk.Label(collab_frame, text="Collab:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         collab_radio_frame = ttk.Frame(collab_frame)
@@ -93,65 +89,33 @@ class DownloadFilters:
             ttk.Radiobutton(collab_radio_frame, text=option, variable=self.collab_var, value=option).pack(side="left", padx=(0, 5))
         
         # Hall of Fame radio buttons
-        hof_frame = ttk.Frame(row1_frame)
+        hof_frame = ttk.Frame(right_container)
         hof_frame.pack(side="right", padx=(10, 0))
         ttk.Label(hof_frame, text="Hall of Fame:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         hof_radio_frame = ttk.Frame(hof_frame)
         hof_radio_frame.pack(anchor="w")
         for option in ["Any", "Yes", "No"]:
             ttk.Radiobutton(hof_radio_frame, text=option, variable=self.hof_var, value=option).pack(side="left", padx=(0, 5))
+        
+        # Name field - now expandable to match Description width
+        name_frame = ttk.Frame(row1_frame)
+        name_frame.pack(side="left", fill="x", expand=True, padx=(0, 20))
+        ttk.Label(name_frame, text="Name:").pack(anchor="w")
+        name_entry = ttk.Entry(name_frame, textvariable=self.name_var)
+        name_entry.pack(fill="x", pady=(2, 0))
+        self.entry_widgets.append(name_entry)
     
     def _create_row2(self, parent):
         """Create second row: Type, Tags, Authors, Time Period, Demo, SA-1"""
         row2_frame = ttk.Frame(parent)
         row2_frame.pack(fill="x", pady=(0, 10))
         
-        # Type dropdown
-        type_frame = ttk.Frame(row2_frame)
-        type_frame.pack(side="left")
-        ttk.Label(type_frame, text="Type:").pack(anchor="w")
-        type_combo = ttk.Combobox(
-            type_frame, 
-            textvariable=self.type_var,
-            values=["Any"] + sorted(TYPE_DISPLAY_LOOKUP.values()),
-            state="readonly",
-            width=12
-        )
-        type_combo.pack(pady=(2, 0))
-        type_combo.set("Any")
-        
-        # Tags field
-        tags_frame = ttk.Frame(row2_frame)
-        tags_frame.pack(side="left", padx=(15, 0))
-        ttk.Label(tags_frame, text="Tag(s):").pack(anchor="w")
-        tags_entry = ttk.Entry(tags_frame, textvariable=self.tags_var, width=15)
-        tags_entry.pack(pady=(2, 0))
-        self.entry_widgets.append(tags_entry)
-        
-        # Authors field
-        authors_frame = ttk.Frame(row2_frame)
-        authors_frame.pack(side="left", padx=(15, 0))
-        ttk.Label(authors_frame, text="Author(s):").pack(anchor="w")
-        authors_entry = ttk.Entry(authors_frame, textvariable=self.authors_var, width=15)
-        authors_entry.pack(pady=(2, 0))
-        self.entry_widgets.append(authors_entry)
-        
-        # Time Period dropdown
-        time_frame = ttk.Frame(row2_frame)
-        time_frame.pack(side="left", padx=(15, 0))
-        ttk.Label(time_frame, text="Time Period:").pack(anchor="w")
-        self.time_combo = ttk.Combobox(
-            time_frame,
-            textvariable=self.time_period_var,
-            values=["All Time", "Last Week", "Last Month", "3 Months", "6 Months", "1 Year"],
-            state="readonly",
-            width=12
-        )
-        self.time_combo.pack(pady=(2, 0))
-        self.time_combo.set("All Time")
+        # Right side container for radio buttons - pack first to reserve space
+        right_container = ttk.Frame(row2_frame)
+        right_container.pack(side="right")
         
         # Demo radio buttons
-        demo_frame = ttk.Frame(row2_frame)
+        demo_frame = ttk.Frame(right_container)
         demo_frame.pack(side="right", padx=(20, 10))
         ttk.Label(demo_frame, text="Demo:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         demo_radio_frame = ttk.Frame(demo_frame)
@@ -160,30 +124,78 @@ class DownloadFilters:
             ttk.Radiobutton(demo_radio_frame, text=option, variable=self.demo_var, value=option).pack(side="left", padx=(0, 5))
         
         # SA-1 radio buttons
-        sa1_frame = ttk.Frame(row2_frame)
+        sa1_frame = ttk.Frame(right_container)
         sa1_frame.pack(side="right", padx=(10, 0))
         ttk.Label(sa1_frame, text="SA-1:", font=("Segoe UI", 9, "bold")).pack(anchor="w")
         sa1_radio_frame = ttk.Frame(sa1_frame)
         sa1_radio_frame.pack(anchor="w")
         for option in ["Any", "Yes", "No"]:
             ttk.Radiobutton(sa1_radio_frame, text=option, variable=self.sa1_var, value=option).pack(side="left", padx=(0, 5))
+        
+        # Left side container for dropdowns and entries - pack after to use remaining space
+        left_container = ttk.Frame(row2_frame)
+        left_container.pack(side="left", fill="x", expand=True, padx=(0, 20))
+        
+        # Type dropdown
+        type_frame = ttk.Frame(left_container)
+        type_frame.pack(side="left", padx=(0, 10))
+        ttk.Label(type_frame, text="Type:").pack(anchor="w")
+        type_combo = ttk.Combobox(
+            type_frame, 
+            textvariable=self.type_var,
+            values=["Any"] + sorted(TYPE_DISPLAY_LOOKUP.values()),
+            state="readonly",
+            width=12  # Back to smaller width to save space
+        )
+        type_combo.pack(pady=(2, 0))
+        type_combo.set("Any")
+        
+        # Tags field - expandable but with minimum constraints
+        tags_frame = ttk.Frame(left_container)
+        tags_frame.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        ttk.Label(tags_frame, text="Tag(s):").pack(anchor="w")
+        tags_entry = ttk.Entry(tags_frame, textvariable=self.tags_var)
+        tags_entry.pack(fill="x", pady=(2, 0))
+        self.entry_widgets.append(tags_entry)
+        
+        # Authors field - expandable but with minimum constraints
+        authors_frame = ttk.Frame(left_container)
+        authors_frame.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        ttk.Label(authors_frame, text="Author(s):").pack(anchor="w")
+        authors_entry = ttk.Entry(authors_frame, textvariable=self.authors_var)
+        authors_entry.pack(fill="x", pady=(2, 0))
+        self.entry_widgets.append(authors_entry)
+        
+        # Time Period dropdown
+        time_frame = ttk.Frame(left_container)
+        time_frame.pack(side="left")
+        ttk.Label(time_frame, text="Time Period:").pack(anchor="w")
+        self.time_combo = ttk.Combobox(
+            time_frame,
+            textvariable=self.time_period_var,
+            values=["All Time", "Last Week", "Last Month", "3 Months", "6 Months", "1 Year"],
+            state="readonly",
+            width=12  # Back to smaller width to save space
+        )
+        self.time_combo.pack(pady=(2, 0))
+        self.time_combo.set("All Time")
     
     def _create_row3(self, parent):
         """Create third row: Description, Include Waiting, Show Only Non-Downloaded"""
         row3_frame = ttk.Frame(parent)
         row3_frame.pack(fill="x", pady=(0, 0))
         
-        # Description field (smaller width)
+        # Description field - now expandable
         description_frame = ttk.Frame(row3_frame)
-        description_frame.pack(side="left")
+        description_frame.pack(side="left", fill="x", expand=True, padx=(0, 15))
         ttk.Label(description_frame, text="Description:").pack(anchor="w")
-        description_entry = ttk.Entry(description_frame, textvariable=self.description_var, width=95)
-        description_entry.pack(pady=(2, 0))
+        description_entry = ttk.Entry(description_frame, textvariable=self.description_var)
+        description_entry.pack(fill="x", pady=(2, 0))
         self.entry_widgets.append(description_entry)
         
         # Include Waiting checkbox
         waiting_frame = ttk.Frame(row3_frame)
-        waiting_frame.pack(side="left", padx=(15, 0))
+        waiting_frame.pack(side="left", padx=(0, 15))
         ttk.Label(waiting_frame, text="").pack(anchor="w")  # Empty label for alignment
         ttk.Checkbutton(
             waiting_frame,
@@ -193,7 +205,10 @@ class DownloadFilters:
         
         # Show Only Non-Downloaded checkbox
         new_filter_frame = ttk.Frame(row3_frame)
-        new_filter_frame.pack(side="left", padx=(15, 0))
+        new_filter_frame.pack(side="left")
+        # Show Only Non-Downloaded checkbox
+        new_filter_frame = ttk.Frame(row3_frame)
+        new_filter_frame.pack(side="left")
         ttk.Label(new_filter_frame, text="").pack(anchor="w")  # Empty label for alignment
         ttk.Checkbutton(
             new_filter_frame,
@@ -569,9 +584,8 @@ class DownloadResults:
         """Handle tree item click for selection"""
         item = self.tree.identify_row(event.y)
         if item:
-            column = self.tree.identify_column(event.x)
-            if column == "#1":  # Select column
-                self._toggle_selection(item)
+            # Allow clicking anywhere on the row to toggle selection
+            self._toggle_selection(item)
     
     def _on_tree_space(self, event):
         """Handle spacebar to toggle selection"""
