@@ -85,7 +85,7 @@ class DownloadPage:
         # Toggle button for the entire search criteria section
         self.search_toggle_button = ttk.Button(
             header_frame,
-            text="▼ Search Criteria",
+            text="▼ Show/Hide Filters",
             command=self._toggle_search_section,
             style="Toolbutton"  # Flat button style
         )
@@ -106,12 +106,12 @@ class DownloadPage:
         if self.search_expanded:
             # Collapse: hide content and change arrow
             self.search_content.pack_forget()
-            self.search_toggle_button.configure(text="► Search Criteria")
+            self.search_toggle_button.configure(text="► Show/Hide Filters")
             self.search_expanded = False
         else:
             # Expand: show content and change arrow
             self.search_content.pack(fill="x", pady=(5, 0))
-            self.search_toggle_button.configure(text="▼ Search Criteria")
+            self.search_toggle_button.configure(text="▼ Show/Hide Filters")
             self.search_expanded = True
         
         # Force layout update to ensure results area adjusts properly

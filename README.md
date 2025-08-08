@@ -133,7 +133,19 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 ##  Changelog
 
 <details>
-<summary><strong>Version 4.6 - Latest Release</strong></summary>
+<summary><strong>Version 4.7 - Latest Release</strong></summary>
+
+### v4.7.0
+
+### 🔧 Improvements
+- **Enhanced Download Selection**: Click anywhere on a search result row to select/deselect hacks for download (previously required clicking the first column)
+- **Clearer Filter Controls**: Renamed "Search Criteria" to "Show/Hide Filters" for better user understanding
+- **Version Update**: Application updated to version 4.7
+
+</details>
+
+<details>
+<summary><strong>Previous Versions</strong></summary>
 
 ### v4.6.0
 
@@ -145,11 +157,6 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 ### 🔧 Improvements
 - **Auto-Refresh on Navigation**: Dashboard and Collection pages now automatically refresh data when navigating between tabs
 - **Enhanced Input Validation**: Better handling of edge cases in time parsing (supports days, overflow values, etc.)
-
-</details>
-
-<details>
-<summary><strong>Previous Versions</strong></summary>
 
 ### v4.5.0
 

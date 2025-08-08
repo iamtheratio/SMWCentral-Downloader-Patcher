@@ -569,9 +569,8 @@ class DownloadResults:
         """Handle tree item click for selection"""
         item = self.tree.identify_row(event.y)
         if item:
-            column = self.tree.identify_column(event.x)
-            if column == "#1":  # Select column
-                self._toggle_selection(item)
+            # Allow clicking anywhere on the row to toggle selection
+            self._toggle_selection(item)
     
     def _on_tree_space(self, event):
         """Handle spacebar to toggle selection"""
