@@ -365,7 +365,7 @@ class HackCollectionInlineEditor(InlineEditor):
                     
                     # Update the specific column
                     if self.field_name == "completed_date":
-                        current_values[5] = new_value  # Column index 5 for completed_date
+                        current_values[6] = new_value  # Column index 6 for completed_date (was 5, shifted by folder column)
                         # Update completed checkbox based on whether we have a date and completed status
                         if hack_data:
                             current_values[0] = "✓" if hack_data.get("completed", False) else ""  # Column index 0 for completed
@@ -375,11 +375,11 @@ class HackCollectionInlineEditor(InlineEditor):
                             display_time = self.parent_page._format_time_display(new_value)
                         else:
                             display_time = str(new_value) if new_value else ""
-                        current_values[6] = display_time  # Column index 6 for time_to_beat
+                        current_values[7] = display_time  # Column index 7 for time_to_beat (was 6, shifted by folder column)
                     elif self.field_name == "notes":
                         # Truncate notes for display
                         display_notes = new_value[:30] + "..." if len(new_value) > 30 else new_value
-                        current_values[7] = display_notes  # Column index 7 for notes (was 6)
+                        current_values[8] = display_notes  # Column index 8 for notes (was 7, shifted by folder column)
                     
                     # Update the tree item
                     self.parent_page.tree.item(item, values=current_values)

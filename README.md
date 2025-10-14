@@ -69,7 +69,8 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 3. **Track progress**: Mark hacks as completed, rate them (1-5 stars), and add personal notes
 4. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
 5. **Advanced editing**: Double-click any hack to open the full edit dialog
-6. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
+6. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open its file location in your system's file manager
+7. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
 #### Input Format Guide
 
@@ -133,7 +134,24 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 ##  Changelog
 
 <details>
-<summary><strong>Version 4.7 - Latest Release</strong></summary>
+<summary><strong>Version 4.8 - Latest Release</strong></summary>
+
+### v4.8.0
+
+### 🆕 New Features
+- **📁 Folder Icons**: Added clickable folder icons in collection search results to quickly open hack file locations
+- **🗂️ Cross-Platform File Explorer Integration**: Open file managers on Windows (Explorer), macOS (Finder), and Linux (various)
+- **🎯 Smart File Navigation**: Click folder icons to open and highlight specific hack files in your system's file manager
+
+### 🔧 Improvements  
+- **Enhanced Error Handling**: Improved file explorer error handling with graceful fallbacks
+- **Better Cross-Platform Support**: Comprehensive support for multiple Linux file managers
+- **User-Friendly Messages**: Clear notifications when files are not found or haven't been downloaded yet
+
+</details>
+
+<details>
+<summary><strong>Previous Versions</strong></summary>
 
 ### v4.7.0
 
@@ -145,7 +163,7 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 </details>
 
 <details>
-<summary><strong>Previous Versions</strong></summary>
+<summary><strong>Older Versions</strong></summary>
 
 ### v4.6.0
 
