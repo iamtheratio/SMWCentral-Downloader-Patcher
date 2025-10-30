@@ -3,5 +3,10 @@
   "output_dir": "C:/Users/georg/Desktop/App Testing/Romhacks",
   "api_delay": 0.8,
   "multi_type_download_mode": "primary_only",
-  "multi_type_enabled": true
+  "multi_type_enabled": true,
+  "qusb2snes_enabled": true,
+  "qusb2snes_host": "localhost",
+  "qusb2snes_port": 23074,
+  "qusb2snes_device": "",
+  "qusb2snes_remote_folder": "/ROMS"
 }

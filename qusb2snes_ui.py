@@ -68,76 +68,71 @@ class QUSB2SNESSection:
             variable=self.enabled_var,
             command=self._on_enabled_changed
         )
-        enable_cb.grid(row=0, column=0, columnspan=8, sticky="w", pady=(0, 15))
+        enable_cb.grid(row=0, column=0, columnspan=9, sticky="w", pady=(0, 15))
         
-        # Row 1: Connection settings with labels above controls
         current_row = 1
         
-        # Host
-        ttk.Label(self.frame, text="Host:").grid(row=current_row, column=0, sticky="w", padx=(0, 10))
-        # Port  
-        ttk.Label(self.frame, text="Port:").grid(row=current_row, column=1, sticky="w", padx=(0, 10))
-        # Connect button placeholder
-        ttk.Label(self.frame, text="").grid(row=current_row, column=2, sticky="w", padx=(0, 10))
-        # Device
-        ttk.Label(self.frame, text="Device:").grid(row=current_row, column=3, sticky="w", padx=(0, 10))
-        # Refresh button placeholder
-        ttk.Label(self.frame, text="").grid(row=current_row, column=4, sticky="w", padx=(0, 10))
-        # SD Card Folder
-        ttk.Label(self.frame, text="SD Card Folder:").grid(row=current_row, column=5, sticky="w", padx=(0, 10))
+        # Column 1: Connection Section (Host, Port, Connect)
+        ttk.Label(self.frame, text="Host:").grid(row=current_row, column=0, sticky="w", padx=(0, 5))
+        ttk.Label(self.frame, text="Port:").grid(row=current_row, column=1, sticky="w", padx=(0, 5))
+        
+        # Column 2: Device Section (Device, Refresh)  
+        ttk.Label(self.frame, text="Device:").grid(row=current_row, column=3, sticky="w", padx=(20, 5))
+        
+        # Column 3: Sync Section (Sync To Folder, Sync)
+        ttk.Label(self.frame, text="Sync To Folder:").grid(row=current_row, column=6, sticky="w", padx=(20, 5))
         
         current_row += 1
         
-        # Host entry
-        host_entry = ttk.Entry(self.frame, textvariable=self.host_var, width=12)
-        host_entry.grid(row=current_row, column=0, sticky="ew", padx=(0, 10), pady=(0, 10))
+        # Column 1: Connection controls
+        host_entry = ttk.Entry(self.frame, textvariable=self.host_var, width=10)
+        host_entry.grid(row=current_row, column=0, sticky="ew", padx=(0, 5), pady=(0, 5))
         host_entry.bind('<KeyRelease>', self._on_setting_changed)
         
-        # Port entry
-        port_entry = ttk.Entry(self.frame, textvariable=self.port_var, width=8)
-        port_entry.grid(row=current_row, column=1, sticky="ew", padx=(0, 10), pady=(0, 10))
+        port_entry = ttk.Entry(self.frame, textvariable=self.port_var, width=6)
+        port_entry.grid(row=current_row, column=1, sticky="ew", padx=(0, 5), pady=(0, 5))
         port_entry.bind('<KeyRelease>', self._on_setting_changed)
         
-        # Connect button
+        current_row += 1
+        
         self.connect_button = ttk.Button(
             self.frame,
             text="Connect",
-            command=self._on_connect_clicked
+            command=self._on_connect_clicked,
+            width=10
         )
-        self.connect_button.grid(row=current_row, column=2, sticky="ew", padx=(0, 10), pady=(0, 10))
+        self.connect_button.grid(row=current_row, column=0, columnspan=2, sticky="ew", padx=(0, 15), pady=(0, 5))
         
-        # Device combo
+        # Column 2: Device controls
         self.device_combo = ttk.Combobox(
             self.frame,
             textvariable=self.device_var,
             state="readonly",
             width=15
         )
-        self.device_combo.grid(row=current_row, column=3, sticky="ew", padx=(0, 10), pady=(0, 10))
+        self.device_combo.grid(row=1, column=3, columnspan=2, sticky="ew", padx=(20, 5), pady=(0, 5))
         self.device_combo.bind('<<ComboboxSelected>>', self._on_device_changed)
         
-        # Refresh button
         refresh_button = ttk.Button(
             self.frame,
             text="Refresh",
-            command=self._on_refresh_clicked
+            command=self._on_refresh_clicked,
+            width=10
         )
-        refresh_button.grid(row=current_row, column=4, sticky="ew", padx=(0, 10), pady=(0, 10))
+        refresh_button.grid(row=2, column=3, columnspan=2, sticky="ew", padx=(20, 15), pady=(0, 5))
         
-        # SD Card folder entry
+        # Column 3: Sync controls
         folder_entry = ttk.Entry(self.frame, textvariable=self.remote_folder_var, width=12)
-        folder_entry.grid(row=current_row, column=5, sticky="ew", padx=(0, 10), pady=(0, 10))
+        folder_entry.grid(row=1, column=6, columnspan=2, sticky="ew", padx=(20, 5), pady=(0, 5))
         folder_entry.bind('<KeyRelease>', self._on_setting_changed)
         
-        current_row += 1
-        
-        # Sync button row
         self.sync_button = ttk.Button(
             self.frame,
-            text="Sync ROMs",
-            command=self._on_sync_clicked
+            text="Sync",
+            command=self._on_sync_clicked,
+            width=10
         )
-        self.sync_button.grid(row=current_row, column=0, columnspan=6, pady=(10, 0), sticky="ew")
+        self.sync_button.grid(row=2, column=6, columnspan=2, sticky="ew", padx=(20, 0), pady=(0, 5))
         
         # Update UI state
         self._update_ui_state()
@@ -340,13 +335,23 @@ class QUSB2SNESSection:
         self.devices = devices
         if self.device_combo:
             self.device_combo['values'] = devices
-            if devices and not self.device_var.get():
+            
+            if len(devices) == 1:
+                # Auto-select the only device
                 self.device_var.set(devices[0])
                 self._on_device_changed()
-                self._on_progress(f"Auto-selected device: {devices[0]}")
-            elif devices:
-                self._on_progress(f"Device list updated. Current selection: {self.device_var.get()}")
+                self._on_progress(f"Auto-selected only device: {devices[0]}")
+            elif len(devices) > 1:
+                # Multiple devices - auto-select if nothing is selected, otherwise keep current selection
+                if not self.device_var.get() or self.device_var.get() not in devices:
+                    self.device_var.set(devices[0])
+                    self._on_device_changed()
+                    self._on_progress(f"Auto-selected first device: {devices[0]} (multiple devices available)")
+                else:
+                    self._on_progress(f"Keeping current selection: {self.device_var.get()}")
             else:
+                # No devices found
+                self.device_var.set("")
                 self._on_progress("No devices found. Make sure your SD2SNES/FX Pak Pro is connected.")
     
     def _on_progress(self, message):

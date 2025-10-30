@@ -292,14 +292,24 @@ class QUSB2SNESSyncManager:
         self.remote_folder = remote_folder
     
     async def connect_and_attach(self) -> bool:
-        """Connect and attach to device"""
+        """Connect and optionally attach to device"""
         try:
             self.sync_client = QUSB2SNESSync(self.host, self.port)
             self.sync_client.on_progress = self.on_progress
             self.sync_client.on_error = self.on_error
             
             if await self.sync_client.connect():
-                if self.device and await self.sync_client.attach_device(self.device):
+                # If a device is specified, try to attach to it
+                if self.device:
+                    if await self.sync_client.attach_device(self.device):
+                        if self.on_connected:
+                            self.on_connected()
+                        return True
+                    else:
+                        # Device attachment failed, but connection succeeded
+                        return True
+                else:
+                    # No device specified, just return successful connection
                     if self.on_connected:
                         self.on_connected()
                     return True
