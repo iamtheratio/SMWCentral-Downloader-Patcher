@@ -317,10 +317,62 @@ class QUSB2SNESSection:
             self._on_error(f"ROM directory does not exist: {local_rom_dir}")
             return
         
+        # Count ROM files to sync (recursively search all subdirectories)
+        rom_extensions = ['.smc', '.sfc', '.fig']
+        rom_files = []
+        total_dirs = 0
+        try:
+            for root, dirs, files in os.walk(local_rom_dir):
+                total_dirs += len(dirs) if root == local_rom_dir else 0  # Count only direct subdirs
+                for file in files:
+                    if any(file.lower().endswith(ext) for ext in rom_extensions):
+                        # Use proper path separators
+                        full_path = os.path.normpath(os.path.join(root, file))
+                        rom_files.append(full_path)
+        except Exception as e:
+            rom_files = [f"Error scanning directory: {str(e)}"]
+            total_dirs = 0
+        
+        # Debug: Log what we found
+        self._on_progress(f"📁 Scanning output directory: {local_rom_dir}")
+        self._on_progress(f"🔍 Found {len(rom_files)} ROM files in {total_dirs} subdirectories")
+        
+        # Show first few files for debugging
+        if rom_files and not str(rom_files[0]).startswith("Error"):
+            sample_files = rom_files[:3]  # Show first 3 files
+            for i, file_path in enumerate(sample_files, 1):
+                rel_path = os.path.relpath(file_path, local_rom_dir)
+                self._on_progress(f"   {i}. {rel_path}")
+            if len(rom_files) > 3:
+                self._on_progress(f"   ... and {len(rom_files) - 3} more files")
+        
+        # Create detailed confirmation message
+        sync_info = f"""QUSB2SNES ROM Sync Operation
+        
+📁 SOURCE (Local Computer):
+   {local_rom_dir}
+   
+📂 DESTINATION (SD Card):
+   Device: {self.device_var.get()}
+   Folder: {self.remote_folder_var.get()}
+   
+📋 OPERATION DETAILS:
+   • ROM files found: {len(rom_files)} files
+   • Subdirectories: {total_dirs} folders
+   • File types: .smc, .sfc, .fig
+   • Searches all subdirectories recursively
+   • Missing files will be uploaded
+   • Existing files will be updated if different
+   
+⚠️  NOTE: This will modify files on your SD card.
+   Make sure you have backups if needed.
+   
+Do you want to proceed with the sync?"""
+        
         # Confirm sync operation
         result = messagebox.askyesno(
-            "Confirm Sync",
-            f"Sync ROM files from:\n{local_rom_dir}\n\nTo:\n{self.remote_folder_var.get()}\n\nContinue?"
+            "Confirm ROM Sync Operation",
+            sync_info
         )
         
         if not result:
@@ -336,17 +388,34 @@ class QUSB2SNESSection:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 
-                # Attach to selected device first
-                success = loop.run_until_complete(
-                    self.sync_manager.sync_client.attach_device(self.device_var.get())
+                # Create a fresh client for sync operation to avoid event loop conflicts
+                from qusb2snes_sync import QUSB2SNESSync
+                sync_client = QUSB2SNESSync(
+                    self.sync_manager.host, 
+                    self.sync_manager.port
                 )
+                sync_client.on_progress = self._on_progress
+                sync_client.on_error = self._on_error
                 
-                if success:
-                    # Start sync
-                    loop.run_until_complete(self.sync_manager.sync_roms(local_rom_dir))
-                    self.parent.after(0, lambda: self._on_progress("✅ Sync completed successfully"))
+                # Connect fresh client
+                if loop.run_until_complete(sync_client.connect()):
+                    # Attach to selected device
+                    if loop.run_until_complete(sync_client.attach_device(self.device_var.get())):
+                        # Start sync
+                        success = loop.run_until_complete(
+                            sync_client.sync_directory(local_rom_dir, self.remote_folder_var.get())
+                        )
+                        if success:
+                            self.parent.after(0, lambda: self._on_progress("✅ Sync completed successfully"))
+                        else:
+                            self.parent.after(0, lambda: self._on_error("Sync operation failed"))
+                    else:
+                        self.parent.after(0, lambda: self._on_error("Failed to attach to device"))
+                    
+                    # Disconnect fresh client
+                    loop.run_until_complete(sync_client.disconnect())
                 else:
-                    self.parent.after(0, lambda: self._on_error("Failed to attach to device"))
+                    self.parent.after(0, lambda: self._on_error("Failed to connect for sync operation"))
                 
             except Exception as e:
                 self.parent.after(0, lambda: self._on_error(f"Sync failed: {str(e)}"))

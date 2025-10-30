@@ -56,9 +56,10 @@ class QUSB2SNESSync:
             )
             self.connected = True
             
-            # Identify app
+            # Identify app and wait for it to process
             name_cmd = {"Opcode": "Name", "Operands": [self.app_name]}
             await self.websocket.send(json.dumps(name_cmd))
+            await asyncio.sleep(0.5)  # Give server time to process app identification
             
             self.log_progress("✅ Connected to QUSB2SNES")
             return True
@@ -157,9 +158,15 @@ class QUSB2SNESSync:
             file_size = os.path.getsize(local_path)
             self.log_progress(f"📤 Uploading {os.path.basename(local_path)} ({file_size} bytes)")
             
-            # Send PutFile command
+            # Send PutFile command with proper error handling
             size_hex = format(file_size, 'X')
-            await self._send_command("PutFile", operands=[remote_path, size_hex])
+            response = await self._send_command("PutFile", operands=[remote_path, size_hex])
+            
+            # If command failed, don't proceed with file data
+            if response is None:
+                self.log_error(f"❌ PutFile command failed for {remote_path}")
+                return False
+            
             await asyncio.sleep(0.2)
             
             # Send file data
@@ -204,16 +211,26 @@ class QUSB2SNESSync:
             
             self.log_progress(f"🔄 Starting sync: {local_dir} → {remote_dir}")
             
-            # Create remote directory if needed
-            await self.create_directory(remote_dir)
+            # Check if remote directory exists, create only if needed
+            try:
+                remote_items = await self.list_directory(remote_dir)
+                self.log_progress(f"📁 Remote directory exists with {len(remote_items)} items")
+            except Exception:
+                # Directory doesn't exist, create it
+                self.log_progress(f"📁 Creating remote directory: {remote_dir}")
+                await self.create_directory(remote_dir)
+                remote_items = await self.list_directory(remote_dir)
             
-            # Get remote contents
-            remote_items = await self.list_directory(remote_dir)
             remote_names = {item["name"] for item in remote_items}
             
             # Sync files from local directory
             uploaded = 0
             for item in os.listdir(local_dir):
+                # Check connection health before each operation
+                if not self.connected or (self.websocket and self.websocket.closed):
+                    self.log_error("❌ Connection lost during sync, stopping")
+                    break
+                    
                 local_path = os.path.join(local_dir, item)
                 
                 if os.path.isfile(local_path):
@@ -224,7 +241,15 @@ class QUSB2SNESSync:
                 elif os.path.isdir(local_path):
                     # Simple subdirectory sync
                     sub_remote_dir = f"{remote_dir.rstrip('/')}/{item}"
-                    await self.create_directory(sub_remote_dir)
+                    
+                    # Check if subdirectory exists, create only if needed
+                    try:
+                        await self.list_directory(sub_remote_dir)
+                        self.log_progress(f"📁 Subdirectory exists: {sub_remote_dir}")
+                    except Exception:
+                        # Subdirectory doesn't exist, create it
+                        self.log_progress(f"📁 Creating subdirectory: {sub_remote_dir}")
+                        await self.create_directory(sub_remote_dir)
                     
                     # Sync files in subdirectory
                     for sub_item in os.listdir(local_path):
@@ -242,28 +267,43 @@ class QUSB2SNESSync:
             return False
     
     async def _send_command(self, opcode: str, space: str = "SNES", operands: List[str] = None) -> Optional[Dict]:
-        """Send command to QUSB2SNES"""
+        """Send command to QUSB2SNES with connection health checking"""
         if not self.connected or not self.websocket:
             raise Exception("Not connected to QUSB2SNES")
         
-        command = {"Opcode": opcode, "Space": space}
-        if operands:
-            command["Operands"] = operands
-        
-        await self.websocket.send(json.dumps(command))
-        
-        # Commands that don't send replies
-        no_reply_commands = ["Attach", "Name", "MakeDir", "PutFile", "Remove"]
-        
-        if opcode in no_reply_commands:
+        # Check if websocket is still open
+        if self.websocket.closed:
+            self.log_error("❌ WebSocket connection closed, cannot send command")
+            self.connected = False
             return None
         
-        # Wait for response
         try:
-            response = await asyncio.wait_for(self.websocket.recv(), timeout=10.0)
-            return json.loads(response)
-        except asyncio.TimeoutError:
-            return None
+            command = {"Opcode": opcode, "Space": space}
+            if operands:
+                command["Operands"] = operands
+            
+            await self.websocket.send(json.dumps(command))
+            
+            # Commands that don't send replies
+            no_reply_commands = ["Attach", "Name", "MakeDir", "PutFile", "Remove"]
+            
+            if opcode in no_reply_commands:
+                return {"status": "ok"}  # Return success indicator for no-reply commands
+            
+            # Wait for response
+            try:
+                response = await asyncio.wait_for(self.websocket.recv(), timeout=10.0)
+                return json.loads(response)
+            except asyncio.TimeoutError:
+                self.log_error("❌ Command timeout")
+                return None
+                
+        except Exception as e:
+            # If websocket error, mark as disconnected
+            if "1000" in str(e) or "websocket" in str(e).lower():
+                self.connected = False
+                self.websocket = None
+            raise e
 
 
 # Simple sync manager for UI integration
