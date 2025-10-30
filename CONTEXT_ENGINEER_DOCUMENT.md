@@ -323,13 +323,38 @@ async def test_feature_integration():
 ## 📎 QUSB2SNES Integration Reference
 
 ### Implementation Pattern
-The QUSB2SNES feature follows the project's standard integration pattern:
+The QUSB2SNES feature follows the project's standard integration pattern with specific protocol requirements:
 
 #### Core Integration Files
-- **Protocol Layer**: WebSocket communication with QUSB2SNES server
+- **Protocol Layer**: WebSocket communication with QUSB2SNES server (default port 23074)
 - **Sync Logic**: Directory comparison and file transfer operations
 - **UI Integration**: Settings page configuration and progress display
 - **Testing Suite**: Comprehensive protocol and integration tests
+
+#### QUSB2SNES Protocol Documentation
+Based on research from [QUSB2SNES GitHub](https://github.com/Skarsnik/QUsb2snes):
+
+**WebSocket Connection**:
+- Default endpoint: `ws://localhost:23074` (or legacy `ws://localhost:8080`)
+- JSON command format: `{"Opcode": "command", "Space": "SNES", "Operands": ["arg1", "arg2"]}`
+- Binary data sent in separate binary messages after command
+
+**Essential Commands**:
+- `DeviceList`: Get available devices → `{"Results": ["SD2SNES COM3", "SNES Classic"]}`
+- `Attach`: Connect to device → `{"Opcode": "Attach", "Operands": ["SD2SNES COM3"]}`
+- `List`: Directory listing → `{"Opcode": "List", "Operands": ["/path"]}`
+- `PutFile`: Upload file → `{"Opcode": "PutFile", "Operands": ["/path/file.smc", "A00"]}` + binary data
+- `MakeDir`: Create directory → `{"Opcode": "MakeDir", "Operands": ["/new_folder"]}`
+- `Remove`: Delete file/folder → `{"Opcode": "Remove", "Operands": ["/path/file"]}`
+- `Rename`: Rename file → `{"Opcode": "Rename", "Operands": ["/old", "/new"]}`
+- `Info`: Device information → Returns firmware version and capabilities
+
+**File Upload Protocol**:
+1. Send `PutFile` command with path and size in hex
+2. Send binary data in chunks ≤1024 bytes
+3. No response expected for successful uploads
+
+**Error Handling**: Server closes connection on errors
 
 #### Standard QUSB2SNES Workflow
 1. **Settings Configuration**: User sets local ROM folder and remote SD card directory
@@ -340,16 +365,73 @@ The QUSB2SNES feature follows the project's standard integration pattern:
 
 #### Safety Constraints for QUSB2SNES
 - **Directory Scope Limitation**: Only operate within user-configured SD card directory
+- **Forbidden Directories**: Never allow operations in root `/`, `/sd2snes`, `/saves` or system folders
 - **Connection Lifecycle**: Single connection per sync operation - no connection reuse
 - **Error Recovery**: Graceful handling of device disconnection or WebSocket failures
 - **User Confirmation**: Destructive operations require explicit user consent
 - **Logging All Operations**: File transfers, directory changes, errors for audit trail
+- **Chunk Size Limits**: File uploads in 1024-byte chunks maximum
+- **Timeout Protection**: All network operations must have reasonable timeouts
 
-#### Testing Requirements
-- Protocol correctness with `test_qusb2snes_protocol.py`
-- Connection patterns with `test_connection_*.py`
-- File operations with `test_*_sync.py`
-- UI integration with `test_qusb2snes_ui.py`
+#### Testing Requirements for QUSB2SNES
+**MANDATORY Test Scripts (must pass before implementation)**:
+- `test_qusb2snes_basic_connection.py`: Protocol correctness, connection patterns
+- `test_qusb2snes_file_operations.py`: File CRUD operations
+- `test_qusb2snes_directory_sync.py`: Full sync workflow validation
+- `test_qusb2snes_safety.py`: Directory restriction enforcement
+- `test_qusb2snes_config.py`: Settings persistence
+- `test_qusb2snes_full_integration.py`: Complete feature integration
+
+**Validation Criteria**:
+- All WebSocket commands work correctly
+- File operations handle large files and nested directories
+- Safety restrictions prevent dangerous operations
+- Error conditions handled gracefully
+- Configuration persists between sessions
+- No memory leaks or connection issues
+
+#### UI Integration Guidelines
+**Settings Page Layout**:
+```
+QUSB2SNES Sync Section (between first row and log window)
+┌─────────────────────────────────────────────────────────────────┐
+│ [✓] Enable QUSB2SNES Sync                                      │
+│                                                                 │
+│ Host: [localhost     ] Port: [23074] [CONNECT] Device: [dropdown] [REFRESH] │
+│ SD Card Folder: [/ROMS                                        ] │
+│                                                                 │
+│                              [SYNC]                            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Required UI Components**:
+- Enable/disable checkbox with immediate config save
+- Host/port text fields with validation
+- Connect button with connection status feedback
+- Device dropdown populated from DeviceList command
+- Refresh button to re-scan devices
+- SD Card folder path with validation (no dangerous paths)
+- Sync button that triggers complete sync operation
+- All status updates logged to existing log window
+
+#### Configuration Requirements
+**Settings to Persist**:
+```json
+{
+  "qusb2snes_enabled": false,
+  "qusb2snes_host": "localhost", 
+  "qusb2snes_port": 23074,
+  "qusb2snes_device": "",
+  "qusb2snes_remote_folder": "/ROMS"
+}
+```
+
+**Validation Rules**:
+- Host must be valid hostname/IP
+- Port must be 1-65535
+- Remote folder must not be root, sd2snes, saves
+- Remote folder must start with `/`
+- Device must be from available device list
 
 ---
 
