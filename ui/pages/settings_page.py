@@ -208,6 +208,29 @@ class SettingsPage:
         # Load auto-check setting
         self._load_auto_check_setting()
 
+        # QUSB2SNES Sync Section
+        qusb2snes_frame = ttk.Frame(self.frame)
+        qusb2snes_frame.pack(fill="x", pady=(20, 20))
+        
+        try:
+            from qusb2snes_ui import QUSB2SNESSection
+            from config_manager import ConfigManager
+            
+            config = ConfigManager()
+            self.qusb2snes_section = QUSB2SNESSection(qusb2snes_frame, config, self.logger)
+            qusb2snes_content = self.qusb2snes_section.create(None)
+            qusb2snes_content.pack(fill="x")
+            
+        except ImportError as e:
+            # If QUSB2SNES components aren't available, show placeholder
+            placeholder_frame = ttk.LabelFrame(qusb2snes_frame, text="QUSB2SNES Sync", padding=(15, 10))
+            placeholder_frame.pack(fill="x")
+            ttk.Label(
+                placeholder_frame,
+                text="QUSB2SNES sync feature not available (missing dependencies)",
+                font=self.font
+            ).pack()
+
         # Log section with level dropdown and clear button
         log_header_frame = ttk.Frame(self.frame)
         log_header_frame.pack(fill="x", pady=(0, 5))

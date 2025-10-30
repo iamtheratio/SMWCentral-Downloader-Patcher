@@ -69,7 +69,13 @@ class ConfigManager:
             "output_dir": "",
             "api_delay": 0.8,
             "multi_type_enabled": True,
-            "multi_type_download_mode": "primary_only"
+            "multi_type_download_mode": "primary_only",
+            # QUSB2SNES settings
+            "qusb2snes_enabled": False,
+            "qusb2snes_host": "localhost",
+            "qusb2snes_port": 23074,
+            "qusb2snes_device": "",
+            "qusb2snes_remote_folder": "/ROMS"
         }
 
     def _clean_config(self, config):
@@ -79,7 +85,9 @@ class ConfigManager:
 
         # Only allow specific configuration keys
         allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path",
-                        "multi_type_enabled", "multi_type_download_mode"}
+                        "multi_type_enabled", "multi_type_download_mode",
+                        "qusb2snes_enabled", "qusb2snes_host", "qusb2snes_port",
+                        "qusb2snes_device", "qusb2snes_remote_folder"}
         cleaned = {}
 
         for key, value in config.items():
