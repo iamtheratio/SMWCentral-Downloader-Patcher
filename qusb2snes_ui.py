@@ -146,18 +146,23 @@ class QUSB2SNESSection:
         """Update UI component states"""
         enabled = self.enabled_var.get()
         
+        # Most widgets follow the enabled state
         state = "normal" if enabled else "disabled"
         
         widgets = [
-            self.connect_button, self.device_combo, self.sync_button
+            self.device_combo, self.sync_button
         ]
         
         for widget in widgets:
             if widget:
                 widget.configure(state=state)
         
-        # Update connect button text
+        # Connect button is always enabled when QUSB2SNES sync is enabled
         if self.connect_button:
+            connect_state = "normal" if enabled else "disabled"
+            self.connect_button.configure(state=connect_state)
+            
+            # Update connect button text based on connection status
             if self.connected:
                 self.connect_button.configure(text="Disconnect")
             else:
@@ -165,6 +170,10 @@ class QUSB2SNESSection:
     
     def _on_connect_clicked(self):
         """Handle connect/disconnect button click"""
+        # Disable connect button during connection process
+        if self.connect_button:
+            self.connect_button.configure(state="disabled", text="Connecting...")
+        
         if self.connected:
             self._disconnect()
         else:
@@ -192,9 +201,14 @@ class QUSB2SNESSection:
                     
                     # Update UI in main thread
                     self.parent.after(0, lambda: self._update_devices(devices))
+                else:
+                    # Connection failed - restore button state
+                    self.parent.after(0, lambda: self._update_ui_state())
                 
             except Exception as e:
                 self.parent.after(0, lambda: self._on_error(f"Connection failed: {str(e)}"))
+                # Restore button state on error
+                self.parent.after(0, lambda: self._update_ui_state())
             finally:
                 loop.close()
         
@@ -202,6 +216,10 @@ class QUSB2SNESSection:
     
     def _disconnect(self):
         """Disconnect from QUSB2SNES"""
+        # Update button immediately
+        if self.connect_button:
+            self.connect_button.configure(state="disabled", text="Disconnecting...")
+        
         def disconnect_thread():
             try:
                 loop = asyncio.new_event_loop()
@@ -211,6 +229,8 @@ class QUSB2SNESSection:
                 pass
             finally:
                 loop.close()
+                # Restore UI state in main thread
+                self.parent.after(0, lambda: self._update_ui_state())
         
         threading.Thread(target=disconnect_thread, daemon=True).start()
     
@@ -296,6 +316,7 @@ class QUSB2SNESSection:
         """Handle connection success"""
         self.connected = True
         self._update_ui_state()
+        self._on_progress("✅ Ready for device operations")
     
     def _on_disconnected(self):
         """Handle disconnection"""
@@ -303,4 +324,6 @@ class QUSB2SNESSection:
         self.devices = []
         if self.device_combo:
             self.device_combo['values'] = []
+            self.device_var.set("")
         self._update_ui_state()
+        self._on_progress("🔌 Disconnected from QUSB2SNES")
