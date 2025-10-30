@@ -49,6 +49,7 @@ class QUSB2SNESSection:
         # State
         self.connected = False
         self.devices = []
+        self.syncing = False
     
     def create(self, font):
         """Create the QUSB2SNES settings section"""
@@ -64,75 +65,67 @@ class QUSB2SNESSection:
         # Enable/Disable checkbox
         enable_cb = ttk.Checkbutton(
             self.frame, 
-            text="Enable QUSB2SNES Sync",
+            text="Enable",
             variable=self.enabled_var,
             command=self._on_enabled_changed
         )
         enable_cb.grid(row=0, column=0, columnspan=9, sticky="w", pady=(0, 15))
         
-        current_row = 1
+        # Row 1: Section Headers
+        ttk.Label(self.frame, text="Host:").grid(row=1, column=0, sticky="w", padx=(0, 5))
+        ttk.Label(self.frame, text="Port:").grid(row=1, column=1, sticky="w", padx=(0, 5))
+        ttk.Label(self.frame, text="Device:").grid(row=1, column=3, sticky="w", padx=(20, 5))
+        ttk.Label(self.frame, text="Sync To Folder:").grid(row=1, column=5, sticky="w", padx=(20, 5))
         
-        # Column 1: Connection Section (Host, Port, Connect)
-        ttk.Label(self.frame, text="Host:").grid(row=current_row, column=0, sticky="w", padx=(0, 5))
-        ttk.Label(self.frame, text="Port:").grid(row=current_row, column=1, sticky="w", padx=(0, 5))
+        # Row 2: Input Controls
+        # Column 1: Connection Section
+        self.host_entry = ttk.Entry(self.frame, textvariable=self.host_var, width=12)
+        self.host_entry.grid(row=2, column=0, sticky="ew", padx=(0, 5), pady=(0, 5))
+        self.host_entry.bind('<KeyRelease>', self._on_setting_changed)
         
-        # Column 2: Device Section (Device, Refresh)  
-        ttk.Label(self.frame, text="Device:").grid(row=current_row, column=3, sticky="w", padx=(20, 5))
+        self.port_entry = ttk.Entry(self.frame, textvariable=self.port_var, width=8)
+        self.port_entry.grid(row=2, column=1, sticky="ew", padx=(0, 15), pady=(0, 5))
+        self.port_entry.bind('<KeyRelease>', self._on_setting_changed)
         
-        # Column 3: Sync Section (Sync To Folder, Sync)
-        ttk.Label(self.frame, text="Sync To Folder:").grid(row=current_row, column=6, sticky="w", padx=(20, 5))
-        
-        current_row += 1
-        
-        # Column 1: Connection controls
-        host_entry = ttk.Entry(self.frame, textvariable=self.host_var, width=10)
-        host_entry.grid(row=current_row, column=0, sticky="ew", padx=(0, 5), pady=(0, 5))
-        host_entry.bind('<KeyRelease>', self._on_setting_changed)
-        
-        port_entry = ttk.Entry(self.frame, textvariable=self.port_var, width=6)
-        port_entry.grid(row=current_row, column=1, sticky="ew", padx=(0, 5), pady=(0, 5))
-        port_entry.bind('<KeyRelease>', self._on_setting_changed)
-        
-        current_row += 1
-        
-        self.connect_button = ttk.Button(
-            self.frame,
-            text="Connect",
-            command=self._on_connect_clicked,
-            width=10
-        )
-        self.connect_button.grid(row=current_row, column=0, columnspan=2, sticky="ew", padx=(0, 15), pady=(0, 5))
-        
-        # Column 2: Device controls
+        # Column 2: Device Section
         self.device_combo = ttk.Combobox(
             self.frame,
             textvariable=self.device_var,
             state="readonly",
-            width=15
+            width=20
         )
-        self.device_combo.grid(row=1, column=3, columnspan=2, sticky="ew", padx=(20, 5), pady=(0, 5))
+        self.device_combo.grid(row=2, column=3, sticky="ew", padx=(20, 15), pady=(0, 5))
         self.device_combo.bind('<<ComboboxSelected>>', self._on_device_changed)
         
-        refresh_button = ttk.Button(
+        # Column 3: Sync Section
+        self.folder_entry = ttk.Entry(self.frame, textvariable=self.remote_folder_var, width=15)
+        self.folder_entry.grid(row=2, column=5, sticky="ew", padx=(20, 5), pady=(0, 5))
+        self.folder_entry.bind('<KeyRelease>', self._on_setting_changed)
+        
+        # Row 3: Action Buttons
+        self.connect_button = ttk.Button(
+            self.frame,
+            text="Connect",
+            command=self._on_connect_clicked,
+            width=12
+        )
+        self.connect_button.grid(row=3, column=0, columnspan=2, sticky="ew", padx=(0, 15), pady=(5, 0))
+        
+        self.refresh_button = ttk.Button(
             self.frame,
             text="Refresh",
             command=self._on_refresh_clicked,
-            width=10
+            width=12
         )
-        refresh_button.grid(row=2, column=3, columnspan=2, sticky="ew", padx=(20, 15), pady=(0, 5))
-        
-        # Column 3: Sync controls
-        folder_entry = ttk.Entry(self.frame, textvariable=self.remote_folder_var, width=12)
-        folder_entry.grid(row=1, column=6, columnspan=2, sticky="ew", padx=(20, 5), pady=(0, 5))
-        folder_entry.bind('<KeyRelease>', self._on_setting_changed)
+        self.refresh_button.grid(row=3, column=3, sticky="ew", padx=(20, 15), pady=(5, 0))
         
         self.sync_button = ttk.Button(
             self.frame,
             text="Sync",
             command=self._on_sync_clicked,
-            width=10
+            width=12
         )
-        self.sync_button.grid(row=2, column=6, columnspan=2, sticky="ew", padx=(20, 0), pady=(0, 5))
+        self.sync_button.grid(row=3, column=5, sticky="ew", padx=(20, 5), pady=(5, 0))
         
         # Update UI state
         self._update_ui_state()
@@ -161,27 +154,45 @@ class QUSB2SNESSection:
         """Update UI component states"""
         enabled = self.enabled_var.get()
         
-        # Most widgets follow the enabled state
-        state = "normal" if enabled else "disabled"
-        
-        widgets = [
-            self.device_combo, self.sync_button
+        # Basic widgets that follow the enabled state
+        basic_widgets = [
+            self.host_entry,
+            self.port_entry, 
+            self.device_combo,
+            self.folder_entry
         ]
         
-        for widget in widgets:
+        basic_state = "normal" if enabled else "disabled"
+        for widget in basic_widgets:
             if widget:
-                widget.configure(state=state)
+                widget.configure(state=basic_state)
         
-        # Connect button is always enabled when QUSB2SNES sync is enabled
+        # Connect button logic
         if self.connect_button:
-            connect_state = "normal" if enabled else "disabled"
-            self.connect_button.configure(state=connect_state)
-            
-            # Update connect button text based on connection status
-            if self.connected:
-                self.connect_button.configure(text="Disconnect")
+            if not enabled:
+                self.connect_button.configure(state="disabled", text="Connect", style="TButton")
+            elif self.connected:
+                # Connected state - normal gray "Disconnect" button
+                self.connect_button.configure(state="normal", text="Disconnect", style="TButton")
             else:
-                self.connect_button.configure(text="Connect")
+                # Not connected - blue accent "Connect" button
+                self.connect_button.configure(state="normal", text="Connect", style="Accent.TButton")
+        
+        # Refresh button - only enabled when connected
+        if self.refresh_button:
+            refresh_state = "normal" if (enabled and self.connected) else "disabled"
+            self.refresh_button.configure(state=refresh_state)
+        
+        # Sync button - only enabled when connected and not syncing
+        if self.sync_button:
+            if not enabled or not self.connected:
+                self.sync_button.configure(state="disabled", text="Sync", style="TButton")
+            elif self.syncing:
+                # Currently syncing - gray "Syncing" button
+                self.sync_button.configure(state="disabled", text="Syncing", style="TButton")
+            else:
+                # Connected and ready - blue accent "Sync" button
+                self.sync_button.configure(state="normal", text="Sync", style="Accent.TButton")
     
     def _on_connect_clicked(self):
         """Handle connect/disconnect button click"""
@@ -259,16 +270,26 @@ class QUSB2SNESSection:
         
         self._on_progress("🔄 Refreshing device list...")
         
+        # Simply re-run the device discovery part of the connection process
         def refresh_thread():
             try:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 
-                # Get fresh device list
-                devices = loop.run_until_complete(self.sync_manager.get_devices())
+                # Create a fresh client for device discovery only
+                temp_client = self.sync_manager.sync_client.__class__(
+                    self.sync_manager.host, 
+                    self.sync_manager.port
+                )
                 
-                # Update UI in main thread
-                self.parent.after(0, lambda: self._update_devices(devices))
+                if loop.run_until_complete(temp_client.connect()):
+                    devices = loop.run_until_complete(temp_client.get_devices())
+                    loop.run_until_complete(temp_client.disconnect())
+                    
+                    # Update UI in main thread
+                    self.parent.after(0, lambda: self._update_devices(devices))
+                else:
+                    self.parent.after(0, lambda: self._on_error("Failed to connect for device refresh"))
                 
             except Exception as e:
                 self.parent.after(0, lambda: self._on_error(f"Refresh failed: {str(e)}"))
@@ -305,6 +326,10 @@ class QUSB2SNESSection:
         if not result:
             return
         
+        # Set syncing state and update UI
+        self.syncing = True
+        self._update_ui_state()
+        
         # Start sync in background thread
         def sync_thread():
             try:
@@ -319,6 +344,7 @@ class QUSB2SNESSection:
                 if success:
                     # Start sync
                     loop.run_until_complete(self.sync_manager.sync_roms(local_rom_dir))
+                    self.parent.after(0, lambda: self._on_progress("✅ Sync completed successfully"))
                 else:
                     self.parent.after(0, lambda: self._on_error("Failed to attach to device"))
                 
@@ -326,8 +352,15 @@ class QUSB2SNESSection:
                 self.parent.after(0, lambda: self._on_error(f"Sync failed: {str(e)}"))
             finally:
                 loop.close()
+                # Reset syncing state and update UI
+                self.parent.after(0, lambda: self._on_sync_complete())
         
         threading.Thread(target=sync_thread, daemon=True).start()
+    
+    def _on_sync_complete(self):
+        """Called when sync operation completes (success or failure)"""
+        self.syncing = False
+        self._update_ui_state()
     
     def _update_devices(self, devices):
         """Update device list in UI thread"""
