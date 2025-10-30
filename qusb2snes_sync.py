@@ -69,15 +69,21 @@ class QUSB2SNESSync:
             return False
     
     async def disconnect(self):
-        """Disconnect from QUSB2SNES"""
+        """Properly disconnect from QUSB2SNES with cleanup"""
         if self.websocket and self.connected:
             try:
-                await self.websocket.close()
+                # Send a proper close frame first
+                if not self.websocket.closed:
+                    await self.websocket.close(code=1000, reason="Normal closure")
+                
+                # Wait a moment for cleanup
+                await asyncio.sleep(0.1)
                 self.log_progress("✅ Disconnected from QUSB2SNES")
-            except:
-                pass
+            except Exception as e:
+                self.log_error(f"⚠️ Disconnect warning: {str(e)}")
         
         self.connected = False
+        self.websocket = None
         self.websocket = None
     
     async def get_devices(self) -> List[str]:
@@ -112,8 +118,11 @@ class QUSB2SNESSync:
             return False
     
     async def list_directory(self, path: str) -> List[Dict]:
-        """List remote directory contents"""
+        """List remote directory contents with conservative timing"""
         try:
+            # Add small delay before directory listing
+            await asyncio.sleep(0.1)
+            
             response = await self._send_command("List", operands=[path])
             if not response or "Results" not in response:
                 return []
@@ -132,6 +141,8 @@ class QUSB2SNESSync:
                             "is_dir": item_type == "0"
                         })
             
+            # Add delay after directory listing
+            await asyncio.sleep(0.2)
             return items
             
         except Exception as e:
@@ -142,14 +153,14 @@ class QUSB2SNESSync:
         """Create remote directory"""
         try:
             await self._send_command("MakeDir", operands=[path])
-            await asyncio.sleep(0.5)
+            await asyncio.sleep(1.0)  # Increased delay for directory operations
             return True
         except Exception as e:
             self.log_error(f"❌ Failed to create directory {path}: {str(e)}")
             return False
     
     async def upload_file(self, local_path: str, remote_path: str) -> bool:
-        """Upload file to remote location"""
+        """Upload file to remote location using official protocol pattern"""
         try:
             if not os.path.exists(local_path):
                 self.log_error(f"❌ Local file not found: {local_path}")
@@ -167,13 +178,29 @@ class QUSB2SNESSync:
                 self.log_error(f"❌ PutFile command failed for {remote_path}")
                 return False
             
-            await asyncio.sleep(0.2)
+            # Small delay before sending file data
+            await asyncio.sleep(0.1)
             
-            # Send file data
+            # Send file data in chunks like the official client
             with open(local_path, "rb") as f:
                 data = f.read()
-                await self.websocket.send(data)
+                
+                if file_size <= 1024:
+                    # Send small files in one go
+                    await self.websocket.send(data)
+                else:
+                    # Send large files in 1024-byte chunks
+                    bytes_sent = 0
+                    while bytes_sent < file_size:
+                        chunk = data[bytes_sent:bytes_sent + 1024]
+                        await self.websocket.send(chunk)
+                        bytes_sent += len(chunk)
+                        
+                        # Small delay between chunks to prevent overwhelming
+                        if bytes_sent < file_size:
+                            await asyncio.sleep(0.05)
             
+            # Wait for operation to complete
             await asyncio.sleep(0.5)
             self.log_progress(f"✅ Uploaded {os.path.basename(local_path)}")
             return True
@@ -181,6 +208,23 @@ class QUSB2SNESSync:
         except Exception as e:
             self.log_error(f"❌ Upload failed for {local_path}: {str(e)}")
             return False
+    
+    def should_upload_file(self, local_path: str, last_sync_timestamp: float = 0) -> bool:
+        """
+        Determine if a file should be uploaded based on modification time vs last sync.
+        Upload files that have been modified since the last successful sync.
+        """
+        try:
+            local_mtime = os.path.getmtime(local_path)
+            
+            # Upload if file was modified after last sync
+            if local_mtime > last_sync_timestamp:
+                return True
+                
+            return False
+        except Exception:
+            # If we can't get file time, err on the side of caution and upload
+            return True
     
     def is_safe_remote_path(self, path: str) -> bool:
         """Check if remote path is safe for operations"""
@@ -197,8 +241,8 @@ class QUSB2SNESSync:
         
         return True
     
-    async def sync_directory(self, local_dir: str, remote_dir: str) -> bool:
-        """Simple directory sync implementation"""
+    async def sync_directory(self, local_dir: str, remote_dir: str, last_sync_timestamp: float = 0) -> bool:
+        """Directory sync with smart file comparison based on last sync timestamp"""
         try:
             # Safety check
             if not self.is_safe_remote_path(remote_dir):
@@ -234,37 +278,70 @@ class QUSB2SNESSync:
                 local_path = os.path.join(local_dir, item)
                 
                 if os.path.isfile(local_path):
-                    if item not in remote_names:
+                    # Smart upload decision: upload if file doesn't exist OR if modified since last sync
+                    should_upload = item not in remote_names or self.should_upload_file(local_path, last_sync_timestamp)
+                    
+                    if should_upload:
                         remote_path = f"{remote_dir.rstrip('/')}/{item}"
+                        if item in remote_names:
+                            self.log_progress(f"🔄 Overwriting existing file (modified since last sync): {item}")
                         if await self.upload_file(local_path, remote_path):
                             uploaded += 1
+                    else:
+                        self.log_progress(f"⏭️ Skipping existing file: {item}")
                 elif os.path.isdir(local_path):
-                    # Simple subdirectory sync
+                    # Simple subdirectory sync - be very careful with directory operations
                     sub_remote_dir = f"{remote_dir.rstrip('/')}/{item}"
                     
-                    # Check if subdirectory exists, create only if needed
-                    try:
-                        await self.list_directory(sub_remote_dir)
-                        self.log_progress(f"📁 Subdirectory exists: {sub_remote_dir}")
-                    except Exception:
-                        # Subdirectory doesn't exist, create it
-                        self.log_progress(f"📁 Creating subdirectory: {sub_remote_dir}")
+                    # Check if subdirectory is already in remote_names (from parent listing)
+                    if item not in remote_names:
+                        # Only create if we know it doesn't exist
+                        self.log_progress(f"📁 Creating new subdirectory: {sub_remote_dir}")
                         await self.create_directory(sub_remote_dir)
+                    else:
+                        self.log_progress(f"📁 Using existing subdirectory: {sub_remote_dir}")
                     
-                    # Sync files in subdirectory
+                    # Add delay before processing subdirectory files
+                    await asyncio.sleep(0.2)
+                    
+                    # Get existing files in the remote subdirectory
+                    try:
+                        sub_remote_items = await self.list_directory(sub_remote_dir)
+                        sub_remote_names = {item["name"] for item in sub_remote_items}
+                        self.log_progress(f"📁 Subdirectory {sub_remote_dir} has {len(sub_remote_items)} existing files")
+                    except Exception:
+                        # If we can't list the subdirectory, assume it's empty
+                        sub_remote_names = set()
+                    
+                    # Sync files in subdirectory using smart timestamp comparison
                     for sub_item in os.listdir(local_path):
                         sub_local_path = os.path.join(local_path, sub_item)
                         if os.path.isfile(sub_local_path):
-                            sub_remote_path = f"{sub_remote_dir}/{sub_item}"
-                            if await self.upload_file(sub_local_path, sub_remote_path):
-                                uploaded += 1
+                            # Smart upload decision: upload if file doesn't exist OR if modified since last sync
+                            should_upload = sub_item not in sub_remote_names or self.should_upload_file(sub_local_path, last_sync_timestamp)
+                            
+                            if should_upload:
+                                sub_remote_path = f"{sub_remote_dir}/{sub_item}"
+                                if sub_item in sub_remote_names:
+                                    self.log_progress(f"🔄 Overwriting existing file (modified since last sync): {sub_item}")
+                                # Add delay before file upload
+                                await asyncio.sleep(0.3)
+                                if await self.upload_file(sub_local_path, sub_remote_path):
+                                    uploaded += 1
+                            else:
+                                self.log_progress(f"⏭️ Skipping existing file: {sub_item}")
+                
+                # Small delay between operations to prevent overwhelming the connection
+                await asyncio.sleep(0.1)
             
             self.log_progress(f"✅ Sync completed - {uploaded} files uploaded")
-            return True
+            
+            # Return both success status and upload count for timestamp saving
+            return {"success": True, "uploaded": uploaded}
             
         except Exception as e:
             self.log_error(f"❌ Sync failed: {str(e)}")
-            return False
+            return {"success": False, "uploaded": 0}
     
     async def _send_command(self, opcode: str, space: str = "SNES", operands: List[str] = None) -> Optional[Dict]:
         """Send command to QUSB2SNES with connection health checking"""
@@ -384,9 +461,16 @@ class QUSB2SNESSyncManager:
         return await self.sync_client.sync_directory(local_rom_dir, self.remote_folder)
     
     async def disconnect(self):
-        """Disconnect from QUSB2SNES"""
+        """Disconnect from QUSB2SNES with robust cleanup"""
         if self.sync_client:
-            await self.sync_client.disconnect()
-            self.sync_client = None
-            if self.on_disconnected:
-                self.on_disconnected()
+            try:
+                await self.sync_client.disconnect()
+            except Exception as e:
+                # Ignore disconnect errors from different event loops
+                if "different loop" not in str(e):
+                    if self.on_error:
+                        self.on_error(f"⚠️ Disconnect warning: {str(e)}")
+            finally:
+                self.sync_client = None
+                if self.on_disconnected:
+                    self.on_disconnected()

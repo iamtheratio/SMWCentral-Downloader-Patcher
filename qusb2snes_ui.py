@@ -238,7 +238,7 @@ class QUSB2SNESSection:
                 # Restore button state on error
                 self.parent.after(0, lambda: self._update_ui_state())
             finally:
-                loop.close()
+                self._cleanup_event_loop(loop)
         
         threading.Thread(target=connect_thread, daemon=True).start()
     
@@ -256,7 +256,7 @@ class QUSB2SNESSection:
             except:
                 pass
             finally:
-                loop.close()
+                self._cleanup_event_loop(loop)
                 # Restore UI state in main thread
                 self.parent.after(0, lambda: self._update_ui_state())
         
@@ -294,7 +294,7 @@ class QUSB2SNESSection:
             except Exception as e:
                 self.parent.after(0, lambda: self._on_error(f"Refresh failed: {str(e)}"))
             finally:
-                loop.close()
+                self._cleanup_event_loop(loop)
         
         threading.Thread(target=refresh_thread, daemon=True).start()
     
@@ -401,12 +401,23 @@ Do you want to proceed with the sync?"""
                 if loop.run_until_complete(sync_client.connect()):
                     # Attach to selected device
                     if loop.run_until_complete(sync_client.attach_device(self.device_var.get())):
-                        # Start sync
-                        success = loop.run_until_complete(
-                            sync_client.sync_directory(local_rom_dir, self.remote_folder_var.get())
+                        # Get last sync timestamp from config
+                        last_sync_timestamp = self.config.get("qusb2snes_last_sync", 0)
+                        
+                        # Start sync with timestamp comparison
+                        result = loop.run_until_complete(
+                            sync_client.sync_directory(local_rom_dir, self.remote_folder_var.get(), last_sync_timestamp)
                         )
-                        if success:
-                            self.parent.after(0, lambda: self._on_progress("✅ Sync completed successfully"))
+                        
+                        if result.get("success", False):
+                            # Save current timestamp for next sync
+                            import time
+                            current_timestamp = time.time()
+                            self.config.set("qusb2snes_last_sync", current_timestamp)
+                            self.config.save()
+                            
+                            uploaded_count = result.get("uploaded", 0)
+                            self.parent.after(0, lambda: self._on_progress(f"✅ Sync completed successfully - {uploaded_count} files uploaded"))
                         else:
                             self.parent.after(0, lambda: self._on_error("Sync operation failed"))
                     else:
@@ -420,7 +431,8 @@ Do you want to proceed with the sync?"""
             except Exception as e:
                 self.parent.after(0, lambda: self._on_error(f"Sync failed: {str(e)}"))
             finally:
-                loop.close()
+                # Properly close event loop with cleanup
+                self._cleanup_event_loop(loop)
                 # Reset syncing state and update UI
                 self.parent.after(0, lambda: self._on_sync_complete())
         
@@ -455,6 +467,23 @@ Do you want to proceed with the sync?"""
                 # No devices found
                 self.device_var.set("")
                 self._on_progress("No devices found. Make sure your SD2SNES/FX Pak Pro is connected.")
+    
+    def _cleanup_event_loop(self, loop):
+        """Properly cleanup asyncio event loop to prevent warnings"""
+        try:
+            # Cancel all pending tasks
+            pending = asyncio.all_tasks(loop)
+            for task in pending:
+                task.cancel()
+            
+            # Wait for cancelled tasks to finish
+            if pending:
+                loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+                
+        except Exception:
+            pass  # Ignore cleanup errors
+        finally:
+            loop.close()
     
     def _on_progress(self, message):
         """Handle progress messages"""

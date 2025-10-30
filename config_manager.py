@@ -75,7 +75,8 @@ class ConfigManager:
             "qusb2snes_host": "localhost",
             "qusb2snes_port": 23074,
             "qusb2snes_device": "",
-            "qusb2snes_remote_folder": "/ROMS"
+            "qusb2snes_remote_folder": "/ROMS",
+            "qusb2snes_last_sync": 0  # Unix timestamp of last successful sync
         }
 
     def _clean_config(self, config):
@@ -87,7 +88,7 @@ class ConfigManager:
         allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path",
                         "multi_type_enabled", "multi_type_download_mode",
                         "qusb2snes_enabled", "qusb2snes_host", "qusb2snes_port",
-                        "qusb2snes_device", "qusb2snes_remote_folder"}
+                        "qusb2snes_device", "qusb2snes_remote_folder", "qusb2snes_last_sync"}
         cleaned = {}
 
         for key, value in config.items():
