@@ -1,13 +1,13 @@
 {
-  "base_rom_path": "C:/Users/georg/Desktop/App Testing/clean.smc",
-  "output_dir": "C:/Users/georg/Desktop/App Testing/Romhacks",
+  "base_rom_path": "test_rom.smc",
+  "output_dir": "test_output",
   "api_delay": 0.8,
-  "multi_type_download_mode": "primary_only",
   "multi_type_enabled": true,
   "qusb2snes_enabled": true,
   "qusb2snes_host": "localhost",
   "qusb2snes_port": 8080,
-  "qusb2snes_device": "SD2SNES COM3",
+  "qusb2snes_device": "UPDATED_DEVICE",
+  "multi_type_download_mode": "primary_only",
   "qusb2snes_remote_folder": "/ROMS",
-  "qusb2snes_last_sync": 1761928593.0608535
+  "qusb2snes_last_sync": 0
 }
