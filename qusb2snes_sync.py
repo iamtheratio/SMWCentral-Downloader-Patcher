@@ -44,6 +44,143 @@ class QUSB2SNESSync:
         if self.on_error:
             self.on_error(message)
     
+    def normalize_remote_path(self, path: str) -> str:
+        """Normalize path for SD2SNES (forward slashes, no double slashes)"""
+        # Convert backslashes to forward slashes
+        normalized = path.replace("\\", "/")
+        
+        # Remove double slashes
+        while "//" in normalized:
+            normalized = normalized.replace("//", "/")
+        
+        # Ensure it starts with / if it's not empty
+        if normalized and not normalized.startswith("/"):
+            normalized = "/" + normalized
+        
+        return normalized
+    
+    def find_directory_case_insensitive(self, target_name: str, available_names: List[str]) -> Optional[str]:
+        """Find directory name using case-insensitive matching"""
+        target_lower = target_name.lower()
+        for name in available_names:
+            if name.lower() == target_lower:
+                return name
+        return None
+    
+    async def sync_directory_tree_based(self, local_dir: str, remote_sync_folder: str) -> bool:
+        """
+        Tree-based sync approach that builds knowledge incrementally.
+        This prevents connection drops by never guessing if directories exist.
+        """
+        try:
+            self.log_progress(f"🌳 Starting tree-based sync: {local_dir} -> {remote_sync_folder}")
+            
+            # Step 1: Always start by listing root - we know this exists
+            root_items = await self.list_directory("/")
+            root_names = [item["name"] for item in root_items]
+            self.log_progress(f"📁 Root directory contains: {root_names}")
+            
+            # Step 2: Check if sync folder exists (case-insensitive)
+            sync_folder_name = remote_sync_folder.strip("/")
+            actual_sync_folder = self.find_directory_case_insensitive(sync_folder_name, root_names)
+            
+            if actual_sync_folder:
+                # Sync folder exists - use it
+                actual_remote_path = self.normalize_remote_path(f"/{actual_sync_folder}")
+                self.log_progress(f"✅ Using existing sync folder: {actual_remote_path}")
+            else:
+                # Sync folder doesn't exist - create it
+                normalized_path = self.normalize_remote_path(remote_sync_folder)
+                self.log_progress(f"📁 Creating sync folder: {normalized_path}")
+                
+                if await self.create_directory(normalized_path):
+                    actual_remote_path = normalized_path
+                    self.log_progress(f"✅ Created sync folder: {actual_remote_path}")
+                else:
+                    self.log_error(f"❌ Failed to create sync folder: {normalized_path}")
+                    return False
+            
+            # Step 3: Recursively sync using tree approach
+            result = await self.sync_local_to_remote_tree(local_dir, actual_remote_path)
+            
+            if result["success"]:
+                self.log_progress(f"✅ Tree-based sync completed: {result['uploaded']} files uploaded")
+                return True
+            else:
+                self.log_error(f"❌ Tree-based sync failed: {result.get('error', 'Unknown error')}")
+                return False
+                
+        except Exception as e:
+            self.log_error(f"❌ Tree-based sync failed: {str(e)}")
+            return False
+    
+    async def sync_local_to_remote_tree(self, local_dir: str, remote_dir: str) -> Dict:
+        """
+        Recursively sync local directory to remote using tree-based approach.
+        """
+        result = {"success": False, "uploaded": 0, "error": None}
+        
+        try:
+            # List remote directory to see what exists
+            remote_items = await self.list_directory(remote_dir)
+            remote_names = {item["name"] for item in remote_items}
+            remote_dirs = {item["name"] for item in remote_items if item.get("is_dir", False)}
+            
+            self.log_progress(f"📁 Remote {remote_dir} contains {len(remote_items)} items")
+            
+            # Process local directory contents
+            for item_name in os.listdir(local_dir):
+                local_path = os.path.join(local_dir, item_name)
+                remote_path = self.normalize_remote_path(f"{remote_dir}/{item_name}")
+                
+                if os.path.isfile(local_path):
+                    # Handle file
+                    should_upload = item_name not in remote_names or self.should_upload_file(local_path)
+                    
+                    if should_upload:
+                        if await self.upload_file(local_path, remote_path):
+                            result["uploaded"] += 1
+                            self.log_progress(f"📤 Uploaded: {item_name}")
+                        else:
+                            result["error"] = f"Failed to upload {item_name}"
+                            return result
+                    else:
+                        self.log_progress(f"⏭️ Skipped (up to date): {item_name}")
+                
+                elif os.path.isdir(local_path):
+                    # Handle directory - use case-insensitive matching
+                    actual_remote_dir = self.find_directory_case_insensitive(item_name, list(remote_dirs))
+                    
+                    if actual_remote_dir:
+                        # Directory exists - sync into it
+                        actual_remote_path = self.normalize_remote_path(f"{remote_dir}/{actual_remote_dir}")
+                        self.log_progress(f"📁 Syncing into existing directory: {actual_remote_path}")
+                    else:
+                        # Directory doesn't exist - create it first
+                        self.log_progress(f"📁 Creating directory: {remote_path}")
+                        if await self.create_directory(remote_path):
+                            actual_remote_path = remote_path
+                            # Update our knowledge - add to remote_dirs for subsequent operations
+                            remote_dirs.add(item_name)
+                        else:
+                            result["error"] = f"Failed to create directory {remote_path}"
+                            return result
+                    
+                    # Recursively sync subdirectory
+                    subdir_result = await self.sync_local_to_remote_tree(local_path, actual_remote_path)
+                    if subdir_result["success"]:
+                        result["uploaded"] += subdir_result["uploaded"]
+                    else:
+                        result["error"] = f"Failed to sync subdirectory {item_name}: {subdir_result.get('error')}"
+                        return result
+            
+            result["success"] = True
+            return result
+            
+        except Exception as e:
+            result["error"] = str(e)
+            return result
+    
     async def connect(self) -> bool:
         """Connect to QUSB2SNES server"""
         try:
@@ -590,13 +727,14 @@ class QUSB2SNESSyncManager:
         return []
     
     async def sync_roms(self, local_rom_dir: str) -> bool:
-        """Sync ROM directory"""
+        """Sync ROM directory using tree-based approach"""
         if not self.sync_client:
             if self.on_error:
                 self.on_error("❌ Not connected to QUSB2SNES")
             return False
         
-        return await self.sync_client.sync_directory(local_rom_dir, self.remote_folder)
+        # Use the new tree-based sync approach
+        return await self.sync_client.sync_directory_tree_based(local_rom_dir, self.remote_folder)
     
     async def disconnect(self):
         """Disconnect from QUSB2SNES with robust cleanup"""
