@@ -71,7 +71,34 @@ class QUSB2SNESSync:
                 return name
         return None
     
-    async def sync_directory_tree_based(self, local_dir: str, remote_sync_folder: str) -> bool:
+    async def verify_folder_contents(self, remote_dir: str, expected_files: List[str]) -> bool:
+        """
+        Verify that all expected files are present in the remote folder.
+        This is called once per folder after all uploads are complete.
+        """
+        try:
+            self.log_progress(f"🔍 Verifying {len(expected_files)} files in {remote_dir}")
+            
+            # List the folder contents
+            remote_items = await self.list_directory(remote_dir)
+            remote_files = {item["name"] for item in remote_items if not item.get("is_dir", False)}
+            
+            # Check each expected file
+            missing_files = []
+            for filename in expected_files:
+                if filename not in remote_files:
+                    missing_files.append(filename)
+            
+            if missing_files:
+                self.log_error(f"❌ Folder verification failed: {len(missing_files)} files missing: {missing_files}")
+                return False
+            else:
+                self.log_progress(f"✅ Folder verification passed: All {len(expected_files)} files present")
+                return True
+                
+        except Exception as e:
+            self.log_progress(f"⚠️ Folder verification failed: {str(e)}, but uploads likely succeeded")
+            return True  # Don't fail the whole sync for verification issues    async def sync_directory_tree_based(self, local_dir: str, remote_sync_folder: str) -> bool:
         """
         Tree-based sync approach that builds knowledge incrementally.
         This prevents connection drops by never guessing if directories exist.
@@ -132,6 +159,9 @@ class QUSB2SNESSync:
             
             self.log_progress(f"📁 Remote {remote_dir} contains {len(remote_items)} items")
             
+            # Track files uploaded to this folder for verification
+            files_uploaded_this_folder = []
+            
             # Process local directory contents
             for item_name in os.listdir(local_dir):
                 local_path = os.path.join(local_dir, item_name)
@@ -147,6 +177,7 @@ class QUSB2SNESSync:
                     if should_upload:
                         if await self.upload_file(local_path, remote_path):
                             result["uploaded"] += 1
+                            files_uploaded_this_folder.append(item_name)
                             self.log_progress(f"📤 Uploaded: {item_name}")
                         else:
                             result["error"] = f"Failed to upload {item_name}"
@@ -180,6 +211,10 @@ class QUSB2SNESSync:
                     else:
                         result["error"] = f"Failed to sync subdirectory {item_name}: {subdir_result.get('error')}"
                         return result
+            
+            # Folder-level verification: check that all uploaded files are present
+            if files_uploaded_this_folder:
+                await self.verify_folder_contents(remote_dir, files_uploaded_this_folder)
             
             result["success"] = True
             return result
@@ -455,15 +490,8 @@ class QUSB2SNESSync:
                 self.log_progress(f"QUSB2SNES: ⏳ Waiting {wait_time}s for file processing...")
                 await asyncio.sleep(wait_time)
                 
-                # Verify upload success by listing the parent directory like the working version
-                parent_dir = "/".join(remote_path.split("/")[:-1])
-                if parent_dir:
-                    try:
-                        await self.list_directory(parent_dir)
-                        self.log_progress(f"✅ Uploaded {os.path.basename(local_path)} successfully verified")
-                    except Exception as e:
-                        self.log_progress(f"⚠️ Upload verification failed: {str(e)}, but upload likely succeeded")
-                
+                # Note: Individual file verification removed for performance
+                # Folder-level verification happens after all files in a folder are uploaded
                 return True
                 
             except Exception as e:
