@@ -50,6 +50,10 @@ class QUSB2SNESSection:
         self.connected = False
         self.devices = []
         self.syncing = False
+        
+        # Add cancellation support
+        self.sync_cancelled = False
+        self.current_sync_loop = None
     
     def create(self, font):
         """Create the QUSB2SNES settings section"""
@@ -272,6 +276,19 @@ class QUSB2SNESSection:
         if self.connect_button:
             self.connect_button.configure(state="disabled", text="Disconnecting...")
         
+        # Cancel any ongoing sync
+        if self.syncing:
+            self.sync_cancelled = True
+            self._on_progress("⚠️ Cancelling ongoing sync...")
+            # Stop the sync loop if it's running
+            if self.current_sync_loop and not self.current_sync_loop.is_closed():
+                try:
+                    # Cancel all running tasks in the sync loop
+                    for task in asyncio.all_tasks(self.current_sync_loop):
+                        task.cancel()
+                except Exception:
+                    pass  # Best effort cancellation
+        
         def disconnect_thread():
             try:
                 loop = asyncio.new_event_loop()
@@ -281,10 +298,23 @@ class QUSB2SNESSection:
                 pass
             finally:
                 self._cleanup_event_loop(loop)
-                # Restore UI state in main thread
-                self.parent.after(0, lambda: self._update_ui_state())
+                # Reset all state and restore UI in main thread
+                self.parent.after(0, lambda: self._reset_connection_state())
         
         threading.Thread(target=disconnect_thread, daemon=True).start()
+    
+    def _reset_connection_state(self):
+        """Reset all connection and sync state"""
+        self.connected = False
+        self.syncing = False
+        self.sync_cancelled = False
+        self.current_sync_loop = None
+        self.devices = []
+        if self.device_combo:
+            self.device_combo['values'] = []
+            self.device_var.set("")
+        self._update_ui_state()
+        self._on_progress("🔌 Disconnected from QUSB2SNES")
     
     def _on_refresh_clicked(self):
         """Refresh device list"""
@@ -403,7 +433,8 @@ Do you want to proceed with the optimized sync?"""
         # Confirm sync operation
         result = messagebox.askyesno(
             "Confirm ROM Sync Operation",
-            sync_info
+            sync_info,
+            parent=self.parent.winfo_toplevel()
         )
         
         if not result:
@@ -418,6 +449,12 @@ Do you want to proceed with the optimized sync?"""
             try:
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
+                self.current_sync_loop = loop  # Store reference for cancellation
+                
+                # Check for cancellation before starting
+                if self.sync_cancelled:
+                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
+                    return
                 
                 # Create a completely fresh sync manager for this operation
                 # to avoid cross-loop task reference issues
@@ -425,6 +462,19 @@ Do you want to proceed with the optimized sync?"""
                 fresh_sync_manager = QUSB2SNESSyncManager()
                 fresh_sync_manager.on_progress = self._on_progress
                 fresh_sync_manager.on_error = self._on_error
+                
+                # Set up cancellation callback so disconnect can cancel sync
+                def check_cancellation():
+                    if self.sync_cancelled and fresh_sync_manager.sync_client:
+                        fresh_sync_manager.sync_client.cancel_operation()
+                
+                # Check cancellation periodically during sync
+                def periodic_cancellation_check():
+                    check_cancellation()
+                    if not self.sync_cancelled:
+                        loop.call_later(0.5, periodic_cancellation_check)  # Check every 500ms
+                
+                periodic_cancellation_check()  # Start checking
                 
                 # Configure with current settings
                 fresh_sync_manager.configure(
@@ -434,9 +484,39 @@ Do you want to proceed with the optimized sync?"""
                     self.remote_folder_var.get()
                 )
                 
+                # Check for cancellation before connecting
+                if self.sync_cancelled:
+                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
+                    return
+                
                 # Connect and perform sync
                 if loop.run_until_complete(fresh_sync_manager.connect_and_attach()):
-                    result = loop.run_until_complete(fresh_sync_manager.sync_roms(local_rom_dir))
+                    # Check for cancellation before sync
+                    if self.sync_cancelled:
+                        self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
+                        loop.run_until_complete(fresh_sync_manager.disconnect())
+                        return
+                    
+                    # Get last sync timestamp from config
+                    last_sync_timestamp = self.config.get("qusb2snes_last_sync", 0)
+                    
+                    # Handle null/empty values for first-time sync
+                    if last_sync_timestamp is None or last_sync_timestamp == "" or last_sync_timestamp == 0:
+                        last_sync_timestamp = 0  # First sync - upload all files
+                        self.parent.after(0, lambda: self._on_progress("📅 First sync - uploading all ROM files"))
+                    else:
+                        last_sync_timestamp = float(last_sync_timestamp)
+                        import time
+                        time_since_last = time.time() - last_sync_timestamp
+                        self.parent.after(0, lambda msg=f"📅 Incremental sync - only uploading files newer than {time_since_last/3600:.1f} hours ago": self._on_progress(msg))
+                    
+                    result = loop.run_until_complete(fresh_sync_manager.sync_roms(local_rom_dir, last_sync_timestamp))
+                    
+                    # Check if operation was cancelled during sync
+                    if self.sync_cancelled:
+                        self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
+                        loop.run_until_complete(fresh_sync_manager.disconnect())
+                        return
                     
                     if result:
                         # Save current timestamp for next sync
@@ -455,7 +535,12 @@ Do you want to proceed with the optimized sync?"""
                     self.parent.after(0, lambda: self._on_error("❌ Failed to connect for sync operation"))
                 
             except Exception as e:
-                self.parent.after(0, lambda: self._on_error(f"Sync failed: {str(e)}"))
+                # Capture exception message to avoid closure issues
+                error_message = str(e)
+                if self.sync_cancelled:
+                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
+                else:
+                    self.parent.after(0, lambda msg=error_message: self._on_error(f"Sync failed: {msg}"))
             finally:
                 # Properly close event loop with cleanup
                 self._cleanup_event_loop(loop)
@@ -467,6 +552,8 @@ Do you want to proceed with the optimized sync?"""
     def _on_sync_complete(self):
         """Called when sync operation completes (success or failure)"""
         self.syncing = False
+        self.sync_cancelled = False
+        self.current_sync_loop = None
         self._update_ui_state()
     
     def _update_devices(self, devices):

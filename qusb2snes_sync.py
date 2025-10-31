@@ -33,6 +33,9 @@ class QUSB2SNESSync:
         # Simple callbacks
         self.on_progress: Optional[Callable[[str], None]] = None
         self.on_error: Optional[Callable[[str], None]] = None
+        
+        # Cancellation support
+        self.cancelled = False
     
     def log_progress(self, message: str):
         """Simple progress logging"""
@@ -43,6 +46,11 @@ class QUSB2SNESSync:
         """Simple error logging"""
         if self.on_error:
             self.on_error(message)
+    
+    def cancel_operation(self):
+        """Cancel the current sync operation"""
+        self.cancelled = True
+        self.log_progress("⚠️ Cancelling sync operation...")
     
     def is_rom_file(self, filename: str) -> bool:
         """Check if file is a ROM file that should be synced"""
@@ -98,7 +106,9 @@ class QUSB2SNESSync:
                 
         except Exception as e:
             self.log_progress(f"⚠️ Folder verification failed: {str(e)}, but uploads likely succeeded")
-            return True  # Don't fail the whole sync for verification issues    async def sync_directory_tree_based(self, local_dir: str, remote_sync_folder: str) -> bool:
+            return True  # Don't fail the whole sync for verification issues
+
+    async def sync_directory_tree_based(self, local_dir: str, remote_sync_folder: str, last_sync_timestamp: float = 0) -> bool:
         """
         Tree-based sync approach that builds knowledge incrementally.
         This prevents connection drops by never guessing if directories exist.
@@ -132,7 +142,7 @@ class QUSB2SNESSync:
                     return False
             
             # Step 3: Recursively sync using tree approach
-            result = await self.sync_local_to_remote_tree(local_dir, actual_remote_path)
+            result = await self.sync_local_to_remote_tree(local_dir, actual_remote_path, last_sync_timestamp)
             
             if result["success"]:
                 self.log_progress(f"✅ Tree-based sync completed: {result['uploaded']} files uploaded")
@@ -145,7 +155,7 @@ class QUSB2SNESSync:
             self.log_error(f"❌ Tree-based sync failed: {str(e)}")
             return False
     
-    async def sync_local_to_remote_tree(self, local_dir: str, remote_dir: str) -> Dict:
+    async def sync_local_to_remote_tree(self, local_dir: str, remote_dir: str, last_sync_timestamp: float = 0) -> Dict:
         """
         Recursively sync local directory to remote using tree-based approach.
         """
@@ -164,6 +174,11 @@ class QUSB2SNESSync:
             
             # Process local directory contents
             for item_name in os.listdir(local_dir):
+                # Check for cancellation
+                if self.cancelled:
+                    result["error"] = "Operation cancelled by user"
+                    return result
+                
                 local_path = os.path.join(local_dir, item_name)
                 remote_path = self.normalize_remote_path(f"{remote_dir}/{item_name}")
                 
@@ -172,7 +187,7 @@ class QUSB2SNESSync:
                     if not self.is_rom_file(item_name):
                         continue  # Skip non-ROM files
                     
-                    should_upload = item_name not in remote_names or self.should_upload_file(local_path)
+                    should_upload = item_name not in remote_names or self.should_upload_file(local_path, last_sync_timestamp)
                     
                     if should_upload:
                         if await self.upload_file(local_path, remote_path):
@@ -186,6 +201,10 @@ class QUSB2SNESSync:
                         self.log_progress(f"⏭️ Skipped (up to date): {item_name}")
                 
                 elif os.path.isdir(local_path):
+                    # Check for cancellation before processing subdirectories
+                    if self.cancelled:
+                        result["error"] = "Operation cancelled by user"
+                        return result
                     # Handle directory - use case-insensitive matching
                     actual_remote_dir = self.find_directory_case_insensitive(item_name, list(remote_dirs))
                     
@@ -205,7 +224,7 @@ class QUSB2SNESSync:
                             return result
                     
                     # Recursively sync subdirectory
-                    subdir_result = await self.sync_local_to_remote_tree(local_path, actual_remote_path)
+                    subdir_result = await self.sync_local_to_remote_tree(local_path, actual_remote_path, last_sync_timestamp)
                     if subdir_result["success"]:
                         result["uploaded"] += subdir_result["uploaded"]
                     else:
@@ -810,16 +829,16 @@ class QUSB2SNESSyncManager:
         
         return []
     
-    async def sync_roms(self, local_rom_dir: str) -> bool:
+    async def sync_roms(self, local_rom_dir: str, last_sync_timestamp: float = 0) -> bool:
         """Sync ROM directory using tree-based approach"""
         if not self.sync_client:
             if self.on_error:
                 self.on_error("❌ Not connected to QUSB2SNES")
             return False
-        
-        # Use the new tree-based sync approach
-        return await self.sync_client.sync_directory_tree_based(local_rom_dir, self.remote_folder)
-    
+
+        # Use the new tree-based sync approach with timestamp
+        return await self.sync_client.sync_directory_tree_based(local_rom_dir, self.remote_folder, last_sync_timestamp)
+
     async def disconnect(self):
         """Disconnect from QUSB2SNES with robust cleanup"""
         if self.sync_client:
