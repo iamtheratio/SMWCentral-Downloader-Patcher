@@ -9,7 +9,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['PIL'],
+    excludes=['PIL', 'websockets.speedups'],  # Exclude native speedups that cause universal2 issues
     noarchive=False,
     optimize=0,
 )
