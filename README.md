@@ -112,7 +112,10 @@ Transfer your ROM hack collection directly to your SD2SNES/FXPAK Pro cart with o
    - Find the **QUSB2SNES Sync** section
    - Check **"Enable"** to activate the feature
    - Set **Host** to `localhost` (usually default)
-   - Set **Port** to `8080` (legacy default) or `23074` (newer versions)
+   - **Configure Port**:
+     - **Port 8080**: Default for newer QUSB2SNES versions (recommended)
+     - **Port 23074**: Use for legacy QUSB2SNES installations
+     - **Check your QUSB2SNES**: Look for "WebSocket server on port XXXX" message when starting
    - Choose your **Device** from the dropdown
    - Set **Sync To Folder** to where you want ROMs stored (default: `/ROMS`)
 
@@ -133,7 +136,11 @@ Transfer your ROM hack collection directly to your SD2SNES/FXPAK Pro cart with o
 - **"Connection failed"**: Make sure QUSB2SNES software is running
 - **"Device in use"**: Close other apps using your SD2SNES (like RetroAchievements)
 - **"Sync timeout"**: Large files take time - the app retries automatically
-- **Wrong port**: Try port 23074 if 8080 doesn't work (depends on QUSB2SNES version)
+- **Port Issues**: 
+  - **Default port 8080**: Works with newer QUSB2SNES versions (recommended)
+  - **Legacy port 23074**: Use this if you have an older QUSB2SNES installation
+  - **How to check**: In QUSB2SNES software, look for "WebSocket server on port XXXX"
+  - **Changing ports**: Update the port in Settings → QUSB2SNES Sync section
 
 ### App Settings
 - **Download location**: Change where ROMs are saved
