@@ -214,10 +214,11 @@ class SettingsPage:
         
         try:
             from qusb2snes_ui import QUSB2SNESSection
-            from config_manager import ConfigManager
             
-            config = ConfigManager()
-            self.qusb2snes_section = QUSB2SNESSection(qusb2snes_frame, config, self.logger)
+            # Use the shared config from setup_section instead of creating a new one
+            # This ensures all sections see the same data and saves don't overwrite
+            shared_config = self.setup_section.config
+            self.qusb2snes_section = QUSB2SNESSection(qusb2snes_frame, shared_config, self.logger)
             qusb2snes_content = self.qusb2snes_section.create(None)
             qusb2snes_content.pack(fill="x")
             
@@ -287,8 +288,8 @@ class SettingsPage:
     def _load_multi_type_settings(self):
         """Load multi-type settings from config"""
         try:
-            from config_manager import ConfigManager
-            config = ConfigManager()
+            # Use shared config instead of creating new instance
+            config = self.setup_section.config
             
             # Load settings with defaults
             enabled = config.get("multi_type_enabled", True)
@@ -306,8 +307,8 @@ class SettingsPage:
     def _save_multi_type_settings(self, *args):
         """Save multi-type settings to config"""
         try:
-            from config_manager import ConfigManager
-            config = ConfigManager()
+            # Use shared config instead of creating new instance
+            config = self.setup_section.config
             
             enabled = self.multi_type_enabled_var.get()
             mode = self.download_mode_var.get()
@@ -381,8 +382,8 @@ class SettingsPage:
     def _save_auto_check_setting(self):
         """Save auto-check updates setting"""
         try:
-            from config_manager import ConfigManager
-            config = ConfigManager()
+            # Use shared config instead of creating new instance
+            config = self.setup_section.config
             
             auto_check = self.auto_check_updates_var.get()
             config.set("auto_check_updates", auto_check)
@@ -393,10 +394,10 @@ class SettingsPage:
     def _load_auto_check_setting(self):
         """Load auto-check updates setting"""
         try:
-            from config_manager import ConfigManager
-            config = ConfigManager()
+            # Use shared config instead of creating new instance
+            config = self.setup_section.config
             
-            auto_check = config.get("auto_check_updates", True)  # Default to True
+            auto_check = config.get("auto_check_updates", False)
             self.auto_check_updates_var.set(auto_check)
             
         except Exception as e:
