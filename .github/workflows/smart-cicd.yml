@@ -62,7 +62,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y python3-tk python3-dev xvfb
     - name: Install system dependencies (macOS)
-      if: matrix.os == 'macos-13'
+      if: matrix.os == 'macos-latest'
       run: |
         brew install tcl-tk
     - name: Install Python dependencies
@@ -172,7 +172,7 @@ jobs:
         echo "ARTIFACT_NAME=$packageDir" >> $env:GITHUB_OUTPUT
       id: windows_package
     - name: Create macOS package
-      if: matrix.os == 'macos-13' && github.event_name != 'pull_request'
+      if: matrix.os == 'macos-latest' && github.event_name != 'pull_request'
       run: |
         VERSION="${{ steps.get_version.outputs.VERSION }}"
         DMG_NAME="SMWC-Downloader-$VERSION-macOS-Universal.dmg"
@@ -324,7 +324,7 @@ jobs:
         path: ${{ steps.windows_package.outputs.ARTIFACT_NAME }}
         retention-days: 30
     - name: Upload macOS artifact
-      if: github.event_name != 'pull_request' && matrix.os == 'macos-13'
+      if: github.event_name != 'pull_request' && matrix.os == 'macos-latest'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.macos_package.outputs.ARTIFACT_NAME }}

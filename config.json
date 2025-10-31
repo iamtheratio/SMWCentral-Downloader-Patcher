@@ -6,7 +6,7 @@
   "multi_type_enabled": true,
   "qusb2snes_enabled": true,
   "qusb2snes_host": "localhost",
-  "qusb2snes_port": 23074,
+  "qusb2snes_port": 8080,
   "qusb2snes_device": "SD2SNES COM3",
   "qusb2snes_remote_folder": "/ROMS",
   "qusb2snes_last_sync": 1761928593.0608535
