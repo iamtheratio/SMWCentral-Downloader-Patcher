@@ -5,7 +5,7 @@
   "multi_type_enabled": true,
   "qusb2snes_enabled": true,
   "qusb2snes_host": "localhost",
-  "qusb2snes_port": 8080,
+  "qusb2snes_port": 23074,
   "qusb2snes_device": "UPDATED_DEVICE",
   "multi_type_download_mode": "primary_only",
   "qusb2snes_remote_folder": "/ROMS",

@@ -62,7 +62,7 @@ class QUSB2SNESSection:
         # Initialize variables
         self.enabled_var = tk.BooleanVar(value=self.config.get("qusb2snes_enabled", False))
         self.host_var = tk.StringVar(value=self.config.get("qusb2snes_host", "localhost"))
-        self.port_var = tk.IntVar(value=self.config.get("qusb2snes_port", 8080))  # Legacy default port
+        self.port_var = tk.IntVar(value=self.config.get("qusb2snes_port", 23074))  # Modern default port
         self.device_var = tk.StringVar(value=self.config.get("qusb2snes_device", ""))
         self.remote_folder_var = tk.StringVar(value=self.config.get("qusb2snes_remote_folder", "/ROMS"))
         
