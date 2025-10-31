@@ -44,6 +44,10 @@ class QUSB2SNESSync:
         if self.on_error:
             self.on_error(message)
     
+    def is_rom_file(self, filename: str) -> bool:
+        """Check if file is a ROM file that should be synced"""
+        return filename.lower().endswith(('.smc', '.sfc'))
+    
     def normalize_remote_path(self, path: str) -> str:
         """Normalize path for SD2SNES (forward slashes, no double slashes)"""
         # Convert backslashes to forward slashes
@@ -134,7 +138,10 @@ class QUSB2SNESSync:
                 remote_path = self.normalize_remote_path(f"{remote_dir}/{item_name}")
                 
                 if os.path.isfile(local_path):
-                    # Handle file
+                    # Handle file - only process ROM files
+                    if not self.is_rom_file(item_name):
+                        continue  # Skip non-ROM files
+                    
                     should_upload = item_name not in remote_names or self.should_upload_file(local_path)
                     
                     if should_upload:
@@ -235,32 +242,37 @@ class QUSB2SNESSync:
             return []
     
     async def attach_device(self, device_name: str) -> bool:
-        """Attach to specific device with improved verification"""
+        """Attach to specific device with proper timing"""
         try:
             self.log_progress(f"📱 Attaching to device: {device_name}")
             
             # Send attach command
             await self._send_command("Attach", operands=[device_name])
             
-            # Give the device time to attach (longer wait)
+            # SD2SNES needs more time to be ready after attach
+            self.log_progress("⏳ Waiting for device to be ready...")
             await asyncio.sleep(5.0)
             
-            # Try a simple verification - if it fails, we'll proceed anyway
-            # since some devices work for file operations even if Info fails
+            # Try a simple Info command to verify attachment
+            # Info is less likely to cause issues than List operations
             try:
-                info_response = await self._send_command("Info")
-                if info_response and info_response.get("Results"):
-                    device_info = info_response["Results"]
-                    if len(device_info) > 0:
-                        self.log_progress("✅ Device attached and verified successfully")
-                        return True
+                info_response = await self._send_command("Info", timeout=10.0)
+                if info_response is not None:
+                    self.log_progress("✅ Device attached and verified successfully")
+                    return True
+                else:
+                    # Info failed, but device might still work for file operations
+                    self.log_progress("⚠️ Device verification inconclusive, proceeding optimistically")
+                    self.log_progress("   (Some SD2SNES devices don't respond to Info but work fine)")
+                    return True
+            except asyncio.TimeoutError:
+                self.log_progress("⚠️ Device verification timeout, proceeding optimistically")
+                self.log_progress("   (Some SD2SNES devices are slow to respond but work fine)")
+                return True
             except Exception as e:
                 self.log_progress(f"⚠️ Device verification failed: {str(e)}")
-            
-            # Even if verification failed, proceed optimistically
-            # Many SD2SNES devices work for file operations even if Info command fails
-            self.log_progress("⚠️ Device verification inconclusive, proceeding with sync (some devices don't respond to Info)")
-            return True
+                self.log_progress("   Proceeding optimistically - many devices work despite verification issues")
+                return True
             
         except Exception as e:
             self.log_error(f"❌ Device attachment failed: {str(e)}")
@@ -401,8 +413,17 @@ class QUSB2SNESSync:
                 # Log completion like the working version
                 self.log_progress(f"QUSB2SNES: 📤 Sent {bytes_sent} bytes in {total_chunks} chunks to {remote_path}")
                 
-                # Wait for file processing with explicit logging
-                wait_time = min(3.5, max(1.0, file_size / (1024*1024)))  # 1-3.5s based on file size
+                # Wait for file processing with optimized timing
+                # Most SNES ROMs are 1-4MB and can be processed much faster
+                if file_size <= 1024*1024:  # Files <= 1MB
+                    wait_time = 0.3  # Very fast for small files
+                elif file_size <= 4*1024*1024:  # Files <= 4MB (most ROMs)
+                    wait_time = 0.5  # Fast for typical ROM sizes
+                elif file_size <= 8*1024*1024:  # Files <= 8MB (large ROMs)
+                    wait_time = 1.0  # Moderate for large ROMs
+                else:  # Files > 8MB (very rare for SNES)
+                    wait_time = 1.5  # Conservative for huge files
+                
                 self.log_progress(f"QUSB2SNES: ⏳ Waiting {wait_time}s for file processing...")
                 await asyncio.sleep(wait_time)
                 
@@ -611,14 +632,14 @@ class QUSB2SNESSync:
             self.log_error(f"❌ Failed to sync subdirectory {sub_remote_dir}: {str(e)}")
             return uploaded
     
-    async def _send_command(self, opcode: str, space: str = "SNES", operands: List[str] = None) -> Optional[Dict]:
+    async def _send_command(self, opcode: str, space: str = "SNES", operands: List[str] = None, timeout: float = None) -> Optional[Dict]:
         """Send command to QUSB2SNES with proper logging and response handling"""
         if not self.connected or not self.websocket:
             raise Exception("Not connected to QUSB2SNES")
         
         # Check if websocket is still open
         if self.websocket.closed:
-            self.log_error("❌ WebSocket connection closed, cannot send command")
+            self.log_error("❌ WebSocket connection closed - device may be in use by another application")
             self.connected = False
             return None
         
@@ -639,8 +660,10 @@ class QUSB2SNESSync:
                 self.log_progress(f"QUSB2SNES: Sending command: {opcode} with operands: {operands}")
                 await self.websocket.send(json.dumps(command))
                 
-                # Wait for response with longer timeout for List operations
-                timeout = 15.0 if opcode == "List" else 10.0
+                # Use provided timeout or default based on command type
+                if timeout is None:
+                    timeout = 15.0 if opcode == "List" else 10.0
+                
                 try:
                     response = await asyncio.wait_for(self.websocket.recv(), timeout=timeout)
                     result = json.loads(response)
@@ -648,13 +671,18 @@ class QUSB2SNESSync:
                     return result
                 except asyncio.TimeoutError:
                     self.log_error(f"❌ Command {opcode} timeout after {timeout}s")
+                    if opcode in ["Info", "List", "DeviceList"]:
+                        self.log_error("💡 This usually means the device is being used by another application")
+                        self.log_error("💡 Close RetroAchievements, QFile2Snes, or other USB2SNES applications")
                     return None
                 
         except Exception as e:
-            # If websocket error, mark as disconnected
-            if "1000" in str(e) or "websocket" in str(e).lower():
+            # If websocket error, mark as disconnected and provide helpful message
+            if "1000" in str(e) or "websocket" in str(e).lower() or "closed" in str(e).lower():
                 self.connected = False
                 self.websocket = None
+                self.log_error(f"❌ Connection lost: {str(e)}")
+                self.log_error("💡 Device may be in use by another application (RetroAchievements, QFile2Snes, etc.)")
             raise e
 
 
