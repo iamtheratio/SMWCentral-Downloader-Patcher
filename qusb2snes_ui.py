@@ -66,54 +66,52 @@ class QUSB2SNESSection:
         self.device_var = tk.StringVar(value=self.config.get("qusb2snes_device", ""))
         self.remote_folder_var = tk.StringVar(value=self.config.get("qusb2snes_remote_folder", "/roms"))
         
-        # Enable/Disable checkbox
+        # Row 0: Enable checkbox and labels
         enable_cb = ttk.Checkbutton(
             self.frame, 
             text="Enable",
             variable=self.enabled_var,
             command=self._on_enabled_changed
         )
-        enable_cb.grid(row=0, column=0, columnspan=9, sticky="w", pady=(0, 15))
+        enable_cb.grid(row=0, column=0, sticky="nw", padx=(0, 20), pady=(5, 2))
         
-        # Row 1: Section Headers
-        ttk.Label(self.frame, text="Host:").grid(row=1, column=0, sticky="w", padx=(0, 5))
-        ttk.Label(self.frame, text="Port:").grid(row=1, column=1, sticky="w", padx=(0, 5))
-        ttk.Label(self.frame, text="Device:").grid(row=1, column=3, sticky="w", padx=(20, 5))
-        ttk.Label(self.frame, text="Sync To Folder:").grid(row=1, column=5, sticky="w", padx=(20, 5))
+        # Labels above their respective controls (matching Photoshop mockup)
+        ttk.Label(self.frame, text="Host:").grid(row=0, column=1, sticky="w", padx=(0, 5), pady=(5, 2))
+        ttk.Label(self.frame, text="Port:").grid(row=0, column=2, sticky="w", padx=(5, 5), pady=(5, 2))
+        ttk.Label(self.frame, text="Device:").grid(row=0, column=3, sticky="w", padx=(5, 5), pady=(5, 2))
+        ttk.Label(self.frame, text="Sync To Folder:").grid(row=0, column=4, sticky="w", padx=(5, 5), pady=(5, 2))
         
-        # Row 2: Input Controls
-        # Column 1: Connection Section
-        self.host_entry = ttk.Entry(self.frame, textvariable=self.host_var, width=12)
-        self.host_entry.grid(row=2, column=0, sticky="ew", padx=(0, 5), pady=(0, 5))
+        # Row 1: Input Controls (under their labels)
+        self.host_entry = ttk.Entry(self.frame, textvariable=self.host_var, width=10)
+        self.host_entry.grid(row=1, column=1, sticky="ew", padx=(0, 5), pady=(0, 5))
         self.host_entry.bind('<KeyRelease>', self._on_setting_changed)
         
-        self.port_entry = ttk.Entry(self.frame, textvariable=self.port_var, width=8)
-        self.port_entry.grid(row=2, column=1, sticky="ew", padx=(0, 15), pady=(0, 5))
+        self.port_entry = ttk.Entry(self.frame, textvariable=self.port_var, width=6)
+        self.port_entry.grid(row=1, column=2, sticky="ew", padx=(5, 5), pady=(0, 5))
         self.port_entry.bind('<KeyRelease>', self._on_setting_changed)
         
-        # Column 2: Device Section
         self.device_combo = ttk.Combobox(
             self.frame,
             textvariable=self.device_var,
             state="readonly",
-            width=20
+            width=15
         )
-        self.device_combo.grid(row=2, column=3, sticky="ew", padx=(20, 15), pady=(0, 5))
+        self.device_combo.grid(row=1, column=3, sticky="ew", padx=(5, 5), pady=(0, 5))
         self.device_combo.bind('<<ComboboxSelected>>', self._on_device_changed)
         
-        # Column 3: Sync Section
-        self.folder_entry = ttk.Entry(self.frame, textvariable=self.remote_folder_var, width=15)
-        self.folder_entry.grid(row=2, column=5, sticky="ew", padx=(20, 5), pady=(0, 5))
+        # Much wider Sync To Folder field to match mockup
+        self.folder_entry = ttk.Entry(self.frame, textvariable=self.remote_folder_var, width=35)
+        self.folder_entry.grid(row=1, column=4, columnspan=2, sticky="ew", padx=(5, 5), pady=(0, 5))
         self.folder_entry.bind('<KeyRelease>', self._on_setting_changed)
         
-        # Row 3: Action Buttons
+        # Row 2: Action Buttons with consistent fixed width and left alignment
         self.connect_button = ttk.Button(
             self.frame,
             text="Connect",
             command=self._on_connect_clicked,
             width=12
         )
-        self.connect_button.grid(row=3, column=0, columnspan=2, sticky="ew", padx=(0, 15), pady=(5, 0))
+        self.connect_button.grid(row=2, column=1, columnspan=2, sticky="w", padx=(0, 5), pady=(10, 5))
         
         self.refresh_button = ttk.Button(
             self.frame,
@@ -121,7 +119,7 @@ class QUSB2SNESSection:
             command=self._on_refresh_clicked,
             width=12
         )
-        self.refresh_button.grid(row=3, column=3, sticky="ew", padx=(20, 15), pady=(5, 0))
+        self.refresh_button.grid(row=2, column=3, sticky="w", padx=(5, 5), pady=(10, 5))
         
         self.sync_button = ttk.Button(
             self.frame,
@@ -129,7 +127,7 @@ class QUSB2SNESSection:
             command=self._on_sync_clicked,
             width=12
         )
-        self.sync_button.grid(row=3, column=5, sticky="ew", padx=(20, 5), pady=(5, 0))
+        self.sync_button.grid(row=2, column=4, columnspan=2, sticky="w", padx=(5, 5), pady=(10, 5))
         
         # Update UI state
         self._update_ui_state()
