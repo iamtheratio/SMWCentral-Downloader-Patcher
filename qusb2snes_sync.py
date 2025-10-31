@@ -242,41 +242,69 @@ class QUSB2SNESSync:
             return []
     
     async def attach_device(self, device_name: str) -> bool:
-        """Attach to specific device with proper timing"""
+        """Attach to specific device with conflict detection"""
         try:
             self.log_progress(f"📱 Attaching to device: {device_name}")
             
             # Send attach command
             await self._send_command("Attach", operands=[device_name])
             
-            # SD2SNES needs more time to be ready after attach
+            # SD2SNES needs time to be ready after attach
             self.log_progress("⏳ Waiting for device to be ready...")
             await asyncio.sleep(5.0)
             
-            # Try a simple Info command to verify attachment
-            # Info is less likely to cause issues than List operations
+            # Try Info command to test device responsiveness
             try:
-                info_response = await self._send_command("Info", timeout=10.0)
+                info_response = await self._send_command("Info", timeout=8.0)
                 if info_response is not None:
                     self.log_progress("✅ Device attached and verified successfully")
                     return True
                 else:
-                    # Info failed, but device might still work for file operations
-                    self.log_progress("⚠️ Device verification inconclusive, proceeding optimistically")
-                    self.log_progress("   (Some SD2SNES devices don't respond to Info but work fine)")
-                    return True
+                    # Info failed - check if it's a device conflict
+                    return await self._handle_device_conflict(device_name)
             except asyncio.TimeoutError:
-                self.log_progress("⚠️ Device verification timeout, proceeding optimistically")
-                self.log_progress("   (Some SD2SNES devices are slow to respond but work fine)")
-                return True
+                # Timeout on Info usually means device conflict
+                return await self._handle_device_conflict(device_name)
             except Exception as e:
-                self.log_progress(f"⚠️ Device verification failed: {str(e)}")
-                self.log_progress("   Proceeding optimistically - many devices work despite verification issues")
-                return True
+                self.log_error(f"❌ Device verification failed: {str(e)}")
+                return await self._handle_device_conflict(device_name)
             
         except Exception as e:
             self.log_error(f"❌ Device attachment failed: {str(e)}")
             return False
+    
+    async def _handle_device_conflict(self, device_name: str) -> bool:
+        """Handle potential device conflicts with detailed diagnostics"""
+        self.log_error("❌ Device attachment failed - likely in use by another application")
+        self.log_error("")
+        self.log_error("🔍 DEVICE CONFLICT DIAGNOSTICS:")
+        self.log_error("   • The SD2SNES device is not responding to commands")
+        self.log_error("   • This usually means another application is using it")
+        self.log_error("")
+        self.log_error("💡 SOLUTION STEPS:")
+        self.log_error("   1. Close ALL other USB2SNES applications:")
+        self.log_error("      - RetroAchievements (RA2Snes)")
+        self.log_error("      - QFile2Snes")
+        self.log_error("      - Button Mash")
+        self.log_error("      - Savestate2Snes")
+        self.log_error("   2. Check Task Manager for any of these processes")
+        self.log_error("   3. Restart QUSB2SNES if necessary")
+        self.log_error("   4. Only ONE application can use the device at a time")
+        self.log_error("")
+        
+        # Try to get a fresh device list to see if device is still available
+        try:
+            devices = await self.get_devices()
+            if device_name in devices:
+                self.log_error(f"🔄 Device '{device_name}' is still listed but unresponsive")
+                self.log_error("   This confirms another application is likely using it")
+            else:
+                self.log_error(f"❌ Device '{device_name}' is no longer available")
+                self.log_error("   Device may have disconnected or been taken by another app")
+        except:
+            self.log_error("❌ Cannot check device status")
+        
+        return False
     
     async def list_directory(self, path: str) -> List[Dict]:
         """List remote directory contents with SD2SNES-safe delays"""
