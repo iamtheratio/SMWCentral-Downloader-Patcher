@@ -208,9 +208,9 @@ class SettingsPage:
         # Load auto-check setting
         self._load_auto_check_setting()
 
-        # QUSB2SNES Sync Section
+        # QUSB2SNES Sync Section - further reduced spacing from top sections
         qusb2snes_frame = ttk.Frame(self.frame)
-        qusb2snes_frame.pack(fill="x", pady=(20, 20))
+        qusb2snes_frame.pack(fill="x", pady=(5, 20))
         
         try:
             from qusb2snes_ui import QUSB2SNESSection

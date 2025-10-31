@@ -73,45 +73,45 @@ class QUSB2SNESSection:
             variable=self.enabled_var,
             command=self._on_enabled_changed
         )
-        enable_cb.grid(row=0, column=0, sticky="nw", padx=(0, 20), pady=(5, 2))
+        enable_cb.grid(row=0, column=0, sticky="nw", padx=(0, 30), pady=(5, 2))
         
-        # Labels above their respective controls (matching Photoshop mockup)
+        # Labels above their respective controls with increased spacing between groups
         ttk.Label(self.frame, text="Host:").grid(row=0, column=1, sticky="w", padx=(0, 5), pady=(5, 2))
-        ttk.Label(self.frame, text="Port:").grid(row=0, column=2, sticky="w", padx=(5, 5), pady=(5, 2))
-        ttk.Label(self.frame, text="Device:").grid(row=0, column=3, sticky="w", padx=(5, 5), pady=(5, 2))
-        ttk.Label(self.frame, text="Sync To Folder:").grid(row=0, column=4, sticky="w", padx=(5, 5), pady=(5, 2))
+        ttk.Label(self.frame, text="Port:").grid(row=0, column=2, sticky="w", padx=(5, 30), pady=(5, 2))  # Extra space after Port
+        ttk.Label(self.frame, text="Device:").grid(row=0, column=3, sticky="w", padx=(0, 30), pady=(5, 2))  # Extra space after Device
+        ttk.Label(self.frame, text="Sync To Folder:").grid(row=0, column=4, sticky="w", padx=(0, 5), pady=(5, 2))
         
-        # Row 1: Input Controls (under their labels)
-        self.host_entry = ttk.Entry(self.frame, textvariable=self.host_var, width=10)
+        # Row 1: Input Controls (under their labels) with wider fields
+        self.host_entry = ttk.Entry(self.frame, textvariable=self.host_var, width=15)  # Increased from 10
         self.host_entry.grid(row=1, column=1, sticky="ew", padx=(0, 5), pady=(0, 5))
         self.host_entry.bind('<KeyRelease>', self._on_setting_changed)
         
         self.port_entry = ttk.Entry(self.frame, textvariable=self.port_var, width=6)
-        self.port_entry.grid(row=1, column=2, sticky="ew", padx=(5, 5), pady=(0, 5))
+        self.port_entry.grid(row=1, column=2, sticky="ew", padx=(5, 30), pady=(0, 5))  # Extra space after Port
         self.port_entry.bind('<KeyRelease>', self._on_setting_changed)
         
         self.device_combo = ttk.Combobox(
             self.frame,
             textvariable=self.device_var,
             state="readonly",
-            width=15
+            width=20  # Increased from 15
         )
-        self.device_combo.grid(row=1, column=3, sticky="ew", padx=(5, 5), pady=(0, 5))
+        self.device_combo.grid(row=1, column=3, sticky="ew", padx=(0, 30), pady=(0, 5))  # Extra space after Device
         self.device_combo.bind('<<ComboboxSelected>>', self._on_device_changed)
         
         # Much wider Sync To Folder field to match mockup
         self.folder_entry = ttk.Entry(self.frame, textvariable=self.remote_folder_var, width=35)
-        self.folder_entry.grid(row=1, column=4, columnspan=2, sticky="ew", padx=(5, 5), pady=(0, 5))
+        self.folder_entry.grid(row=1, column=4, columnspan=2, sticky="ew", padx=(0, 5), pady=(0, 5))
         self.folder_entry.bind('<KeyRelease>', self._on_setting_changed)
         
-        # Row 2: Action Buttons with consistent fixed width and left alignment
+        # Row 2: Action Buttons with consistent fixed width, left alignment, and increased spacing
         self.connect_button = ttk.Button(
             self.frame,
             text="Connect",
             command=self._on_connect_clicked,
             width=12
         )
-        self.connect_button.grid(row=2, column=1, columnspan=2, sticky="w", padx=(0, 5), pady=(10, 5))
+        self.connect_button.grid(row=2, column=1, columnspan=2, sticky="w", padx=(0, 30), pady=(10, 5))  # Extra space after Connect
         
         self.refresh_button = ttk.Button(
             self.frame,
@@ -119,7 +119,7 @@ class QUSB2SNESSection:
             command=self._on_refresh_clicked,
             width=12
         )
-        self.refresh_button.grid(row=2, column=3, sticky="w", padx=(5, 5), pady=(10, 5))
+        self.refresh_button.grid(row=2, column=3, sticky="w", padx=(0, 30), pady=(10, 5))  # Extra space after Refresh
         
         self.sync_button = ttk.Button(
             self.frame,
@@ -127,7 +127,7 @@ class QUSB2SNESSection:
             command=self._on_sync_clicked,
             width=12
         )
-        self.sync_button.grid(row=2, column=4, columnspan=2, sticky="w", padx=(5, 5), pady=(10, 5))
+        self.sync_button.grid(row=2, column=4, columnspan=2, sticky="w", padx=(0, 5), pady=(10, 5))
         
         # Update UI state
         self._update_ui_state()
