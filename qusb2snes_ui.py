@@ -478,7 +478,21 @@ class QUSB2SNESSection:
                     self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
                     return
                 
+                # CRITICAL FIX: Properly release UI connection to prevent device conflicts
+                ui_was_connected = self.connected
+                if ui_was_connected:
+                    self.parent.after(0, lambda: self._on_progress("🔄 Releasing UI connection for sync..."))
+                    try:
+                        # Properly disconnect UI to free the device
+                        loop.run_until_complete(self.sync_manager.disconnect())
+                        self.connected = False
+                        self.parent.after(0, lambda: self._on_progress("✅ UI connection released"))
+                    except Exception as disconnect_error:
+                        # Silently handle disconnect - the sync will proceed regardless
+                        self.connected = False
+                
                 # Connect and perform sync
+                self.parent.after(0, lambda: self._on_progress("🔗 Creating dedicated sync connection..."))
                 if loop.run_until_complete(fresh_sync_manager.connect_and_attach()):
                     # Check for cancellation before sync
                     if self.sync_cancelled:
@@ -561,11 +575,13 @@ class QUSB2SNESSection:
                         
                         self.parent.after(0, lambda msg=error_msg: self._on_error(f"❌ Sync failed: {msg} (Progress saved for resume)"))
                     
-                    # Clean disconnect
+                    # Clean disconnect of sync connection
                     try:
+                        self.parent.after(0, lambda: self._on_progress("🔌 Disconnecting sync connection..."))
                         loop.run_until_complete(fresh_sync_manager.disconnect())
-                    except:
-                        pass  # Ignore disconnect errors
+                    except Exception as disconnect_error:
+                        error_msg = str(disconnect_error)
+                        self.parent.after(0, lambda msg=error_msg: self._on_progress(f"⚠️ Sync disconnect warning: {msg}"))
                 else:
                     self.parent.after(0, lambda: self._on_error("❌ Failed to connect for sync operation"))
                 
@@ -577,6 +593,26 @@ class QUSB2SNESSection:
                 else:
                     self.parent.after(0, lambda msg=error_message: self._on_error(f"Sync failed: {msg}"))
             finally:
+                # CRITICAL FIX: Restore UI connection if it was connected before
+                if ui_was_connected and not self.connected:
+                    try:
+                        self.parent.after(0, lambda: self._on_progress("🔄 Restoring UI connection..."))
+                        # Reconnect the UI sync manager
+                        if loop.run_until_complete(self.sync_manager.connect_and_attach()):
+                            self.connected = True
+                            self.parent.after(0, lambda: self._on_progress("✅ UI connection restored"))
+                        else:
+                            self.parent.after(0, lambda: self._on_progress("⚠️ Could not restore UI connection"))
+                    except Exception as reconnect_error:
+                        error_msg = str(reconnect_error)
+                        self.parent.after(0, lambda msg=error_msg: self._on_progress(f"⚠️ UI reconnect failed: {msg}"))
+                
+                # Ensure fresh_sync_manager is always disconnected
+                try:
+                    loop.run_until_complete(fresh_sync_manager.disconnect())
+                except:
+                    pass  # Ignore disconnect errors
+                
                 # Properly close event loop with cleanup
                 self._cleanup_event_loop(loop)
                 # Reset syncing state and update UI

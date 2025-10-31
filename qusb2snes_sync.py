@@ -303,7 +303,10 @@ class QUSB2SNESSync:
         if self.websocket and self.connected:
             try:
                 # Send a proper close frame first
-                if not self.websocket.closed:
+                if hasattr(self.websocket, 'closed') and not self.websocket.closed:
+                    await self.websocket.close(code=1000, reason="Normal closure")
+                elif not hasattr(self.websocket, 'closed'):
+                    # For newer websockets versions, just close
                     await self.websocket.close(code=1000, reason="Normal closure")
                 
                 # Wait a moment for cleanup
@@ -396,7 +399,8 @@ class QUSB2SNESSync:
         """List remote directory contents with SD2SNES-safe delays and retry logic"""
         try:
             # Add delay before directory listing (SD2SNES requirement)
-            await asyncio.sleep(0.2)
+            # Increased delay to prevent firmware overload after large uploads
+            await asyncio.sleep(1.0)
             
             response = await self._send_command_with_retry("List", operands=[path], max_retries=2)
             if not response or "Results" not in response:
@@ -417,7 +421,8 @@ class QUSB2SNESSync:
                         })
             
             # Add delay after directory listing (SD2SNES requirement)
-            await asyncio.sleep(0.3)
+            # Increased delay to prevent firmware overload after large uploads
+            await asyncio.sleep(1.0)
             return items
             
         except Exception as e:
@@ -428,7 +433,11 @@ class QUSB2SNESSync:
     
     async def _ensure_connection(self) -> bool:
         """Ensure we have a working connection, reconnect if needed"""
-        if self.connected and self.websocket and not self.websocket.closed:
+        # Check if we have a websocket and it's not closed
+        websocket_open = (self.websocket and 
+                         (not hasattr(self.websocket, 'closed') or not self.websocket.closed))
+        
+        if self.connected and websocket_open:
             return True
         
         self.log_progress("🔄 Reconnecting to QUSB2SNES...")
@@ -528,15 +537,15 @@ class QUSB2SNESSync:
                 self.log_progress(f"QUSB2SNES: 📤 Sent {bytes_sent} bytes in {total_chunks} chunks to {remote_path}")
                 
                 # Wait for file processing with optimized timing
-                # Most SNES ROMs are 1-4MB and can be processed much faster
+                # Increased delays to prevent SD2SNES firmware overload
                 if file_size <= 1024*1024:  # Files <= 1MB
-                    wait_time = 0.3  # Very fast for small files
+                    wait_time = 1.0  # Increased from 0.3s for small files
                 elif file_size <= 4*1024*1024:  # Files <= 4MB (most ROMs)
-                    wait_time = 0.5  # Fast for typical ROM sizes
+                    wait_time = 2.0  # Increased from 0.5s for typical ROM sizes
                 elif file_size <= 8*1024*1024:  # Files <= 8MB (large ROMs)
-                    wait_time = 1.0  # Moderate for large ROMs
+                    wait_time = 3.0  # Increased from 1.0s for large ROMs
                 else:  # Files > 8MB (very rare for SNES)
-                    wait_time = 1.5  # Conservative for huge files
+                    wait_time = 4.0  # Increased from 1.5s for huge files
                 
                 self.log_progress(f"QUSB2SNES: ⏳ Waiting {wait_time}s for file processing...")
                 await asyncio.sleep(wait_time)
@@ -995,7 +1004,7 @@ class QUSB2SNESSync:
             raise Exception("Not connected to QUSB2SNES")
         
         # Check if websocket is still open
-        if self.websocket.closed:
+        if hasattr(self.websocket, 'closed') and self.websocket.closed:
             self.log_error("❌ WebSocket connection closed - device may be in use by another application")
             self.connected = False
             return None
@@ -1055,6 +1064,9 @@ class QUSB2SNESSyncManager:
         self.device = ""
         self.remote_folder = "/ROMS"
         
+        # Cancellation support
+        self.cancelled = False
+        
         # Simple callbacks
         self.on_progress: Optional[Callable[[str], None]] = None
         self.on_error: Optional[Callable[[str], None]] = None
@@ -1070,6 +1082,12 @@ class QUSB2SNESSyncManager:
         """Log error message"""
         if self.on_error:
             self.on_error(message)
+    
+    def cancel_operation(self):
+        """Cancel the current sync operation"""
+        self.cancelled = True
+        if self.sync_client:
+            self.sync_client.cancel_operation()
     
     def configure(self, host: str, port: int, device: str, remote_folder: str):
         """Configure sync settings"""
@@ -1093,32 +1111,23 @@ class QUSB2SNESSyncManager:
                             self.on_connected()
                         return True
                     else:
-                        # Device attachment failed, but connection succeeded
-                        return True
+                        self.log_error("❌ Failed to attach to device")
+                        return False
                 else:
-                    # No device specified, just return successful connection
                     if self.on_connected:
                         self.on_connected()
                     return True
-            
-            return False
-            
+            else:
+                self.log_error("❌ Failed to connect to QUSB2SNES")
+                return False
         except Exception as e:
-            if self.on_error:
-                self.on_error(f"❌ Connection failed: {str(e)}")
+            self.log_error(f"❌ Connection failed: {str(e)}")
             return False
     
     async def get_devices(self) -> List[str]:
         """Get available devices"""
-        if not self.sync_client:
-            temp_client = QUSB2SNESSync(self.host, self.port)
-            if await temp_client.connect():
-                devices = await temp_client.get_devices()
-                await temp_client.disconnect()
-                return devices
-        else:
+        if self.sync_client:
             return await self.sync_client.get_devices()
-        
         return []
     
     async def sync_roms(self, local_rom_dir: str, last_sync_timestamp: float = 0) -> bool:
@@ -1134,14 +1143,7 @@ class QUSB2SNESSyncManager:
     async def sync_roms_incremental(self, local_rom_dir: str, progress_tracker: Dict = None, cleanup_deleted: bool = False) -> Dict:
         """
         Incremental ROM sync that can resume from partial completion.
-        
-        Args:
-            local_rom_dir: Local directory containing ROMs
-            progress_tracker: Dict containing sync progress by directory path
-            cleanup_deleted: Whether to remove files from remote that were deleted locally
-            
-        Returns:
-            Dict with success status, uploaded count, and updated progress tracker
+        Delegates to the sync client.
         """
         if not self.sync_client:
             return {
@@ -1151,175 +1153,39 @@ class QUSB2SNESSyncManager:
                 "progress": progress_tracker or {}
             }
         
-        if progress_tracker is None:
-            progress_tracker = {}
-            
-        result = {
-            "success": False,
-            "uploaded": 0, 
-            "progress": progress_tracker.copy(),
-            "directories_completed": [],
-            "directories_skipped": []
-        }
+        # Set up the sync client's callbacks
+        self.sync_client.on_progress = self.on_progress
+        self.sync_client.on_error = self.on_error
         
+        # Set the remote folder
+        self.sync_client.remote_folder = self.remote_folder
+        
+        # Delegate to the sync client's tree-based sync method
         try:
-            self.log_progress(f"🚀 Starting incremental sync: {local_rom_dir} -> {self.remote_folder}")
-            
-            # Get all subdirectories to sync
-            directories_to_sync = self._get_sync_directories(local_rom_dir, progress_tracker)
-            total_dirs = len(directories_to_sync)
-            
-            self.log_progress(f"📊 Found {total_dirs} directories to process")
-            
-            for i, (local_dir_path, remote_dir_path, needs_sync) in enumerate(directories_to_sync):
-                if self.cancelled:
-                    result["error"] = "Operation cancelled by user"
-                    return result
-                    
-                self.log_progress(f"📁 [{i+1}/{total_dirs}] Processing: {os.path.basename(local_dir_path)}")
-                
-                if not needs_sync:
-                    self.log_progress(f"⏭️ Skipping (already synced): {os.path.basename(local_dir_path)}")
-                    result["directories_skipped"].append(local_dir_path)
-                    continue
-                    
-                # Sync this directory
-                dir_result = await self._sync_directory_incremental(local_dir_path, remote_dir_path)
-                
-                if dir_result["success"]:
-                    # Mark directory as completed
-                    current_time = time.time()
-                    result["progress"][local_dir_path] = current_time
-                    result["uploaded"] += dir_result["uploaded"]
-                    result["directories_completed"].append(local_dir_path)
-                    
-                    self.log_progress(f"✅ Completed: {os.path.basename(local_dir_path)} ({dir_result['uploaded']} files)")
-                else:
-                    result["error"] = f"Failed to sync directory {local_dir_path}: {dir_result.get('error', 'Unknown error')}"
-                    return result
-            
-            # All directories synced successfully
-            result["success"] = True
-            
-            # Cleanup deleted files if requested
-            if cleanup_deleted:
-                self.log_progress("🧹 Cleaning up deleted files...")
-                cleanup_result = await self.cleanup_deleted_files(local_rom_dir, self.remote_folder)
-                
-                deleted_files = cleanup_result["files_deleted"]
-                deleted_dirs = cleanup_result["dirs_deleted"]
-                errors = cleanup_result["errors"]
-                
-                if deleted_files > 0 or deleted_dirs > 0:
-                    self.log_progress(f"🗑️ Cleanup complete: {deleted_files} files, {deleted_dirs} directories removed")
-                
-                if errors:
-                    self.log_progress(f"⚠️ Cleanup warnings: {len(errors)} items could not be deleted")
-            
-            self.log_progress(f"🎉 Incremental sync completed: {result['uploaded']} files uploaded")
-            
-        except Exception as e:
-            result["error"] = str(e)
-            self.log_error(f"❌ Incremental sync failed: {str(e)}")
-            
-        return result
-    
-    def _get_sync_directories(self, local_rom_dir: str, progress_tracker: Dict) -> List[tuple]:
-        """
-        Get list of directories that need syncing based on progress tracker.
-        
-        Returns:
-            List of tuples: (local_path, remote_path, needs_sync)
-        """
-        directories = []
-        
-        # Add root directory
-        needs_sync = self._directory_needs_sync(local_rom_dir, progress_tracker.get(local_rom_dir, 0))
-        directories.append((local_rom_dir, self.remote_folder, needs_sync))
-        
-        # Add subdirectories recursively
-        for root, dirs, files in os.walk(local_rom_dir):
-            for dir_name in dirs:
-                local_dir_path = os.path.join(root, dir_name)
-                
-                # Calculate remote path
-                rel_path = os.path.relpath(local_dir_path, local_rom_dir)
-                remote_dir_path = f"{self.remote_folder}/{rel_path.replace(os.sep, '/')}"
-                
-                # Check if directory needs syncing
-                last_sync = progress_tracker.get(local_dir_path, 0)
-                needs_sync = self._directory_needs_sync(local_dir_path, last_sync)
-                
-                directories.append((local_dir_path, remote_dir_path, needs_sync))
-        
-        return directories
-    
-    def _directory_needs_sync(self, local_dir_path: str, last_sync_timestamp: float) -> bool:
-        """
-        Check if a directory needs syncing based on file modification times.
-        
-        Args:
-            local_dir_path: Path to local directory
-            last_sync_timestamp: Timestamp of last successful sync for this directory
-            
-        Returns:
-            True if directory needs syncing, False if all files are older than last sync
-        """
-        if last_sync_timestamp == 0:
-            return True  # Never synced before
-            
-        try:
-            # Check if any files in this directory are newer than last sync
-            for item in os.listdir(local_dir_path):
-                item_path = os.path.join(local_dir_path, item)
-                
-                if os.path.isfile(item_path):
-                    # Check file modification time
-                    file_mtime = os.path.getmtime(item_path)
-                    if file_mtime > last_sync_timestamp:
-                        return True  # Found a newer file
-                        
-            return False  # All files are older than last sync
-            
-        except (OSError, FileNotFoundError):
-            return True  # If we can't check, assume it needs sync
-    
-    async def _sync_directory_incremental(self, local_dir_path: str, remote_dir_path: str) -> Dict:
-        """
-        Sync a single directory incrementally.
-        
-        Returns:
-            Dict with success status, uploaded count, and error if any
-        """
-        try:
-            # Use existing tree-based sync for this specific directory
-            result = await self.sync_client.sync_local_to_remote_tree(
-                local_dir_path, 
-                remote_dir_path, 
-                0  # Don't use timestamp filtering here since we already filtered at directory level
+            # Use the tree-based sync with cleanup
+            result = await self.sync_client.sync_directory_tree_based(
+                local_rom_dir, 
+                self.remote_folder, 
+                0,  # timestamp 
+                cleanup_deleted
             )
             
-            return result
+            return {
+                "success": result,
+                "uploaded": 0,  # Tree-based sync doesn't return count
+                "progress": progress_tracker or {}
+            }
             
         except Exception as e:
             return {
                 "success": False,
+                "error": str(e),
                 "uploaded": 0,
-                "error": str(e)
+                "progress": progress_tracker or {}
             }
-
-    async def sync_roms(self, local_rom_dir: str, last_sync_timestamp: float = 0, cleanup_deleted: bool = False) -> bool:
-        """Sync ROM directory using tree-based approach"""
-        if not self.sync_client:
-            if self.on_error:
-                self.on_error("❌ Not connected to QUSB2SNES")
-            return False
-
-        # Use the new tree-based sync approach with timestamp and cleanup option
-        return await self.sync_client.sync_directory_tree_based(local_rom_dir, self.remote_folder, last_sync_timestamp, cleanup_deleted)
-
+    
     async def disconnect(self):
-        """Disconnect from QUSB2SNES with robust cleanup"""
+        """Disconnect from QUSB2SNES with cleanup"""
         if self.sync_client:
             try:
                 await self.sync_client.disconnect()
