@@ -3,5 +3,11 @@
   "output_dir": "",
   "api_delay": 1.0,
   "multi_type_download_mode": "primary_only",
-  "multi_type_enabled": true
+  "multi_type_enabled": true,
+  "qusb2snes_enabled": true,
+  "qusb2snes_host": "localhost",
+  "qusb2snes_port": 8080,
+  "qusb2snes_device": "",
+  "qusb2snes_remote_folder": "/ROMS",
+  "qusb2snes_last_sync": null
 }
