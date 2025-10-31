@@ -361,12 +361,12 @@ class QUSB2SNESSync:
         return False
     
     async def list_directory(self, path: str) -> List[Dict]:
-        """List remote directory contents with SD2SNES-safe delays"""
+        """List remote directory contents with SD2SNES-safe delays and retry logic"""
         try:
             # Add delay before directory listing (SD2SNES requirement)
             await asyncio.sleep(0.2)
             
-            response = await self._send_command("List", operands=[path])
+            response = await self._send_command_with_retry("List", operands=[path], max_retries=2)
             if not response or "Results" not in response:
                 return []
             
@@ -424,9 +424,9 @@ class QUSB2SNESSync:
         return False
     
     async def create_directory(self, path: str) -> bool:
-        """Create remote directory using proven working approach"""
+        """Create remote directory using proven working approach with retry logic"""
         try:
-            await self._send_command("MakeDir", operands=[path])
+            await self._send_command_with_retry("MakeDir", operands=[path], max_retries=2)
             await asyncio.sleep(1.0)  # Wait for directory creation
             return True
         except Exception as e:
@@ -707,6 +707,37 @@ class QUSB2SNESSync:
             self.log_error(f"❌ Failed to sync subdirectory {sub_remote_dir}: {str(e)}")
             return uploaded
     
+    async def _send_command_with_retry(self, opcode: str, space: str = "SNES", operands: List[str] = None, timeout: float = None, max_retries: int = 2) -> Optional[Dict]:
+        """Send command with automatic retry and reconnection"""
+        for attempt in range(max_retries + 1):
+            try:
+                # Ensure we're connected
+                if not await self._ensure_connection():
+                    if attempt == max_retries:
+                        self.log_error(f"❌ Failed to establish connection after {max_retries + 1} attempts")
+                        return None
+                    continue
+                
+                # Try the command
+                result = await self._send_command(opcode, space, operands, timeout)
+                if result is not None:
+                    return result
+                
+                # Command failed, try again if we have retries left
+                if attempt < max_retries:
+                    self.log_progress(f"🔄 Retrying command {opcode} (attempt {attempt + 2}/{max_retries + 1})")
+                    await asyncio.sleep(1.0)  # Brief delay before retry
+                
+            except Exception as e:
+                if "Not connected" in str(e) and attempt < max_retries:
+                    self.log_progress(f"🔄 Connection issue, retrying command {opcode} (attempt {attempt + 2}/{max_retries + 1})")
+                    await asyncio.sleep(1.0)
+                elif attempt == max_retries:
+                    self.log_error(f"❌ Command {opcode} failed after {max_retries + 1} attempts: {e}")
+                    raise
+        
+        return None
+
     async def _send_command(self, opcode: str, space: str = "SNES", operands: List[str] = None, timeout: float = None) -> Optional[Dict]:
         """Send command to QUSB2SNES with proper logging and response handling"""
         if not self.connected or not self.websocket:

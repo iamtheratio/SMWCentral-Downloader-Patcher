@@ -388,19 +388,9 @@ class QUSB2SNESSection:
             rom_files = [f"Error scanning directory: {str(e)}"]
             total_dirs = 0
         
-        # Debug: Log what we found
+        # Simple progress message
         self._on_progress(f"📁 Scanning output directory: {local_rom_dir}")
         self._on_progress(f"🔍 Found {len(rom_files)} ROM files in {total_dirs} subdirectories")
-        self._on_progress(f"⚡ Will use optimized tree-based sync (faster & more reliable)")
-        
-        # Show first few files for debugging
-        if rom_files and not str(rom_files[0]).startswith("Error"):
-            sample_files = rom_files[:3]  # Show first 3 files
-            for i, file_path in enumerate(sample_files, 1):
-                rel_path = os.path.relpath(file_path, local_rom_dir)
-                self._on_progress(f"   {i}. {rel_path}")
-            if len(rom_files) > 3:
-                self._on_progress(f"   ... and {len(rom_files) - 3} more files")
         
         # Create detailed confirmation message with tree-based sync info
         sync_info = f"""QUSB2SNES ROM Sync Operation (Optimized Tree-Based Method)
