@@ -23,7 +23,7 @@ except ImportError:
 class QUSB2SNESSync:
     """Simple QUSB2SNES sync implementation"""
     
-    def __init__(self, host: str = "localhost", port: int = 23074):
+    def __init__(self, host: str = "localhost", port: int = 8080):  # Legacy default port
         self.host = host
         self.port = port
         self.websocket = None
@@ -800,7 +800,7 @@ class QUSB2SNESSyncManager:
         self.sync_client = None
         self.enabled = False
         self.host = "localhost"
-        self.port = 23074
+        self.port = 8080  # Legacy default port
         self.device = ""
         self.remote_folder = "/ROMS"
         

@@ -73,7 +73,7 @@ class ConfigManager:
             # QUSB2SNES settings
             "qusb2snes_enabled": False,
             "qusb2snes_host": "localhost",
-            "qusb2snes_port": 23074,
+            "qusb2snes_port": 8080,  # Default legacy QUSB2SNES port
             "qusb2snes_device": "",
             "qusb2snes_remote_folder": "/ROMS",
             "qusb2snes_last_sync": 0  # Unix timestamp of last successful sync
