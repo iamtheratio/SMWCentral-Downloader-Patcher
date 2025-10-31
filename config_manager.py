@@ -79,7 +79,8 @@ class ConfigManager:
             "qusb2snes_remote_folder": "/ROMS",
             "qusb2snes_last_sync": 0,  # Unix timestamp of last successful sync
             "qusb2snes_sync_progress": {},  # Directory-level sync progress tracking
-            "qusb2snes_partial_sync": False  # Flag indicating partial sync state
+            "qusb2snes_partial_sync": False,  # Flag indicating partial sync state
+            "qusb2snes_cleanup_deleted": False  # Remove files from SD card that were deleted locally
         }
 
     def _clean_config(self, config):

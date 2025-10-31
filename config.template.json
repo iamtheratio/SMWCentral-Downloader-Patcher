@@ -11,5 +11,6 @@
   "qusb2snes_remote_folder": "/ROMS",
   "qusb2snes_last_sync": null,
   "qusb2snes_sync_progress": {},
-  "qusb2snes_partial_sync": false
+  "qusb2snes_partial_sync": false,
+  "qusb2snes_cleanup_deleted": false
 }

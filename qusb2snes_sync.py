@@ -23,9 +23,17 @@ except ImportError:
 class QUSB2SNESSync:
     """Simple QUSB2SNES sync implementation"""
     
-    def __init__(self, host: str = "localhost", port: int = 23074):  # Modern default port
-        self.host = host
-        self.port = port
+    def __init__(self, config_or_host=None, port: int = 23074):
+        # Support both config object and legacy host/port parameters
+        if hasattr(config_or_host, 'get'):  # It's a config object
+            self.config = config_or_host
+            self.host = config_or_host.get("qusb2snes_host", "localhost")
+            self.port = config_or_host.get("qusb2snes_port", 23074)
+        else:  # Legacy: first parameter is host
+            self.config = None
+            self.host = config_or_host if config_or_host else "localhost"
+            self.port = port
+        
         self.websocket = None
         self.connected = False
         self.app_name = "SMWCentral Downloader"
@@ -108,10 +116,16 @@ class QUSB2SNESSync:
             self.log_progress(f"⚠️ Folder verification failed: {str(e)}, but uploads likely succeeded")
             return True  # Don't fail the whole sync for verification issues
 
-    async def sync_directory_tree_based(self, local_dir: str, remote_sync_folder: str, last_sync_timestamp: float = 0) -> bool:
+    async def sync_directory_tree_based(self, local_dir: str, remote_sync_folder: str, last_sync_timestamp: float = 0, cleanup_deleted: bool = False) -> bool:
         """
         Tree-based sync approach that builds knowledge incrementally.
         This prevents connection drops by never guessing if directories exist.
+        
+        Args:
+            local_dir: Local directory to sync
+            remote_sync_folder: Remote folder to sync to
+            last_sync_timestamp: Timestamp of last sync for incremental sync
+            cleanup_deleted: Whether to remove files from remote that were deleted locally
         """
         try:
             self.log_progress(f"🌳 Starting tree-based sync: {local_dir} -> {remote_sync_folder}")
@@ -145,7 +159,25 @@ class QUSB2SNESSync:
             result = await self.sync_local_to_remote_tree(local_dir, actual_remote_path, last_sync_timestamp)
             
             if result["success"]:
-                self.log_progress(f"✅ Tree-based sync completed: {result['uploaded']} files uploaded")
+                # Step 4: Clean up deleted files if requested
+                if cleanup_deleted:
+                    self.log_progress("🧹 Cleaning up deleted files...")
+                    cleanup_result = await self.cleanup_deleted_files(local_dir, actual_remote_path)
+                    
+                    deleted_files = cleanup_result["files_deleted"]
+                    deleted_dirs = cleanup_result["dirs_deleted"]
+                    errors = cleanup_result["errors"]
+                    
+                    if deleted_files > 0 or deleted_dirs > 0:
+                        self.log_progress(f"🗑️ Cleanup complete: {deleted_files} files, {deleted_dirs} directories removed")
+                    
+                    if errors:
+                        self.log_error(f"⚠️ Cleanup warnings: {len(errors)} items could not be deleted")
+                        for error in errors[:3]:  # Show first 3 errors
+                            self.log_error(f"   • {error}")
+                
+                total_uploaded = result['uploaded']
+                self.log_progress(f"✅ Tree-based sync completed: {total_uploaded} files uploaded")
                 return True
             else:
                 self.log_error(f"❌ Tree-based sync failed: {result.get('error', 'Unknown error')}")
@@ -556,6 +588,225 @@ class QUSB2SNESSync:
         
         return True
     
+    async def delete_file(self, remote_path: str) -> bool:
+        """Delete a file on the remote device"""
+        try:
+            if not self.is_safe_remote_path(remote_path):
+                self.log_error(f"❌ Cannot delete protected path: {remote_path}")
+                return False
+                
+            self.log_progress(f"🗑️ Deleting file: {remote_path}")
+            
+            result = await self._send_command_with_retry("Remove", operands=[remote_path])
+            if result is None:
+                self.log_error(f"❌ Failed to delete file: {remote_path}")
+                return False
+                
+            return True
+            
+        except Exception as e:
+            self.log_error(f"❌ Error deleting file {remote_path}: {str(e)}")
+            return False
+    
+    async def delete_directory(self, remote_path: str) -> bool:
+        """Delete an empty directory on the remote device"""
+        try:
+            if not self.is_safe_remote_path(remote_path):
+                self.log_error(f"❌ Cannot delete protected path: {remote_path}")
+                return False
+                
+            self.log_progress(f"🗑️ Deleting directory: {remote_path}")
+            
+            result = await self._send_command_with_retry("Remove", operands=[remote_path])
+            if result is None:
+                self.log_error(f"❌ Failed to delete directory: {remote_path}")
+                return False
+                
+            return True
+            
+        except Exception as e:
+            self.log_error(f"❌ Error deleting directory {remote_path}: {str(e)}")
+            return False
+    
+    async def get_files_to_cleanup(self) -> List[str]:
+        """
+        Get list of files that would be cleaned up without actually deleting them.
+        This is useful for testing and preview functionality.
+        """
+        files_to_cleanup = []
+        
+        try:
+            # Get config values
+            local_dir = self.config.get("output_dir", "")
+            remote_dir = self.config.get("qusb2snes_remote_folder", "/ROMS")
+            
+            if not local_dir or not os.path.exists(local_dir):
+                return files_to_cleanup
+            
+            # Connect to device
+            await self.connect()
+            
+            # Get remote directory contents
+            remote_items = await self.list_directory(remote_dir)
+            if not remote_items:
+                return files_to_cleanup
+                
+            # Create sets of local ROM files for quick lookup
+            local_files = set()
+            
+            for root, dirs, files in os.walk(local_dir):
+                for file in files:
+                    if file.lower().endswith(('.smc', '.sfc')):
+                        # Get relative path from local_dir
+                        full_path = os.path.join(root, file)
+                        rel_path = os.path.relpath(full_path, local_dir)
+                        # Normalize path separators
+                        rel_path = rel_path.replace('\\', '/')
+                        local_files.add(rel_path.lower())
+            
+            # Find remote files that don't exist locally
+            await self._find_files_to_cleanup_recursive(remote_dir, local_dir, local_files, files_to_cleanup)
+            
+        except Exception as e:
+            self.log_error(f"❌ Error getting files to cleanup: {str(e)}")
+        finally:
+            if self.websocket:
+                await self.websocket.close()
+        
+        return files_to_cleanup
+    
+    async def _find_files_to_cleanup_recursive(self, remote_dir: str, local_base_dir: str, local_files: set, files_to_cleanup: List[str]):
+        """Helper method to recursively find files that need cleanup"""
+        try:
+            remote_items = await self.list_directory(remote_dir)
+            
+            for remote_item in remote_items:
+                remote_name = remote_item["name"]
+                is_dir = remote_item.get("is_dir", False)
+                
+                remote_item_path = self.normalize_remote_path(f"{remote_dir}/{remote_name}")
+                
+                if is_dir:
+                    # Recursively check subdirectory
+                    await self._find_files_to_cleanup_recursive(remote_item_path, local_base_dir, local_files, files_to_cleanup)
+                else:
+                    # Check if it's a ROM file that should be managed
+                    if remote_name.lower().endswith(('.smc', '.sfc')):
+                        # Calculate relative path from remote base
+                        base_remote_dir = self.config.get("qusb2snes_remote_folder", "/ROMS")
+                        if remote_item_path.startswith(base_remote_dir):
+                            rel_path = remote_item_path[len(base_remote_dir):].lstrip('/')
+                            
+                            # Check if this file exists locally
+                            if rel_path.lower() not in local_files:
+                                files_to_cleanup.append(rel_path)
+                                
+        except Exception as e:
+            self.log_error(f"❌ Error scanning remote directory {remote_dir}: {str(e)}")
+    
+    async def cleanup_deleted_files(self, local_dir: str, remote_dir: str) -> Dict:
+        """
+        Clean up files and directories on remote that no longer exist locally.
+        Returns dict with cleanup results.
+        """
+        cleanup_result = {"files_deleted": 0, "dirs_deleted": 0, "errors": []}
+        
+        try:
+            # Get remote directory contents
+            remote_items = await self.list_directory(remote_dir)
+            if not remote_items:
+                return cleanup_result
+                
+            # Create sets of local items for quick lookup
+            local_files = set()
+            local_dirs = set()
+            
+            try:
+                for item in os.listdir(local_dir):
+                    item_path = os.path.join(local_dir, item)
+                    if os.path.isfile(item_path):
+                        local_files.add(item.lower())  # Case-insensitive
+                    elif os.path.isdir(item_path):
+                        local_dirs.add(item.lower())  # Case-insensitive
+            except (OSError, FileNotFoundError):
+                # Local directory doesn't exist or can't be read
+                return cleanup_result
+            
+            # Check each remote item
+            for remote_item in remote_items:
+                remote_name = remote_item["name"]
+                remote_name_lower = remote_name.lower()
+                is_dir = remote_item.get("is_dir", False)
+                
+                remote_item_path = self.normalize_remote_path(f"{remote_dir}/{remote_name}")
+                
+                if is_dir:
+                    if remote_name_lower not in local_dirs:
+                        # Directory exists on remote but not locally - delete it recursively
+                        await self._cleanup_remote_directory_recursive(remote_item_path, cleanup_result)
+                    else:
+                        # Directory exists locally - recursively check its contents
+                        local_subdir = os.path.join(local_dir, remote_name)
+                        subdir_result = await self.cleanup_deleted_files(local_subdir, remote_item_path)
+                        cleanup_result["files_deleted"] += subdir_result["files_deleted"]
+                        cleanup_result["dirs_deleted"] += subdir_result["dirs_deleted"]
+                        cleanup_result["errors"].extend(subdir_result["errors"])
+                else:
+                    # Check if it's a ROM file that should be managed
+                    if remote_name_lower.endswith(('.smc', '.sfc')):
+                        if remote_name_lower not in local_files:
+                            # ROM file exists on remote but not locally - delete it
+                            if await self.delete_file(remote_item_path):
+                                cleanup_result["files_deleted"] += 1
+                                self.log_progress(f"🗑️ Deleted: {remote_name}")
+                            else:
+                                cleanup_result["errors"].append(f"Failed to delete file: {remote_name}")
+                                
+        except Exception as e:
+            cleanup_result["errors"].append(f"Cleanup error: {str(e)}")
+            self.log_error(f"❌ Cleanup error: {str(e)}")
+            
+        return cleanup_result
+    
+    async def _cleanup_remote_directory_recursive(self, remote_dir_path: str, cleanup_result: Dict):
+        """Recursively delete a remote directory and all its contents"""
+        try:
+            # Get directory contents
+            items = await self.list_directory(remote_dir_path)
+            if not items:
+                # Empty directory - try to delete it
+                if await self.delete_directory(remote_dir_path):
+                    cleanup_result["dirs_deleted"] += 1
+                    self.log_progress(f"🗑️ Deleted directory: {os.path.basename(remote_dir_path)}")
+                return
+                
+            # Delete all contents first
+            for item in items:
+                item_name = item["name"]
+                item_path = self.normalize_remote_path(f"{remote_dir_path}/{item_name}")
+                
+                if item.get("is_dir", False):
+                    # Recursively delete subdirectory
+                    await self._cleanup_remote_directory_recursive(item_path, cleanup_result)
+                else:
+                    # Delete file
+                    if await self.delete_file(item_path):
+                        cleanup_result["files_deleted"] += 1
+                        self.log_progress(f"🗑️ Deleted: {item_name}")
+                    else:
+                        cleanup_result["errors"].append(f"Failed to delete file: {item_name}")
+                        
+            # Try to delete the now-empty directory
+            if await self.delete_directory(remote_dir_path):
+                cleanup_result["dirs_deleted"] += 1
+                self.log_progress(f"🗑️ Deleted directory: {os.path.basename(remote_dir_path)}")
+            else:
+                cleanup_result["errors"].append(f"Failed to delete directory: {os.path.basename(remote_dir_path)}")
+                
+        except Exception as e:
+            cleanup_result["errors"].append(f"Error cleaning directory {remote_dir_path}: {str(e)}")
+            self.log_error(f"❌ Error cleaning directory {remote_dir_path}: {str(e)}")
+
     async def sync_directory(self, local_dir: str, remote_dir: str, last_sync_timestamp: float = 0) -> bool:
         """Directory sync with smart file comparison and connection recovery"""
         try:
@@ -810,6 +1061,16 @@ class QUSB2SNESSyncManager:
         self.on_connected: Optional[Callable[[], None]] = None
         self.on_disconnected: Optional[Callable[[], None]] = None
     
+    def log_progress(self, message: str):
+        """Log progress message"""
+        if self.on_progress:
+            self.on_progress(message)
+    
+    def log_error(self, message: str):
+        """Log error message"""
+        if self.on_error:
+            self.on_error(message)
+    
     def configure(self, host: str, port: int, device: str, remote_folder: str):
         """Configure sync settings"""
         self.host = host
@@ -870,13 +1131,14 @@ class QUSB2SNESSyncManager:
         # Use the new tree-based sync approach with timestamp
         return await self.sync_client.sync_directory_tree_based(local_rom_dir, self.remote_folder, last_sync_timestamp)
     
-    async def sync_roms_incremental(self, local_rom_dir: str, progress_tracker: Dict = None) -> Dict:
+    async def sync_roms_incremental(self, local_rom_dir: str, progress_tracker: Dict = None, cleanup_deleted: bool = False) -> Dict:
         """
         Incremental ROM sync that can resume from partial completion.
         
         Args:
             local_rom_dir: Local directory containing ROMs
             progress_tracker: Dict containing sync progress by directory path
+            cleanup_deleted: Whether to remove files from remote that were deleted locally
             
         Returns:
             Dict with success status, uploaded count, and updated progress tracker
@@ -938,6 +1200,22 @@ class QUSB2SNESSyncManager:
             
             # All directories synced successfully
             result["success"] = True
+            
+            # Cleanup deleted files if requested
+            if cleanup_deleted:
+                self.log_progress("🧹 Cleaning up deleted files...")
+                cleanup_result = await self.cleanup_deleted_files(local_rom_dir, self.remote_folder)
+                
+                deleted_files = cleanup_result["files_deleted"]
+                deleted_dirs = cleanup_result["dirs_deleted"]
+                errors = cleanup_result["errors"]
+                
+                if deleted_files > 0 or deleted_dirs > 0:
+                    self.log_progress(f"🗑️ Cleanup complete: {deleted_files} files, {deleted_dirs} directories removed")
+                
+                if errors:
+                    self.log_progress(f"⚠️ Cleanup warnings: {len(errors)} items could not be deleted")
+            
             self.log_progress(f"🎉 Incremental sync completed: {result['uploaded']} files uploaded")
             
         except Exception as e:
@@ -1030,15 +1308,15 @@ class QUSB2SNESSyncManager:
                 "error": str(e)
             }
 
-    async def sync_roms(self, local_rom_dir: str, last_sync_timestamp: float = 0) -> bool:
+    async def sync_roms(self, local_rom_dir: str, last_sync_timestamp: float = 0, cleanup_deleted: bool = False) -> bool:
         """Sync ROM directory using tree-based approach"""
         if not self.sync_client:
             if self.on_error:
                 self.on_error("❌ Not connected to QUSB2SNES")
             return False
 
-        # Use the new tree-based sync approach with timestamp
-        return await self.sync_client.sync_directory_tree_based(local_rom_dir, self.remote_folder, last_sync_timestamp)
+        # Use the new tree-based sync approach with timestamp and cleanup option
+        return await self.sync_client.sync_directory_tree_based(local_rom_dir, self.remote_folder, last_sync_timestamp, cleanup_deleted)
 
     async def disconnect(self):
         """Disconnect from QUSB2SNES with robust cleanup"""

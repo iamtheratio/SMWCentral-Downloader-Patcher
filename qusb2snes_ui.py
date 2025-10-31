@@ -129,6 +129,16 @@ class QUSB2SNESSection:
         )
         self.sync_button.grid(row=2, column=4, columnspan=2, sticky="w", padx=(0, 5), pady=(10, 5))
         
+        # Row 3: Cleanup option checkbox
+        self.cleanup_var = tk.BooleanVar(value=self.config.get("qusb2snes_cleanup_deleted", False))
+        self.cleanup_checkbox = ttk.Checkbutton(
+            self.frame,
+            text="Remove deleted files from SD card during sync",
+            variable=self.cleanup_var,
+            command=self._on_cleanup_changed
+        )
+        self.cleanup_checkbox.grid(row=3, column=1, columnspan=5, sticky="w", padx=(0, 5), pady=(5, 10))
+        
         # Update UI state
         self._update_ui_state()
         
@@ -152,6 +162,11 @@ class QUSB2SNESSection:
         """Handle device selection change"""
         self.config.set("qusb2snes_device", self.device_var.get())
     
+    def _on_cleanup_changed(self):
+        """Handle cleanup option change"""
+        self.config.set("qusb2snes_cleanup_deleted", self.cleanup_var.get())
+        self.config.save()
+    
     def _update_ui_state(self):
         """Update UI component states"""
         enabled = self.enabled_var.get()
@@ -161,7 +176,8 @@ class QUSB2SNESSection:
             self.host_entry,
             self.port_entry, 
             self.device_combo,
-            self.folder_entry
+            self.folder_entry,
+            self.cleanup_checkbox
         ]
         
         basic_state = "normal" if enabled else "disabled"
@@ -391,12 +407,17 @@ class QUSB2SNESSection:
         self._on_progress(f"🔍 Found {len(rom_files)} ROM files")
         
         # Create simple confirmation message
+        cleanup_enabled = self.config.get("qusb2snes_cleanup_deleted", False)
+        
         sync_info = f"""Sync {len(rom_files)} ROM files to SD card?
 
 📁 From: {os.path.basename(local_rom_dir)}
 📂 To: {self.device_var.get()} - {self.remote_folder_var.get()}
 
 ⚠️ This will modify files on your SD card."""
+
+        if cleanup_enabled:
+            sync_info += "\n🗑️ Deleted files will be removed from SD card."
         
         # Confirm sync operation
         result = messagebox.askyesno(
@@ -469,6 +490,7 @@ class QUSB2SNESSection:
                     last_sync_timestamp = self.config.get("qusb2snes_last_sync", 0)
                     progress_tracker = self.config.get("qusb2snes_sync_progress", {})
                     is_partial_sync = self.config.get("qusb2snes_partial_sync", False)
+                    cleanup_deleted = self.config.get("qusb2snes_cleanup_deleted", False)
                     
                     # Handle null/empty values for first-time sync
                     if last_sync_timestamp is None or last_sync_timestamp == "" or last_sync_timestamp == 0:
@@ -487,7 +509,7 @@ class QUSB2SNESSection:
                     
                     try:
                         # Use incremental sync for better resume capability
-                        result = loop.run_until_complete(fresh_sync_manager.sync_roms_incremental(local_rom_dir, progress_tracker))
+                        result = loop.run_until_complete(fresh_sync_manager.sync_roms_incremental(local_rom_dir, progress_tracker, cleanup_deleted))
                     except asyncio.CancelledError:
                         # Handle cancellation gracefully - save partial progress
                         self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled - saving progress"))
