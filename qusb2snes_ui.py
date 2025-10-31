@@ -388,45 +388,40 @@ Do you want to proceed with the sync?"""
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 
-                # Create a fresh client for sync operation to avoid event loop conflicts
-                from qusb2snes_sync import QUSB2SNESSync
-                sync_client = QUSB2SNESSync(
-                    self.sync_manager.host, 
-                    self.sync_manager.port
-                )
-                sync_client.on_progress = self._on_progress
-                sync_client.on_error = self._on_error
+                # Create a completely fresh sync manager for this operation
+                # to avoid cross-loop task reference issues
+                from qusb2snes_sync import QUSB2SNESSyncManager
+                fresh_sync_manager = QUSB2SNESSyncManager()
+                fresh_sync_manager.on_progress = self._on_progress
+                fresh_sync_manager.on_error = self._on_error
                 
-                # Connect fresh client
-                if loop.run_until_complete(sync_client.connect()):
-                    # Attach to selected device
-                    if loop.run_until_complete(sync_client.attach_device(self.device_var.get())):
-                        # Get last sync timestamp from config
-                        last_sync_timestamp = self.config.get("qusb2snes_last_sync", 0)
-                        
-                        # Start sync with timestamp comparison
-                        result = loop.run_until_complete(
-                            sync_client.sync_directory(local_rom_dir, self.remote_folder_var.get(), last_sync_timestamp)
-                        )
-                        
-                        if result.get("success", False):
-                            # Save current timestamp for next sync
-                            import time
-                            current_timestamp = time.time()
-                            self.config.set("qusb2snes_last_sync", current_timestamp)
-                            self.config.save()
-                            
-                            uploaded_count = result.get("uploaded", 0)
-                            self.parent.after(0, lambda: self._on_progress(f"✅ Sync completed successfully - {uploaded_count} files uploaded"))
-                        else:
-                            self.parent.after(0, lambda: self._on_error("Sync operation failed"))
-                    else:
-                        self.parent.after(0, lambda: self._on_error("Failed to attach to device"))
+                # Configure with current settings
+                fresh_sync_manager.configure(
+                    self.host_var.get(),
+                    int(self.port_var.get()),
+                    self.device_var.get(),
+                    self.remote_folder_var.get()
+                )
+                
+                # Connect and perform sync
+                if loop.run_until_complete(fresh_sync_manager.connect_and_attach()):
+                    result = loop.run_until_complete(fresh_sync_manager.sync_roms(local_rom_dir))
                     
-                    # Disconnect fresh client
-                    loop.run_until_complete(sync_client.disconnect())
+                    if result:
+                        # Save current timestamp for next sync
+                        import time
+                        current_timestamp = time.time()
+                        self.config.set("qusb2snes_last_sync", current_timestamp)
+                        self.config.save()
+                        
+                        self.parent.after(0, lambda: self._on_progress(f"✅ Sync completed successfully"))
+                    else:
+                        self.parent.after(0, lambda: self._on_error("❌ Sync operation failed"))
+                    
+                    # Clean disconnect
+                    loop.run_until_complete(fresh_sync_manager.disconnect())
                 else:
-                    self.parent.after(0, lambda: self._on_error("Failed to connect for sync operation"))
+                    self.parent.after(0, lambda: self._on_error("❌ Failed to connect for sync operation"))
                 
             except Exception as e:
                 self.parent.after(0, lambda: self._on_error(f"Sync failed: {str(e)}"))

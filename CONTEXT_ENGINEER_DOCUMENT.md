@@ -356,6 +356,28 @@ Based on research from [QUSB2SNES GitHub](https://github.com/Skarsnik/QUsb2snes)
 
 **Error Handling**: Server closes connection on errors
 
+#### ⚠️ CRITICAL SD2SNES CONNECTION CLOSURE RULES ⚠️
+**SD2SNES WILL IMMEDIATELY CLOSE THE WEBSOCKET CONNECTION IF:**
+1. **Trying to create a directory that already exists** (use List first to check)
+2. **Trying to list a directory that doesn't exist** (create directory first)
+3. **Trying to upload files to a directory that doesn't exist** (create directory first)
+4. **Sending commands too rapidly without delays** (add 0.2-0.5s delays between operations)
+
+**MANDATORY DEFENSIVE APPROACH:**
+- **Always List Before Create**: Check if directory exists before creating
+- **Always Create Before Upload**: Ensure target directory exists before file operations  
+- **Always List After Operations**: Verify success by listing parent directory
+- **Use Proper Delays**: 0.2s before List, 0.3s after List, 1.0s after MakeDir
+- **Expect Connection Drops**: Implement reconnection logic for any operation failure
+
+**Working Pattern from Successful Implementation:**
+```
+1. List parent directory → check if subdirectory exists
+2. If doesn't exist: Create subdirectory → wait 1.0s → List parent to verify
+3. Upload files → wait based on size → List parent directory to verify
+4. Progress logging: "QUSB2SNES: Command sent successfully", chunk progress, verification
+```
+
 #### Standard QUSB2SNES Workflow
 1. **Settings Configuration**: User sets local ROM folder and remote SD card directory
 2. **Connection Phase**: WebSocket connect → Device discovery → Device attachment

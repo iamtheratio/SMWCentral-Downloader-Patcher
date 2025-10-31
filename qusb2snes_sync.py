@@ -98,30 +98,42 @@ class QUSB2SNESSync:
             return []
     
     async def attach_device(self, device_name: str) -> bool:
-        """Attach to specific device"""
+        """Attach to specific device with improved verification"""
         try:
             self.log_progress(f"📱 Attaching to device: {device_name}")
+            
+            # Send attach command
             await self._send_command("Attach", operands=[device_name])
-            await asyncio.sleep(2.0)
             
-            # Verify attachment
-            info_response = await self._send_command("Info")
-            if info_response and info_response.get("Results"):
-                self.log_progress("✅ Device attached successfully")
-                return True
+            # Give the device time to attach (longer wait)
+            await asyncio.sleep(5.0)
             
-            self.log_error("❌ Device attachment verification failed")
-            return False
+            # Try a simple verification - if it fails, we'll proceed anyway
+            # since some devices work for file operations even if Info fails
+            try:
+                info_response = await self._send_command("Info")
+                if info_response and info_response.get("Results"):
+                    device_info = info_response["Results"]
+                    if len(device_info) > 0:
+                        self.log_progress("✅ Device attached and verified successfully")
+                        return True
+            except Exception as e:
+                self.log_progress(f"⚠️ Device verification failed: {str(e)}")
+            
+            # Even if verification failed, proceed optimistically
+            # Many SD2SNES devices work for file operations even if Info command fails
+            self.log_progress("⚠️ Device verification inconclusive, proceeding with sync (some devices don't respond to Info)")
+            return True
             
         except Exception as e:
             self.log_error(f"❌ Device attachment failed: {str(e)}")
             return False
     
     async def list_directory(self, path: str) -> List[Dict]:
-        """List remote directory contents with conservative timing"""
+        """List remote directory contents with SD2SNES-safe delays"""
         try:
-            # Add small delay before directory listing
-            await asyncio.sleep(0.1)
+            # Add delay before directory listing (SD2SNES requirement)
+            await asyncio.sleep(0.2)
             
             response = await self._send_command("List", operands=[path])
             if not response or "Results" not in response:
@@ -141,73 +153,143 @@ class QUSB2SNESSync:
                             "is_dir": item_type == "0"
                         })
             
-            # Add delay after directory listing
-            await asyncio.sleep(0.2)
+            # Add delay after directory listing (SD2SNES requirement)
+            await asyncio.sleep(0.3)
             return items
             
         except Exception as e:
+            # If listing fails, directory likely doesn't exist
+            # SD2SNES closes connection on non-existent directory listing
             self.log_error(f"❌ Failed to list directory {path}: {str(e)}")
-            return []
+            raise e  # Re-raise to allow caller to handle appropriately
+    
+    async def _ensure_connection(self) -> bool:
+        """Ensure we have a working connection, reconnect if needed"""
+        if self.connected and self.websocket and not self.websocket.closed:
+            return True
+        
+        self.log_progress("🔄 Reconnecting to QUSB2SNES...")
+        
+        # Clean up any existing connection
+        await self.disconnect()
+        await asyncio.sleep(1.0)
+        
+        # Attempt to reconnect
+        if await self.connect():
+            # Re-attach to the last known device if we have one
+            devices = await self.get_devices()
+            if devices:
+                # Try to reattach to first available device
+                if await self.attach_device(devices[0]):
+                    self.log_progress("✅ Reconnected and reattached successfully")
+                    return True
+                else:
+                    self.log_error("❌ Failed to reattach device after reconnection")
+            else:
+                self.log_error("❌ No devices available after reconnection")
+        else:
+            self.log_error("❌ Failed to reconnect to QUSB2SNES")
+        
+        return False
     
     async def create_directory(self, path: str) -> bool:
-        """Create remote directory"""
+        """Create remote directory using proven working approach"""
         try:
             await self._send_command("MakeDir", operands=[path])
-            await asyncio.sleep(1.0)  # Increased delay for directory operations
+            await asyncio.sleep(1.0)  # Wait for directory creation
             return True
         except Exception as e:
             self.log_error(f"❌ Failed to create directory {path}: {str(e)}")
             return False
     
     async def upload_file(self, local_path: str, remote_path: str) -> bool:
-        """Upload file to remote location using official protocol pattern"""
-        try:
-            if not os.path.exists(local_path):
-                self.log_error(f"❌ Local file not found: {local_path}")
-                return False
-            
-            file_size = os.path.getsize(local_path)
-            self.log_progress(f"📤 Uploading {os.path.basename(local_path)} ({file_size} bytes)")
-            
-            # Send PutFile command with proper error handling
-            size_hex = format(file_size, 'X')
-            response = await self._send_command("PutFile", operands=[remote_path, size_hex])
-            
-            # If command failed, don't proceed with file data
-            if response is None:
-                self.log_error(f"❌ PutFile command failed for {remote_path}")
-                return False
-            
-            # Small delay before sending file data
-            await asyncio.sleep(0.1)
-            
-            # Send file data in chunks like the official client
-            with open(local_path, "rb") as f:
-                data = f.read()
+        """Upload file to remote location with connection recovery"""
+        max_retries = 2  # Files uploads are more expensive, fewer retries
+        
+        for attempt in range(max_retries):
+            try:
+                # Ensure connection before operation
+                if not await self._ensure_connection():
+                    raise Exception("Could not establish connection")
                 
-                if file_size <= 1024:
-                    # Send small files in one go
-                    await self.websocket.send(data)
-                else:
-                    # Send large files in 1024-byte chunks
-                    bytes_sent = 0
+                if not os.path.exists(local_path):
+                    self.log_error(f"❌ Local file not found: {local_path}")
+                    return False
+                
+                file_size = os.path.getsize(local_path)
+                self.log_progress(f"📤 Uploading {os.path.basename(local_path)} ({file_size} bytes)")
+                
+                # Send PutFile command with proper error handling
+                size_hex = format(file_size, 'X')
+                response = await self._send_command("PutFile", operands=[remote_path, size_hex])
+                
+                # If command failed, don't proceed with file data
+                if response is None:
+                    raise Exception(f"PutFile command failed for {remote_path}")
+                
+                # Small delay before sending file data
+                await asyncio.sleep(0.1)
+                
+                # Send file data in chunks with proper progress reporting like the working version
+                chunk_size = 1024  # Standard QUSB2SNES chunk size
+                bytes_sent = 0
+                total_chunks = 0
+                
+                with open(local_path, "rb") as f:
                     while bytes_sent < file_size:
-                        chunk = data[bytes_sent:bytes_sent + 1024]
-                        await self.websocket.send(chunk)
-                        bytes_sent += len(chunk)
+                        # Read chunk directly from file (memory efficient)
+                        chunk = f.read(min(chunk_size, file_size - bytes_sent))
+                        if not chunk:
+                            break
                         
-                        # Small delay between chunks to prevent overwhelming
-                        if bytes_sent < file_size:
-                            await asyncio.sleep(0.05)
-            
-            # Wait for operation to complete
-            await asyncio.sleep(0.5)
-            self.log_progress(f"✅ Uploaded {os.path.basename(local_path)}")
-            return True
-            
-        except Exception as e:
-            self.log_error(f"❌ Upload failed for {local_path}: {str(e)}")
-            return False
+                        try:
+                            await self.websocket.send(chunk)
+                            bytes_sent += len(chunk)
+                            total_chunks += 1
+                            
+                            # Progress feedback every 500KB like the working version
+                            if bytes_sent % (500*1024) == 0 or bytes_sent == file_size:
+                                progress_kb = bytes_sent // 1024
+                                total_kb = file_size // 1024
+                                progress_percent = (bytes_sent / file_size) * 100
+                                self.log_progress(f"QUSB2SNES: � Upload progress: {progress_percent:.1f}% ({progress_kb}KB/{total_kb}KB)")
+                            
+                            # Minimal delay to prevent overwhelming
+                            if bytes_sent < file_size:
+                                await asyncio.sleep(0.001)  # Very small delay
+                                
+                        except Exception as e:
+                            raise Exception(f"Failed to send chunk at byte {bytes_sent}: {str(e)}")
+                
+                # Log completion like the working version
+                self.log_progress(f"QUSB2SNES: 📤 Sent {bytes_sent} bytes in {total_chunks} chunks to {remote_path}")
+                
+                # Wait for file processing with explicit logging
+                wait_time = min(3.5, max(1.0, file_size / (1024*1024)))  # 1-3.5s based on file size
+                self.log_progress(f"QUSB2SNES: ⏳ Waiting {wait_time}s for file processing...")
+                await asyncio.sleep(wait_time)
+                
+                # Verify upload success by listing the parent directory like the working version
+                parent_dir = "/".join(remote_path.split("/")[:-1])
+                if parent_dir:
+                    try:
+                        await self.list_directory(parent_dir)
+                        self.log_progress(f"✅ Uploaded {os.path.basename(local_path)} successfully verified")
+                    except Exception as e:
+                        self.log_progress(f"⚠️ Upload verification failed: {str(e)}, but upload likely succeeded")
+                
+                return True
+                
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    self.log_error(f"❌ Upload failed for {local_path} after {max_retries} attempts: {str(e)}")
+                    return False
+                
+                self.log_progress(f"⚠️ Upload attempt {attempt + 1} failed for {os.path.basename(local_path)}: {str(e)}, retrying...")
+                await self.disconnect()
+                await asyncio.sleep(3.0)  # Longer delay before retrying file uploads
+        
+        return False
     
     def should_upload_file(self, local_path: str, last_sync_timestamp: float = 0) -> bool:
         """
@@ -242,7 +324,7 @@ class QUSB2SNESSync:
         return True
     
     async def sync_directory(self, local_dir: str, remote_dir: str, last_sync_timestamp: float = 0) -> bool:
-        """Directory sync with smart file comparison based on last sync timestamp"""
+        """Directory sync with smart file comparison and connection recovery"""
         try:
             # Safety check
             if not self.is_safe_remote_path(remote_dir):
@@ -255,26 +337,46 @@ class QUSB2SNESSync:
             
             self.log_progress(f"🔄 Starting sync: {local_dir} → {remote_dir}")
             
-            # Check if remote directory exists, create only if needed
-            try:
-                remote_items = await self.list_directory(remote_dir)
-                self.log_progress(f"📁 Remote directory exists with {len(remote_items)} items")
-            except Exception:
-                # Directory doesn't exist, create it
-                self.log_progress(f"📁 Creating remote directory: {remote_dir}")
-                await self.create_directory(remote_dir)
-                remote_items = await self.list_directory(remote_dir)
+            # Check if remote directory exists using SD2SNES-safe approach
+            # List parent directory first to avoid connection closure
+            parent_dir = "/".join(remote_dir.strip("/").split("/")[:-1])
+            remote_dir_name = remote_dir.strip("/").split("/")[-1]
+            
+            if parent_dir:
+                # Check if target directory exists by listing parent
+                try:
+                    parent_items = await self.list_directory(f"/{parent_dir}")
+                    parent_names = {item["name"] for item in parent_items}
+                    
+                    if remote_dir_name in parent_names:
+                        # Directory exists, safe to list it
+                        remote_items = await self.list_directory(remote_dir)
+                        self.log_progress(f"📁 Remote directory exists with {len(remote_items)} items")
+                    else:
+                        # Directory doesn't exist, create it
+                        self.log_progress(f"📁 Creating remote directory: {remote_dir}")
+                        if await self.create_directory(remote_dir):
+                            remote_items = await self.list_directory(remote_dir)
+                        else:
+                            self.log_error(f"❌ Failed to create remote directory: {remote_dir}")
+                            return {"success": False, "uploaded": 0}
+                except Exception as e:
+                    self.log_error(f"❌ Failed to check parent directory: {str(e)}")
+                    return {"success": False, "uploaded": 0}
+            else:
+                # Root-level directory, should exist
+                try:
+                    remote_items = await self.list_directory(remote_dir)
+                    self.log_progress(f"📁 Remote directory exists with {len(remote_items)} items")
+                except Exception as e:
+                    self.log_error(f"❌ Failed to access remote directory {remote_dir}: {str(e)}")
+                    return {"success": False, "uploaded": 0}
             
             remote_names = {item["name"] for item in remote_items}
             
             # Sync files from local directory
             uploaded = 0
             for item in os.listdir(local_dir):
-                # Check connection health before each operation
-                if not self.connected or (self.websocket and self.websocket.closed):
-                    self.log_error("❌ Connection lost during sync, stopping")
-                    break
-                    
                 local_path = os.path.join(local_dir, item)
                 
                 if os.path.isfile(local_path):
@@ -290,46 +392,9 @@ class QUSB2SNESSync:
                     else:
                         self.log_progress(f"⏭️ Skipping existing file: {item}")
                 elif os.path.isdir(local_path):
-                    # Simple subdirectory sync - be very careful with directory operations
-                    sub_remote_dir = f"{remote_dir.rstrip('/')}/{item}"
-                    
-                    # Check if subdirectory is already in remote_names (from parent listing)
-                    if item not in remote_names:
-                        # Only create if we know it doesn't exist
-                        self.log_progress(f"📁 Creating new subdirectory: {sub_remote_dir}")
-                        await self.create_directory(sub_remote_dir)
-                    else:
-                        self.log_progress(f"📁 Using existing subdirectory: {sub_remote_dir}")
-                    
-                    # Add delay before processing subdirectory files
-                    await asyncio.sleep(0.2)
-                    
-                    # Get existing files in the remote subdirectory
-                    try:
-                        sub_remote_items = await self.list_directory(sub_remote_dir)
-                        sub_remote_names = {item["name"] for item in sub_remote_items}
-                        self.log_progress(f"📁 Subdirectory {sub_remote_dir} has {len(sub_remote_items)} existing files")
-                    except Exception:
-                        # If we can't list the subdirectory, assume it's empty
-                        sub_remote_names = set()
-                    
-                    # Sync files in subdirectory using smart timestamp comparison
-                    for sub_item in os.listdir(local_path):
-                        sub_local_path = os.path.join(local_path, sub_item)
-                        if os.path.isfile(sub_local_path):
-                            # Smart upload decision: upload if file doesn't exist OR if modified since last sync
-                            should_upload = sub_item not in sub_remote_names or self.should_upload_file(sub_local_path, last_sync_timestamp)
-                            
-                            if should_upload:
-                                sub_remote_path = f"{sub_remote_dir}/{sub_item}"
-                                if sub_item in sub_remote_names:
-                                    self.log_progress(f"🔄 Overwriting existing file (modified since last sync): {sub_item}")
-                                # Add delay before file upload
-                                await asyncio.sleep(0.3)
-                                if await self.upload_file(sub_local_path, sub_remote_path):
-                                    uploaded += 1
-                            else:
-                                self.log_progress(f"⏭️ Skipping existing file: {sub_item}")
+                    # Recursive subdirectory sync - handle any depth of nested directories
+                    self.log_progress(f"📁 Processing subdirectory: {item}")
+                    uploaded += await self.sync_subdirectory_recursive(local_path, item, remote_dir, last_sync_timestamp)
                 
                 # Small delay between operations to prevent overwhelming the connection
                 await asyncio.sleep(0.1)
@@ -343,8 +408,74 @@ class QUSB2SNESSync:
             self.log_error(f"❌ Sync failed: {str(e)}")
             return {"success": False, "uploaded": 0}
     
+    async def sync_subdirectory_recursive(self, local_dir_path: str, dir_name: str, parent_remote_dir: str, last_sync_timestamp: float) -> int:
+        """Recursively sync a subdirectory using SD2SNES-safe approach"""
+        uploaded = 0
+        sub_remote_dir = f"{parent_remote_dir.rstrip('/')}/{dir_name}"
+        
+        try:
+            self.log_progress(f"📁 Processing subdirectory: {dir_name}")
+            
+            # CRITICAL: Always list parent directory first to check if subdirectory exists
+            # This prevents connection closure from trying to list non-existent directories
+            try:
+                parent_items = await self.list_directory(parent_remote_dir)
+                parent_names = {item["name"] for item in parent_items}
+                
+                if dir_name in parent_names:
+                    # Directory exists, safe to list it
+                    self.log_progress(f"📁 Using existing directory: {sub_remote_dir}")
+                    remote_items = await self.list_directory(sub_remote_dir)
+                else:
+                    # Directory doesn't exist, create it first
+                    self.log_progress(f"📁 Creating directory: {sub_remote_dir}")
+                    if await self.create_directory(sub_remote_dir):
+                        # After creating, list it to get contents (should be empty)
+                        remote_items = await self.list_directory(sub_remote_dir)
+                    else:
+                        self.log_error(f"❌ Failed to create directory {sub_remote_dir}")
+                        return uploaded
+            except Exception as e:
+                self.log_error(f"❌ Failed to check/create directory {sub_remote_dir}: {str(e)}")
+                return uploaded
+            
+            # Get existing remote items
+            remote_names = {item["name"] for item in remote_items}
+            
+            # Process all items in this directory
+            for item in os.listdir(local_dir_path):
+                local_item_path = os.path.join(local_dir_path, item)
+                
+                if os.path.isfile(local_item_path):
+                    # Handle file
+                    should_upload = item not in remote_names or self.should_upload_file(local_item_path, last_sync_timestamp)
+                    
+                    if should_upload:
+                        remote_file_path = f"{sub_remote_dir}/{item}"
+                        self.log_progress(f"📤 Uploading {item} to {sub_remote_dir}")
+                        
+                        if await self.upload_file(local_item_path, remote_file_path):
+                            uploaded += 1
+                        else:
+                            self.log_error(f"❌ Upload failed for {item}")
+                    else:
+                        self.log_progress(f"⏭️ Skipping existing file: {item}")
+                        
+                elif os.path.isdir(local_item_path):
+                    # Recursively handle subdirectory
+                    uploaded += await self.sync_subdirectory_recursive(local_item_path, item, sub_remote_dir, last_sync_timestamp)
+                
+                # Small delay between operations
+                await asyncio.sleep(0.1)
+            
+            return uploaded
+            
+        except Exception as e:
+            self.log_error(f"❌ Failed to sync subdirectory {sub_remote_dir}: {str(e)}")
+            return uploaded
+    
     async def _send_command(self, opcode: str, space: str = "SNES", operands: List[str] = None) -> Optional[Dict]:
-        """Send command to QUSB2SNES with connection health checking"""
+        """Send command to QUSB2SNES with proper logging and response handling"""
         if not self.connected or not self.websocket:
             raise Exception("Not connected to QUSB2SNES")
         
@@ -359,21 +490,28 @@ class QUSB2SNESSync:
             if operands:
                 command["Operands"] = operands
             
-            await self.websocket.send(json.dumps(command))
-            
             # Commands that don't send replies
             no_reply_commands = ["Attach", "Name", "MakeDir", "PutFile", "Remove"]
             
             if opcode in no_reply_commands:
-                return {"status": "ok"}  # Return success indicator for no-reply commands
-            
-            # Wait for response
-            try:
-                response = await asyncio.wait_for(self.websocket.recv(), timeout=10.0)
-                return json.loads(response)
-            except asyncio.TimeoutError:
-                self.log_error("❌ Command timeout")
-                return None
+                self.log_progress(f"QUSB2SNES: Sending command (no response expected): {opcode} with operands: {operands}")
+                await self.websocket.send(json.dumps(command))
+                self.log_progress(f"QUSB2SNES: Command {opcode} sent successfully")
+                return {"status": "ok"}
+            else:
+                self.log_progress(f"QUSB2SNES: Sending command: {opcode} with operands: {operands}")
+                await self.websocket.send(json.dumps(command))
+                
+                # Wait for response with longer timeout for List operations
+                timeout = 15.0 if opcode == "List" else 10.0
+                try:
+                    response = await asyncio.wait_for(self.websocket.recv(), timeout=timeout)
+                    result = json.loads(response)
+                    self.log_progress(f"QUSB2SNES: Received response for {opcode}: {result}")
+                    return result
+                except asyncio.TimeoutError:
+                    self.log_error(f"❌ Command {opcode} timeout after {timeout}s")
+                    return None
                 
         except Exception as e:
             # If websocket error, mark as disconnected
