@@ -510,12 +510,24 @@ Do you want to proceed with the optimized sync?"""
                         time_since_last = time.time() - last_sync_timestamp
                         self.parent.after(0, lambda msg=f"📅 Incremental sync - only uploading files newer than {time_since_last/3600:.1f} hours ago": self._on_progress(msg))
                     
-                    result = loop.run_until_complete(fresh_sync_manager.sync_roms(local_rom_dir, last_sync_timestamp))
+                    try:
+                        result = loop.run_until_complete(fresh_sync_manager.sync_roms(local_rom_dir, last_sync_timestamp))
+                    except asyncio.CancelledError:
+                        # Handle cancellation gracefully
+                        self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
+                        try:
+                            loop.run_until_complete(fresh_sync_manager.disconnect())
+                        except:
+                            pass  # Ignore disconnect errors during cancellation
+                        return
                     
                     # Check if operation was cancelled during sync
                     if self.sync_cancelled:
                         self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
-                        loop.run_until_complete(fresh_sync_manager.disconnect())
+                        try:
+                            loop.run_until_complete(fresh_sync_manager.disconnect())
+                        except:
+                            pass  # Ignore disconnect errors during cancellation
                         return
                     
                     if result:
@@ -530,7 +542,10 @@ Do you want to proceed with the optimized sync?"""
                         self.parent.after(0, lambda: self._on_error("❌ Sync operation failed"))
                     
                     # Clean disconnect
-                    loop.run_until_complete(fresh_sync_manager.disconnect())
+                    try:
+                        loop.run_until_complete(fresh_sync_manager.disconnect())
+                    except:
+                        pass  # Ignore disconnect errors
                 else:
                     self.parent.after(0, lambda: self._on_error("❌ Failed to connect for sync operation"))
                 
