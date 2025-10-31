@@ -9,6 +9,7 @@ from hack_data_manager import HackDataManager
 from ui.collection_components import InlineEditor, DateValidator, NotesValidator, HackCollectionInlineEditor
 from ui.components.table_filters import TableFilters
 from ui_constants import get_page_padding, get_section_padding
+from file_explorer_utils import open_file_in_explorer, get_file_icon_unicode
 
 # Platform-specific cursor
 HOVER_CURSOR = "pointinghand" if platform.system() == "Darwin" else "hand2"
@@ -147,15 +148,15 @@ class CollectionPage:
         table_frame = ttk.Frame(self.frame)
         table_frame.pack(fill="both", expand=True)
         
-        # Create treeview with custom Collection style
-        columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
+        # Create treeview with custom Collection style - Added folder column
+        columns = ("completed", "folder", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15, style="Collection.Treeview")
         
-        # Configure headers and columns
-        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
-        widths = [45, 220, 90, 100, 90, 110, 120, 150]
-        min_widths = [35, 170, 70, 80, 70, 90, 100, 120]
-        anchors = ["center", "w", "center", "center", "center", "center", "center", "w"]
+        # Configure headers and columns - Added folder icon column
+        headers = ["✓", get_file_icon_unicode(), "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
+        widths = [45, 35, 220, 90, 100, 90, 110, 120, 150]
+        min_widths = [35, 25, 170, 70, 80, 70, 90, 100, 120]
+        anchors = ["center", "center", "w", "center", "center", "center", "center", "center", "w"]
         
         for i, (col, header, width, min_width, anchor) in enumerate(zip(columns, headers, widths, min_widths, anchors)):
             self.tree.heading(col, text=header, command=lambda c=col: self._sort_by_column(c))
@@ -279,8 +280,13 @@ class CollectionPage:
         hack_types = hack.get("hack_types", []) or [hack.get("hack_type", "standard")]
         type_display = format_types_display(hack_types)
         
+        # Check if hack file exists for folder icon display
+        file_path = hack.get("file_path", "")
+        folder_icon = get_file_icon_unicode() if file_path and os.path.exists(file_path) else ""
+        
         self.tree.insert("", "end", values=(
             completed_display,
+            folder_icon,  # NEW: Folder icon column
             hack["title"],
             type_display,  # Now shows multiple types if available
             hack.get("difficulty", "Unknown"),
@@ -349,14 +355,16 @@ class CollectionPage:
         # Handle different column clicks
         if column == "#1":  # Completed
             self._toggle_completed(hack_id)
-        elif column == "#5":  # Rating
+        elif column == "#2":  # Folder icon - NEW: Open file in explorer
+            self._open_hack_in_explorer(hack_id)
+        elif column == "#6":  # Rating (shifted due to new folder column)
             self._edit_rating(hack_id, item, event)
-        elif column == "#6":  # Completed date
-            self.date_editor.start_edit(hack_id, item, event, "completed_date", "#6", DateValidator.validate)
-        elif column == "#7":  # Time to Beat (v3.1 NEW)
-            self.time_editor.start_edit(hack_id, item, event, "time_to_beat", "#7", self._validate_time_input)
-        elif column == "#8":  # Notes (was #7)
-            self.notes_editor.start_edit(hack_id, item, event, "notes", "#8", NotesValidator.validate)
+        elif column == "#7":  # Completed date (shifted due to new folder column)
+            self.date_editor.start_edit(hack_id, item, event, "completed_date", "#7", DateValidator.validate)
+        elif column == "#8":  # Time to Beat (shifted due to new folder column)
+            self.time_editor.start_edit(hack_id, item, event, "time_to_beat", "#8", self._validate_time_input)
+        elif column == "#9":  # Notes (shifted due to new folder column)
+            self.notes_editor.start_edit(hack_id, item, event, "notes", "#9", NotesValidator.validate)
     
     def _on_item_double_click(self, event):
         """Handle double click - show edit hack dialog"""
@@ -393,11 +401,12 @@ class CollectionPage:
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
-        if item and column in ["#1", "#5", "#6", "#7"]:
+        # Updated column references for new folder column
+        if item and column in ["#1", "#2", "#6", "#7", "#8"]:  # Completed, Folder, Rating, Date, Time
             self.tree.config(cursor=HOVER_CURSOR)
             
             # ENHANCED: Show rating preview on hover
-            if column == "#5":  # Rating column
+            if column == "#6":  # Rating column (updated column number)
                 self._show_rating_preview(item, event)
         else:
             self.tree.config(cursor="")
@@ -487,8 +496,8 @@ class CollectionPage:
                     # Update completed checkbox
                     current_values[0] = "✓" if new_completed else ""
                     
-                    # Update completion date if it changed
-                    current_values[5] = hack_data.get("completed_date", "")
+                    # Update completion date if it changed (shifted by folder column)
+                    current_values[6] = hack_data.get("completed_date", "")  # Was index 5, now 6
                     
                     # Update the tree item
                     self.tree.item(item, values=current_values)
@@ -503,8 +512,8 @@ class CollectionPage:
         if not hack_data:
             return
         
-        # Get cell position
-        bbox = self.tree.bbox(item, "#5")
+        # Get cell position (updated column reference)
+        bbox = self.tree.bbox(item, "#6")  # Was "#5", now "#6" due to folder column
         if not bbox:
             return
         
@@ -551,8 +560,8 @@ class CollectionPage:
                     # Get current values
                     current_values = list(self.tree.item(tree_item)["values"])
                     
-                    # Update rating display
-                    current_values[4] = self._get_rating_display(new_rating)
+                    # Update rating display (shifted by folder column)
+                    current_values[5] = self._get_rating_display(new_rating)  # Was index 4, now 5
                     
                     # Update the tree item
                     self.tree.item(tree_item, values=current_values)
@@ -569,10 +578,57 @@ class CollectionPage:
     
     def _find_hack_data(self, hack_id_str):
         """Find hack data by ID"""
+        # Convert to string for comparison to handle both string and integer IDs
+        hack_id_str = str(hack_id_str)
         for hack in self.filtered_data:
-            if hack.get("id") == hack_id_str:
+            if str(hack.get("id")) == hack_id_str:
                 return hack
         return None
+    
+    def _open_hack_in_explorer(self, hack_id):
+        """Open the hack file location in the system file explorer"""
+        
+        hack_data = self._find_hack_data(hack_id)
+        if not hack_data:
+            self._log(f"❌ Could not find hack data for ID: {hack_id}", "Error")
+            return
+        
+        file_path = hack_data.get("file_path", "")
+        hack_title = hack_data.get("title", "Unknown")
+        
+        if not file_path:
+            self._log(f"📁 No file path available for '{hack_title}' - this hack may not be downloaded yet", "Warning")
+            messagebox.showinfo(
+                "File Not Available", 
+                f"No file location found for '{hack_title}'.\n\n"
+                f"This hack may not have been downloaded yet, or the file may have been moved."
+            )
+            return
+        
+        if not os.path.exists(file_path):
+            self._log(f"📁 File not found: {file_path} for '{hack_title}'", "Warning")
+            messagebox.showwarning(
+                "File Not Found", 
+                f"The file for '{hack_title}' could not be found:\n\n"
+                f"{file_path}\n\n"
+                f"The file may have been moved or deleted."
+            )
+            return
+        
+        # Try to open the file in the system explorer
+        success = open_file_in_explorer(file_path)
+        
+        if success:
+            self._log(f"📁 Opened file location for '{hack_title}' in system explorer", "Information")
+        else:
+            # Fallback message if the explorer couldn't be opened
+            self._log(f"❌ Failed to open file explorer for '{hack_title}'", "Error")
+            messagebox.showerror(
+                "Explorer Error", 
+                f"Could not open the file explorer for '{hack_title}'.\n\n"
+                f"File location: {file_path}\n\n"
+                f"You can manually navigate to this location using your file manager."
+            )
     
     def _show_hack_details(self, hack_data):
         """Show detailed hack information"""

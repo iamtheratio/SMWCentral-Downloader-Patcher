@@ -69,7 +69,8 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 3. **Track progress**: Mark hacks as completed, rate them (1-5 stars), and add personal notes
 4. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
 5. **Advanced editing**: Double-click any hack to open the full edit dialog
-6. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
+6. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open its file location in your system's file manager
+7. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
 #### Input Format Guide
 
@@ -94,6 +95,45 @@ When editing **Completed Date** and **Time to Beat** fields, the app supports fl
 | | *Shortened* | `14d 10` (assumes hours) | Advanced shorthand |
 | **Word-Based** | `X minutes/mins` | `150 minutes`, `90 mins` | Full word formats |
 | **Simple Number** | `X` | `90`, `5`, `120` | Just a number (assumes minutes) |
+
+### 🎮 QUSB2SNES Sync (New in v4.8!)
+Transfer your ROM hack collection directly to your SD2SNES/FXPAK Pro cart with one click!
+
+#### What You Need
+- **SD2SNES or FXPAK Pro** flashcart connected via USB
+- **QUSB2SNES software** installed on your computer ([download here](https://github.com/Skarsnik/QUsb2snes))
+
+#### Setup Steps
+1. **Install QUSB2SNES**: Download and install the QUSB2SNES software on your computer
+2. **Connect your cart**: Plug your SD2SNES/FXPAK Pro into your computer via USB
+3. **Launch QUSB2SNES**: Start the QUSB2SNES application
+4. **Configure in this app**:
+   - Go to **Settings** tab
+   - Find the **QUSB2SNES Sync** section
+   - Check **"Enable"** to activate the feature
+   - Set **Host** to `localhost` (usually default)
+   - Set **Port** to `8080` (legacy default) or `23074` (newer versions)
+   - Choose your **Device** from the dropdown
+   - Set **Sync To Folder** to where you want ROMs stored (default: `/ROMS`)
+
+#### How to Sync
+1. **Click "Connect"** to establish connection with your device
+2. **Click "Sync"** to start transferring your ROM collection
+3. **Wait for completion** - the app shows progress and only uploads new/changed files
+4. **Your ROMs are ready** to play on real hardware!
+
+#### Features
+- **Smart Incremental Sync**: Only transfers new or modified files to save time
+- **Organized Folders**: Maintains your collection structure (Kaizo, Standard, etc.)
+- **Real-Time Progress**: See exactly what's being uploaded
+- **Automatic Retry**: Handles connection issues and device conflicts gracefully
+- **Safe Operation**: Verifies all transfers completed successfully
+
+#### Troubleshooting
+- **"Connection failed"**: Make sure QUSB2SNES software is running
+- **"Device in use"**: Close other apps using your SD2SNES (like RetroAchievements)
+- **"Sync timeout"**: Large files take time - the app retries automatically
+- **Wrong port**: Try port 23074 if 8080 doesn't work (depends on QUSB2SNES version)
 
 ### App Settings
 - **Download location**: Change where ROMs are saved
@@ -133,7 +173,31 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 ##  Changelog
 
 <details>
-<summary><strong>Version 4.7 - Latest Release</strong></summary>
+<summary><strong>Version 4.8 - Latest Release</strong></summary>
+
+### v4.8.0
+
+### 🆕 New Features
+- **🎮 QUSB2SNES Sync**: Complete SD2SNES/FXPAK Pro integration for one-click ROM transfers
+  - Smart incremental sync (only uploads new/changed files)
+  - Organized folder structure maintenance
+  - Real-time progress tracking and automatic retry logic
+  - Easy setup with host/port/device configuration
+- **📁 Folder Icons**: Added clickable folder icons in collection to quickly open hack file locations
+- **🗂️ Cross-Platform File Explorer Integration**: Open file managers on Windows (Explorer), macOS (Finder), and Linux (various)
+- **🎯 Smart File Navigation**: Click folder icons to open and highlight specific hack files
+
+### 🔧 Improvements  
+- **Enhanced QUSB2SNES Communication**: Full WebSocket integration with connection resilience
+- **Optimized File Transfer**: Tree-based sync algorithm for maximum efficiency
+- **Better Error Recovery**: Improved handling of device conflicts and connection timeouts
+- **Enhanced Settings**: New QUSB2SNES configuration section with persistent settings
+- **Cross-Platform Reliability**: Comprehensive support for multiple operating systems
+
+</details>
+
+<details>
+<summary><strong>Previous Versions</strong></summary>
 
 ### v4.7.0
 
@@ -145,7 +209,7 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 </details>
 
 <details>
-<summary><strong>Previous Versions</strong></summary>
+<summary><strong>Older Versions</strong></summary>
 
 ### v4.6.0
 
