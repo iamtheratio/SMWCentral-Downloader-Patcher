@@ -70,13 +70,16 @@ class ConfigManager:
             "api_delay": 0.8,
             "multi_type_enabled": True,
             "multi_type_download_mode": "primary_only",
+            "auto_check_updates": True,  # Auto-check for updates on startup
             # QUSB2SNES settings
             "qusb2snes_enabled": False,
             "qusb2snes_host": "localhost",
             "qusb2snes_port": 23074,  # Default modern QUSB2SNES port
             "qusb2snes_device": "",
             "qusb2snes_remote_folder": "/ROMS",
-            "qusb2snes_last_sync": 0  # Unix timestamp of last successful sync
+            "qusb2snes_last_sync": 0,  # Unix timestamp of last successful sync
+            "qusb2snes_sync_progress": {},  # Directory-level sync progress tracking
+            "qusb2snes_partial_sync": False  # Flag indicating partial sync state
         }
 
     def _clean_config(self, config):

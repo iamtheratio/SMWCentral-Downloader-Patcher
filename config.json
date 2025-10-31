@@ -8,6 +8,9 @@
   "qusb2snes_port": 23074,
   "qusb2snes_device": "UPDATED_DEVICE",
   "multi_type_download_mode": "primary_only",
+  "auto_check_updates": true,
   "qusb2snes_remote_folder": "/ROMS",
-  "qusb2snes_last_sync": 0
+  "qusb2snes_last_sync": 0,
+  "qusb2snes_sync_progress": {},
+  "qusb2snes_partial_sync": false
 }

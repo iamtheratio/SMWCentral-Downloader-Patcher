@@ -869,6 +869,176 @@ class QUSB2SNESSyncManager:
 
         # Use the new tree-based sync approach with timestamp
         return await self.sync_client.sync_directory_tree_based(local_rom_dir, self.remote_folder, last_sync_timestamp)
+    
+    async def sync_roms_incremental(self, local_rom_dir: str, progress_tracker: Dict = None) -> Dict:
+        """
+        Incremental ROM sync that can resume from partial completion.
+        
+        Args:
+            local_rom_dir: Local directory containing ROMs
+            progress_tracker: Dict containing sync progress by directory path
+            
+        Returns:
+            Dict with success status, uploaded count, and updated progress tracker
+        """
+        if not self.sync_client:
+            return {
+                "success": False, 
+                "error": "Not connected to QUSB2SNES",
+                "uploaded": 0,
+                "progress": progress_tracker or {}
+            }
+        
+        if progress_tracker is None:
+            progress_tracker = {}
+            
+        result = {
+            "success": False,
+            "uploaded": 0, 
+            "progress": progress_tracker.copy(),
+            "directories_completed": [],
+            "directories_skipped": []
+        }
+        
+        try:
+            self.log_progress(f"🚀 Starting incremental sync: {local_rom_dir} -> {self.remote_folder}")
+            
+            # Get all subdirectories to sync
+            directories_to_sync = self._get_sync_directories(local_rom_dir, progress_tracker)
+            total_dirs = len(directories_to_sync)
+            
+            self.log_progress(f"📊 Found {total_dirs} directories to process")
+            
+            for i, (local_dir_path, remote_dir_path, needs_sync) in enumerate(directories_to_sync):
+                if self.cancelled:
+                    result["error"] = "Operation cancelled by user"
+                    return result
+                    
+                self.log_progress(f"📁 [{i+1}/{total_dirs}] Processing: {os.path.basename(local_dir_path)}")
+                
+                if not needs_sync:
+                    self.log_progress(f"⏭️ Skipping (already synced): {os.path.basename(local_dir_path)}")
+                    result["directories_skipped"].append(local_dir_path)
+                    continue
+                    
+                # Sync this directory
+                dir_result = await self._sync_directory_incremental(local_dir_path, remote_dir_path)
+                
+                if dir_result["success"]:
+                    # Mark directory as completed
+                    current_time = time.time()
+                    result["progress"][local_dir_path] = current_time
+                    result["uploaded"] += dir_result["uploaded"]
+                    result["directories_completed"].append(local_dir_path)
+                    
+                    self.log_progress(f"✅ Completed: {os.path.basename(local_dir_path)} ({dir_result['uploaded']} files)")
+                else:
+                    result["error"] = f"Failed to sync directory {local_dir_path}: {dir_result.get('error', 'Unknown error')}"
+                    return result
+            
+            # All directories synced successfully
+            result["success"] = True
+            self.log_progress(f"🎉 Incremental sync completed: {result['uploaded']} files uploaded")
+            
+        except Exception as e:
+            result["error"] = str(e)
+            self.log_error(f"❌ Incremental sync failed: {str(e)}")
+            
+        return result
+    
+    def _get_sync_directories(self, local_rom_dir: str, progress_tracker: Dict) -> List[tuple]:
+        """
+        Get list of directories that need syncing based on progress tracker.
+        
+        Returns:
+            List of tuples: (local_path, remote_path, needs_sync)
+        """
+        directories = []
+        
+        # Add root directory
+        needs_sync = self._directory_needs_sync(local_rom_dir, progress_tracker.get(local_rom_dir, 0))
+        directories.append((local_rom_dir, self.remote_folder, needs_sync))
+        
+        # Add subdirectories recursively
+        for root, dirs, files in os.walk(local_rom_dir):
+            for dir_name in dirs:
+                local_dir_path = os.path.join(root, dir_name)
+                
+                # Calculate remote path
+                rel_path = os.path.relpath(local_dir_path, local_rom_dir)
+                remote_dir_path = f"{self.remote_folder}/{rel_path.replace(os.sep, '/')}"
+                
+                # Check if directory needs syncing
+                last_sync = progress_tracker.get(local_dir_path, 0)
+                needs_sync = self._directory_needs_sync(local_dir_path, last_sync)
+                
+                directories.append((local_dir_path, remote_dir_path, needs_sync))
+        
+        return directories
+    
+    def _directory_needs_sync(self, local_dir_path: str, last_sync_timestamp: float) -> bool:
+        """
+        Check if a directory needs syncing based on file modification times.
+        
+        Args:
+            local_dir_path: Path to local directory
+            last_sync_timestamp: Timestamp of last successful sync for this directory
+            
+        Returns:
+            True if directory needs syncing, False if all files are older than last sync
+        """
+        if last_sync_timestamp == 0:
+            return True  # Never synced before
+            
+        try:
+            # Check if any files in this directory are newer than last sync
+            for item in os.listdir(local_dir_path):
+                item_path = os.path.join(local_dir_path, item)
+                
+                if os.path.isfile(item_path):
+                    # Check file modification time
+                    file_mtime = os.path.getmtime(item_path)
+                    if file_mtime > last_sync_timestamp:
+                        return True  # Found a newer file
+                        
+            return False  # All files are older than last sync
+            
+        except (OSError, FileNotFoundError):
+            return True  # If we can't check, assume it needs sync
+    
+    async def _sync_directory_incremental(self, local_dir_path: str, remote_dir_path: str) -> Dict:
+        """
+        Sync a single directory incrementally.
+        
+        Returns:
+            Dict with success status, uploaded count, and error if any
+        """
+        try:
+            # Use existing tree-based sync for this specific directory
+            result = await self.sync_client.sync_local_to_remote_tree(
+                local_dir_path, 
+                remote_dir_path, 
+                0  # Don't use timestamp filtering here since we already filtered at directory level
+            )
+            
+            return result
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "uploaded": 0,
+                "error": str(e)
+            }
+
+    async def sync_roms(self, local_rom_dir: str, last_sync_timestamp: float = 0) -> bool:
+        """Sync ROM directory using tree-based approach"""
+        if not self.sync_client:
+            if self.on_error:
+                self.on_error("❌ Not connected to QUSB2SNES")
+            return False
+
+        # Use the new tree-based sync approach with timestamp
+        return await self.sync_client.sync_directory_tree_based(local_rom_dir, self.remote_folder, last_sync_timestamp)
 
     async def disconnect(self):
         """Disconnect from QUSB2SNES with robust cleanup"""
