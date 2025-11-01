@@ -219,7 +219,19 @@ class QUSB2SNESSync:
                     if not self.is_rom_file(item_name):
                         continue  # Skip non-ROM files
                     
-                    should_upload = item_name not in remote_names or self.should_upload_file(local_path, last_sync_timestamp)
+                    # Only upload if file doesn't exist remotely OR if it exists but was modified since last sync
+                    file_exists_remotely = item_name in remote_names
+                    if file_exists_remotely:
+                        # File exists - only upload if it's been modified since last sync
+                        should_upload = self.should_upload_file(local_path, last_sync_timestamp)
+                        if should_upload:
+                            self.log_progress(f"🔄 Re-uploading {item_name} (modified since last sync)")
+                        else:
+                            self.log_progress(f"⏭️ Skipping {item_name} (already up to date)")
+                    else:
+                        # File doesn't exist - upload it
+                        should_upload = True
+                        self.log_progress(f"📤 New file: {item_name}")
                     
                     if should_upload:
                         if await self.upload_file(local_path, remote_path):
@@ -873,17 +885,24 @@ class QUSB2SNESSync:
                 local_path = os.path.join(local_dir, item)
                 
                 if os.path.isfile(local_path):
-                    # Smart upload decision: upload if file doesn't exist OR if modified since last sync
-                    should_upload = item not in remote_names or self.should_upload_file(local_path, last_sync_timestamp)
+                    # Smart upload decision: only upload if file doesn't exist OR if it exists but was modified since last sync
+                    file_exists_remotely = item in remote_names
+                    if file_exists_remotely:
+                        # File exists - only upload if it's been modified since last sync
+                        should_upload = self.should_upload_file(local_path, last_sync_timestamp)
+                        if should_upload:
+                            self.log_progress(f"🔄 Re-uploading {item} (modified since last sync)")
+                        else:
+                            self.log_progress(f"⏭️ Skipping {item} (already up to date)")
+                    else:
+                        # File doesn't exist - upload it
+                        should_upload = True
+                        self.log_progress(f"📤 New file: {item}")
                     
                     if should_upload:
                         remote_path = f"{remote_dir.rstrip('/')}/{item}"
-                        if item in remote_names:
-                            self.log_progress(f"🔄 Overwriting existing file (modified since last sync): {item}")
                         if await self.upload_file(local_path, remote_path):
                             uploaded += 1
-                    else:
-                        self.log_progress(f"⏭️ Skipping existing file: {item}")
                 elif os.path.isdir(local_path):
                     # Recursive subdirectory sync - handle any depth of nested directories
                     self.log_progress(f"📁 Processing subdirectory: {item}")
@@ -940,12 +959,22 @@ class QUSB2SNESSync:
                 local_item_path = os.path.join(local_dir_path, item)
                 
                 if os.path.isfile(local_item_path):
-                    # Handle file
-                    should_upload = item not in remote_names or self.should_upload_file(local_item_path, last_sync_timestamp)
+                    # Handle file - only upload if it doesn't exist OR if it exists but was modified since last sync
+                    file_exists_remotely = item in remote_names
+                    if file_exists_remotely:
+                        # File exists - only upload if it's been modified since last sync
+                        should_upload = self.should_upload_file(local_item_path, last_sync_timestamp)
+                        if should_upload:
+                            self.log_progress(f"🔄 Re-uploading {item} (modified since last sync)")
+                        else:
+                            self.log_progress(f"⏭️ Skipping {item} (already up to date)")
+                    else:
+                        # File doesn't exist - upload it
+                        should_upload = True
+                        self.log_progress(f"📤 New file: {item}")
                     
                     if should_upload:
                         remote_file_path = f"{sub_remote_dir}/{item}"
-                        self.log_progress(f"📤 Uploading {item} to {sub_remote_dir}")
                         
                         if await self.upload_file(local_item_path, remote_file_path):
                             uploaded += 1
