@@ -118,6 +118,7 @@ Transfer your ROM hack collection directly to your SD2SNES/FXPAK Pro cart with o
      - **Check your QUSB2SNES**: Look for "WebSocket server on port XXXX" message when starting
    - Choose your **Device** from the dropdown
    - Set **Sync To Folder** to where you want ROMs stored (default: `/ROMS`)
+   - **Optional**: Check **"Remove deleted files from SD card during sync"** to automatically clean up ROMs that you've removed from your local collection
 
 #### How to Sync
 1. **Click "Connect"** to establish connection with your device
@@ -127,10 +128,12 @@ Transfer your ROM hack collection directly to your SD2SNES/FXPAK Pro cart with o
 
 #### Features
 - **Smart Incremental Sync**: Only transfers new or modified files to save time
+- **Automatic Cleanup**: Optionally removes deleted ROMs from SD card to keep it organized
 - **Organized Folders**: Maintains your collection structure (Kaizo, Standard, etc.)
 - **Real-Time Progress**: See exactly what's being uploaded
 - **Automatic Retry**: Handles connection issues and device conflicts gracefully
 - **Safe Operation**: Verifies all transfers completed successfully
+- **Persistent Settings**: All configuration options save automatically
 
 #### Troubleshooting
 - **"Connection failed"**: Make sure QUSB2SNES software is running

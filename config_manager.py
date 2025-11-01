@@ -70,13 +70,17 @@ class ConfigManager:
             "api_delay": 0.8,
             "multi_type_enabled": True,
             "multi_type_download_mode": "primary_only",
+            "auto_check_updates": True,  # Auto-check for updates on startup
             # QUSB2SNES settings
             "qusb2snes_enabled": False,
             "qusb2snes_host": "localhost",
-            "qusb2snes_port": 8080,  # Default legacy QUSB2SNES port
+            "qusb2snes_port": 23074,  # Default modern QUSB2SNES port
             "qusb2snes_device": "",
             "qusb2snes_remote_folder": "/ROMS",
-            "qusb2snes_last_sync": 0  # Unix timestamp of last successful sync
+            "qusb2snes_last_sync": 0,  # Unix timestamp of last successful sync
+            "qusb2snes_sync_progress": {},  # Directory-level sync progress tracking
+            "qusb2snes_partial_sync": False,  # Flag indicating partial sync state
+            "qusb2snes_cleanup_deleted": False  # Remove files from SD card that were deleted locally
         }
 
     def _clean_config(self, config):
@@ -88,7 +92,8 @@ class ConfigManager:
         allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path",
                         "multi_type_enabled", "multi_type_download_mode",
                         "qusb2snes_enabled", "qusb2snes_host", "qusb2snes_port",
-                        "qusb2snes_device", "qusb2snes_remote_folder", "qusb2snes_last_sync"}
+                        "qusb2snes_device", "qusb2snes_remote_folder", "qusb2snes_last_sync",
+                        "qusb2snes_cleanup_deleted", "qusb2snes_sync_progress", "qusb2snes_partial_sync"}
         cleaned = {}
 
         for key, value in config.items():

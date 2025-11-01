@@ -62,7 +62,7 @@ class QUSB2SNESSection:
         # Initialize variables
         self.enabled_var = tk.BooleanVar(value=self.config.get("qusb2snes_enabled", False))
         self.host_var = tk.StringVar(value=self.config.get("qusb2snes_host", "localhost"))
-        self.port_var = tk.IntVar(value=self.config.get("qusb2snes_port", 8080))  # Legacy default port
+        self.port_var = tk.IntVar(value=self.config.get("qusb2snes_port", 23074))  # Modern default port
         self.device_var = tk.StringVar(value=self.config.get("qusb2snes_device", ""))
         self.remote_folder_var = tk.StringVar(value=self.config.get("qusb2snes_remote_folder", "/ROMS"))
         
@@ -129,6 +129,16 @@ class QUSB2SNESSection:
         )
         self.sync_button.grid(row=2, column=4, columnspan=2, sticky="w", padx=(0, 5), pady=(10, 5))
         
+        # Row 3: Cleanup option checkbox
+        self.cleanup_var = tk.BooleanVar(value=self.config.get("qusb2snes_cleanup_deleted", False))
+        self.cleanup_checkbox = ttk.Checkbutton(
+            self.frame,
+            text="Remove deleted files from SD card during sync",
+            variable=self.cleanup_var,
+            command=self._on_cleanup_changed
+        )
+        self.cleanup_checkbox.grid(row=3, column=1, columnspan=5, sticky="w", padx=(0, 5), pady=(5, 10))
+        
         # Update UI state
         self._update_ui_state()
         
@@ -152,6 +162,11 @@ class QUSB2SNESSection:
         """Handle device selection change"""
         self.config.set("qusb2snes_device", self.device_var.get())
     
+    def _on_cleanup_changed(self):
+        """Handle cleanup option change"""
+        self.config.set("qusb2snes_cleanup_deleted", self.cleanup_var.get())
+        self.config.save()
+    
     def _update_ui_state(self):
         """Update UI component states"""
         enabled = self.enabled_var.get()
@@ -161,7 +176,8 @@ class QUSB2SNESSection:
             self.host_entry,
             self.port_entry, 
             self.device_combo,
-            self.folder_entry
+            self.folder_entry,
+            self.cleanup_checkbox
         ]
         
         basic_state = "normal" if enabled else "disabled"
@@ -387,40 +403,25 @@ class QUSB2SNESSection:
             total_dirs = 0
         
         # Simple progress message
-        self._on_progress(f"📁 Scanning output directory: {local_rom_dir}")
-        self._on_progress(f"🔍 Found {len(rom_files)} ROM files in {total_dirs} subdirectories")
+        self._on_progress(f"📁 Scanning ROM directory...")
+        self._on_progress(f"🔍 Found {len(rom_files)} ROM files")
         
-        # Create detailed confirmation message with tree-based sync info
-        sync_info = f"""QUSB2SNES ROM Sync Operation (Optimized Tree-Based Method)
+        # Create simple confirmation message
+        cleanup_enabled = self.config.get("qusb2snes_cleanup_deleted", False)
         
-📁 SOURCE (Local Computer):
-   {local_rom_dir}
-   
-📂 DESTINATION (SD Card):
-   Device: {self.device_var.get()}
-   Folder: {self.remote_folder_var.get()}
-   
-📋 OPERATION DETAILS:
-   • ROM files found: {len(rom_files)} files (.smc, .sfc files only)
-   • Subdirectories: {total_dirs} folders
-   • Uses optimized tree-based sync (faster & more reliable)
-   • Case-insensitive directory matching
-   • Only uploads missing or modified files
-   • Skips non-ROM files automatically
-   
-⚡ PERFORMANCE:
-   • Optimized upload timing (7-12x faster than before)
-   • No connection drops with tree-based approach
-   • Estimated sync time: {len(rom_files) * 0.4:.1f}s ({(len(rom_files) * 0.4)/60:.1f} minutes)
-   
-⚠️  NOTE: This will modify files on your SD card.
-   Make sure you have backups if needed.
-   
-Do you want to proceed with the optimized sync?"""
+        sync_info = f"""Sync {len(rom_files)} ROM files to SD card?
+
+📁 From: {os.path.basename(local_rom_dir)}
+📂 To: {self.device_var.get()} - {self.remote_folder_var.get()}
+
+⚠️ This will modify files on your SD card."""
+
+        if cleanup_enabled:
+            sync_info += "\n🗑️ Deleted files will be removed from SD card."
         
         # Confirm sync operation
         result = messagebox.askyesno(
-            "Confirm ROM Sync Operation",
+            "Sync ROMs to SD Card",
             sync_info,
             parent=self.parent.winfo_toplevel()
         )
@@ -444,17 +445,10 @@ Do you want to proceed with the optimized sync?"""
                     self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
                     return
                 
-                # Create a completely fresh sync manager for this operation
-                # to avoid cross-loop task reference issues
-                from qusb2snes_sync import QUSB2SNESSyncManager
-                fresh_sync_manager = QUSB2SNESSyncManager()
-                fresh_sync_manager.on_progress = self._on_progress
-                fresh_sync_manager.on_error = self._on_error
-                
-                # Set up cancellation callback so disconnect can cancel sync
+                # Set up cancellation callback 
                 def check_cancellation():
-                    if self.sync_cancelled and fresh_sync_manager.sync_client:
-                        fresh_sync_manager.sync_client.cancel_operation()
+                    if self.sync_cancelled and sync_manager.sync_client:
+                        sync_manager.sync_client.cancel_operation()
                 
                 # Check cancellation periodically during sync
                 def periodic_cancellation_check():
@@ -464,78 +458,106 @@ Do you want to proceed with the optimized sync?"""
                 
                 periodic_cancellation_check()  # Start checking
                 
+                # Check for cancellation before sync
+                if self.sync_cancelled:
+                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
+                    return
+                
+                # Use a fresh sync manager for this operation to avoid cross-loop issues
+                # (the UI sync_manager belongs to the main thread's event loop)
+                from qusb2snes_sync import QUSB2SNESSyncManager
+                sync_manager = QUSB2SNESSyncManager()
+                sync_manager.on_progress = self._on_progress
+                sync_manager.on_error = self._on_error
+                
                 # Configure with current settings
-                fresh_sync_manager.configure(
+                sync_manager.configure(
                     self.host_var.get(),
                     int(self.port_var.get()),
                     self.device_var.get(),
                     self.remote_folder_var.get()
                 )
                 
-                # Check for cancellation before connecting
+                # Connect for sync (no UI disconnect needed)
+                self.parent.after(0, lambda: self._on_progress("🔗 Connecting for sync..."))
+                if not loop.run_until_complete(sync_manager.connect_and_attach()):
+                    self.parent.after(0, lambda: self._on_error("❌ Failed to connect for sync"))
+                    return
+                
+                self.parent.after(0, lambda: self._on_progress("🚀 Starting sync operation..."))
+                
+                # Check for cancellation before sync
                 if self.sync_cancelled:
                     self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
                     return
                 
-                # Connect and perform sync
-                if loop.run_until_complete(fresh_sync_manager.connect_and_attach()):
-                    # Check for cancellation before sync
-                    if self.sync_cancelled:
-                        self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
-                        loop.run_until_complete(fresh_sync_manager.disconnect())
-                        return
+                # Get sync progress from config
+                last_sync_timestamp = self.config.get("qusb2snes_last_sync", 0)
+                progress_tracker = self.config.get("qusb2snes_sync_progress", {})
+                is_partial_sync = self.config.get("qusb2snes_partial_sync", False)
+                cleanup_deleted = self.config.get("qusb2snes_cleanup_deleted", False)
                     
-                    # Get last sync timestamp from config
-                    last_sync_timestamp = self.config.get("qusb2snes_last_sync", 0)
-                    
-                    # Handle null/empty values for first-time sync
-                    if last_sync_timestamp is None or last_sync_timestamp == "" or last_sync_timestamp == 0:
-                        last_sync_timestamp = 0  # First sync - upload all files
-                        self.parent.after(0, lambda: self._on_progress("📅 First sync - uploading all ROM files"))
+                
+                # Handle null/empty values for first-time sync
+                if last_sync_timestamp is None or last_sync_timestamp == "" or last_sync_timestamp == 0:
+                    last_sync_timestamp = 0  # First sync - upload all files
+                    progress_tracker = {}
+                    is_partial_sync = False
+                    self.parent.after(0, lambda: self._on_progress("📅 First sync - uploading all ROM files"))
+                else:
+                    last_sync_timestamp = float(last_sync_timestamp)
+                    if is_partial_sync:
+                        self.parent.after(0, lambda: self._on_progress("🔄 Resuming partial sync from last progress"))
                     else:
-                        last_sync_timestamp = float(last_sync_timestamp)
                         import time
                         time_since_last = time.time() - last_sync_timestamp
-                        self.parent.after(0, lambda msg=f"📅 Incremental sync - only uploading files newer than {time_since_last/3600:.1f} hours ago": self._on_progress(msg))
+                        self.parent.after(0, lambda msg=f"📅 Incremental sync - checking files newer than {time_since_last/3600:.1f} hours ago": self._on_progress(msg))
+                
+                try:
+                    # Use incremental sync for better resume capability
+                    result = loop.run_until_complete(sync_manager.sync_roms_incremental(local_rom_dir, progress_tracker, cleanup_deleted, last_sync_timestamp))
+                except asyncio.CancelledError:
+                    # Handle cancellation gracefully - save partial progress
+                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled - saving progress"))
+                    # Save partial progress
+                    self.config.set("qusb2snes_partial_sync", True)
+                    self.config.set("qusb2snes_sync_progress", progress_tracker)
+                    self.config.save()
+                    return
+                
+                # Check if operation was cancelled during sync
+                if self.sync_cancelled:
+                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled - saving progress"))
+                    # Save partial progress  
+                    self.config.set("qusb2snes_partial_sync", True)
+                    self.config.set("qusb2snes_sync_progress", result.get("progress", progress_tracker))
+                    self.config.save()
+                    return
+                
+                if result and result.get("success"):
+                    # Save current timestamp and clear partial sync state
+                    import time
+                    current_timestamp = time.time()
+                    self.config.set("qusb2snes_last_sync", current_timestamp)
+                    self.config.set("qusb2snes_partial_sync", False)
+                    self.config.set("qusb2snes_sync_progress", {})  # Clear progress tracker
+                    self.config.save()
                     
-                    try:
-                        result = loop.run_until_complete(fresh_sync_manager.sync_roms(local_rom_dir, last_sync_timestamp))
-                    except asyncio.CancelledError:
-                        # Handle cancellation gracefully
-                        self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
-                        try:
-                            loop.run_until_complete(fresh_sync_manager.disconnect())
-                        except:
-                            pass  # Ignore disconnect errors during cancellation
-                        return
+                    uploaded_count = result.get("uploaded", 0)
+                    skipped_count = len(result.get("directories_skipped", []))
                     
-                    # Check if operation was cancelled during sync
-                    if self.sync_cancelled:
-                        self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
-                        try:
-                            loop.run_until_complete(fresh_sync_manager.disconnect())
-                        except:
-                            pass  # Ignore disconnect errors during cancellation
-                        return
-                    
-                    if result:
-                        # Save current timestamp for next sync
-                        import time
-                        current_timestamp = time.time()
-                        self.config.set("qusb2snes_last_sync", current_timestamp)
-                        self.config.save()
-                        
-                        self.parent.after(0, lambda: self._on_progress(f"✅ Sync completed successfully"))
+                    if uploaded_count > 0:
+                        self.parent.after(0, lambda: self._on_progress(f"✅ Sync complete: {uploaded_count} files uploaded"))
                     else:
-                        self.parent.after(0, lambda: self._on_error("❌ Sync operation failed"))
-                    
-                    # Clean disconnect
-                    try:
-                        loop.run_until_complete(fresh_sync_manager.disconnect())
-                    except:
-                        pass  # Ignore disconnect errors
+                        self.parent.after(0, lambda: self._on_progress(f"✅ Sync complete: All files up to date"))
                 else:
-                    self.parent.after(0, lambda: self._on_error("❌ Failed to connect for sync operation"))
+                    # Save partial progress on failure
+                    error_msg = result.get("error", "Unknown error") if result else "Unknown error"
+                    self.config.set("qusb2snes_partial_sync", True)
+                    self.config.set("qusb2snes_sync_progress", result.get("progress", progress_tracker) if result else progress_tracker)
+                    self.config.save()
+                    
+                    self.parent.after(0, lambda msg=error_msg: self._on_error(f"❌ Sync failed: {msg} (Progress saved for resume)"))
                 
             except Exception as e:
                 # Capture exception message to avoid closure issues

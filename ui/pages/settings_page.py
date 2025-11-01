@@ -315,6 +315,7 @@ class SettingsPage:
             
             config.set("multi_type_enabled", enabled)
             config.set("multi_type_download_mode", mode)  
+            config.save()  # Critical: Save changes to disk!
             
         except Exception as e:
             print(f"Error saving multi-type settings: {e}")
@@ -387,6 +388,7 @@ class SettingsPage:
             
             auto_check = self.auto_check_updates_var.get()
             config.set("auto_check_updates", auto_check)
+            config.save()  # Critical: Save changes to disk!
             
         except Exception as e:
             print(f"Error saving auto-check setting: {e}")
