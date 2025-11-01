@@ -92,7 +92,8 @@ class ConfigManager:
         allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path",
                         "multi_type_enabled", "multi_type_download_mode",
                         "qusb2snes_enabled", "qusb2snes_host", "qusb2snes_port",
-                        "qusb2snes_device", "qusb2snes_remote_folder", "qusb2snes_last_sync"}
+                        "qusb2snes_device", "qusb2snes_remote_folder", "qusb2snes_last_sync",
+                        "qusb2snes_cleanup_deleted", "qusb2snes_sync_progress", "qusb2snes_partial_sync"}
         cleaned = {}
 
         for key, value in config.items():

@@ -1172,7 +1172,7 @@ class QUSB2SNESSyncManager:
         # Use the new tree-based sync approach with timestamp
         return await self.sync_client.sync_directory_tree_based(local_rom_dir, self.remote_folder, last_sync_timestamp)
     
-    async def sync_roms_incremental(self, local_rom_dir: str, progress_tracker: Dict = None, cleanup_deleted: bool = False) -> Dict:
+    async def sync_roms_incremental(self, local_rom_dir: str, progress_tracker: Dict = None, cleanup_deleted: bool = False, last_sync_timestamp: float = 0) -> Dict:
         """
         Incremental ROM sync that can resume from partial completion.
         Delegates to the sync client.
@@ -1198,7 +1198,7 @@ class QUSB2SNESSyncManager:
             result = await self.sync_client.sync_directory_tree_based(
                 local_rom_dir, 
                 self.remote_folder, 
-                0,  # timestamp 
+                last_sync_timestamp,  # Pass the actual timestamp
                 cleanup_deleted
             )
             

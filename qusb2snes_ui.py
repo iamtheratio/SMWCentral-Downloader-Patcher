@@ -445,17 +445,10 @@ class QUSB2SNESSection:
                     self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
                     return
                 
-                # Create a completely fresh sync manager for this operation
-                # to avoid cross-loop task reference issues
-                from qusb2snes_sync import QUSB2SNESSyncManager
-                fresh_sync_manager = QUSB2SNESSyncManager()
-                fresh_sync_manager.on_progress = self._on_progress
-                fresh_sync_manager.on_error = self._on_error
-                
-                # Set up cancellation callback so disconnect can cancel sync
+                # Set up cancellation callback 
                 def check_cancellation():
-                    if self.sync_cancelled and fresh_sync_manager.sync_client:
-                        fresh_sync_manager.sync_client.cancel_operation()
+                    if self.sync_cancelled and sync_manager.sync_client:
+                        sync_manager.sync_client.cancel_operation()
                 
                 # Check cancellation periodically during sync
                 def periodic_cancellation_check():
@@ -465,125 +458,106 @@ class QUSB2SNESSection:
                 
                 periodic_cancellation_check()  # Start checking
                 
+                # Check for cancellation before sync
+                if self.sync_cancelled:
+                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
+                    return
+                
+                # Use a fresh sync manager for this operation to avoid cross-loop issues
+                # (the UI sync_manager belongs to the main thread's event loop)
+                from qusb2snes_sync import QUSB2SNESSyncManager
+                sync_manager = QUSB2SNESSyncManager()
+                sync_manager.on_progress = self._on_progress
+                sync_manager.on_error = self._on_error
+                
                 # Configure with current settings
-                fresh_sync_manager.configure(
+                sync_manager.configure(
                     self.host_var.get(),
                     int(self.port_var.get()),
                     self.device_var.get(),
                     self.remote_folder_var.get()
                 )
                 
-                # Check for cancellation before connecting
+                # Connect for sync (no UI disconnect needed)
+                self.parent.after(0, lambda: self._on_progress("🔗 Connecting for sync..."))
+                if not loop.run_until_complete(sync_manager.connect_and_attach()):
+                    self.parent.after(0, lambda: self._on_error("❌ Failed to connect for sync"))
+                    return
+                
+                self.parent.after(0, lambda: self._on_progress("🚀 Starting sync operation..."))
+                
+                # Check for cancellation before sync
                 if self.sync_cancelled:
                     self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
                     return
                 
-                # CRITICAL FIX: Properly release UI connection to prevent device conflicts
-                ui_was_connected = self.connected
-                if ui_was_connected:
-                    self.parent.after(0, lambda: self._on_progress("🔄 Releasing UI connection for sync..."))
-                    try:
-                        # Properly disconnect UI to free the device
-                        loop.run_until_complete(self.sync_manager.disconnect())
-                        self.connected = False
-                        self.parent.after(0, lambda: self._on_progress("✅ UI connection released"))
-                    except Exception as disconnect_error:
-                        # Silently handle disconnect - the sync will proceed regardless
-                        self.connected = False
+                # Get sync progress from config
+                last_sync_timestamp = self.config.get("qusb2snes_last_sync", 0)
+                progress_tracker = self.config.get("qusb2snes_sync_progress", {})
+                is_partial_sync = self.config.get("qusb2snes_partial_sync", False)
+                cleanup_deleted = self.config.get("qusb2snes_cleanup_deleted", False)
+                    
                 
-                # Connect and perform sync
-                self.parent.after(0, lambda: self._on_progress("🔗 Creating dedicated sync connection..."))
-                if loop.run_until_complete(fresh_sync_manager.connect_and_attach()):
-                    # Check for cancellation before sync
-                    if self.sync_cancelled:
-                        self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled"))
-                        loop.run_until_complete(fresh_sync_manager.disconnect())
-                        return
-                    
-                    # Get sync progress from config
-                    last_sync_timestamp = self.config.get("qusb2snes_last_sync", 0)
-                    progress_tracker = self.config.get("qusb2snes_sync_progress", {})
-                    is_partial_sync = self.config.get("qusb2snes_partial_sync", False)
-                    cleanup_deleted = self.config.get("qusb2snes_cleanup_deleted", False)
-                    
-                    # Handle null/empty values for first-time sync
-                    if last_sync_timestamp is None or last_sync_timestamp == "" or last_sync_timestamp == 0:
-                        last_sync_timestamp = 0  # First sync - upload all files
-                        progress_tracker = {}
-                        is_partial_sync = False
-                        self.parent.after(0, lambda: self._on_progress("📅 First sync - uploading all ROM files"))
-                    else:
-                        last_sync_timestamp = float(last_sync_timestamp)
-                        if is_partial_sync:
-                            self.parent.after(0, lambda: self._on_progress("🔄 Resuming partial sync from last progress"))
-                        else:
-                            import time
-                            time_since_last = time.time() - last_sync_timestamp
-                            self.parent.after(0, lambda msg=f"📅 Incremental sync - checking files newer than {time_since_last/3600:.1f} hours ago": self._on_progress(msg))
-                    
-                    try:
-                        # Use incremental sync for better resume capability
-                        result = loop.run_until_complete(fresh_sync_manager.sync_roms_incremental(local_rom_dir, progress_tracker, cleanup_deleted))
-                    except asyncio.CancelledError:
-                        # Handle cancellation gracefully - save partial progress
-                        self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled - saving progress"))
-                        # Save partial progress
-                        self.config.set("qusb2snes_partial_sync", True)
-                        self.config.set("qusb2snes_sync_progress", progress_tracker)
-                        self.config.save()
-                        try:
-                            loop.run_until_complete(fresh_sync_manager.disconnect())
-                        except:
-                            pass  # Ignore disconnect errors during cancellation
-                        return
-                    
-                    # Check if operation was cancelled during sync
-                    if self.sync_cancelled:
-                        self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled - saving progress"))
-                        # Save partial progress  
-                        self.config.set("qusb2snes_partial_sync", True)
-                        self.config.set("qusb2snes_sync_progress", result.get("progress", progress_tracker))
-                        self.config.save()
-                        try:
-                            loop.run_until_complete(fresh_sync_manager.disconnect())
-                        except:
-                            pass  # Ignore disconnect errors during cancellation
-                        return
-                    
-                    if result and result.get("success"):
-                        # Save current timestamp and clear partial sync state
-                        import time
-                        current_timestamp = time.time()
-                        self.config.set("qusb2snes_last_sync", current_timestamp)
-                        self.config.set("qusb2snes_partial_sync", False)
-                        self.config.set("qusb2snes_sync_progress", {})  # Clear progress tracker
-                        self.config.save()
-                        
-                        uploaded_count = result.get("uploaded", 0)
-                        skipped_count = len(result.get("directories_skipped", []))
-                        
-                        if uploaded_count > 0:
-                            self.parent.after(0, lambda: self._on_progress(f"✅ Sync complete: {uploaded_count} files uploaded"))
-                        else:
-                            self.parent.after(0, lambda: self._on_progress(f"✅ Sync complete: All files up to date"))
-                    else:
-                        # Save partial progress on failure
-                        error_msg = result.get("error", "Unknown error") if result else "Unknown error"
-                        self.config.set("qusb2snes_partial_sync", True)
-                        self.config.set("qusb2snes_sync_progress", result.get("progress", progress_tracker) if result else progress_tracker)
-                        self.config.save()
-                        
-                        self.parent.after(0, lambda msg=error_msg: self._on_error(f"❌ Sync failed: {msg} (Progress saved for resume)"))
-                    
-                    # Clean disconnect of sync connection
-                    try:
-                        self.parent.after(0, lambda: self._on_progress("🔌 Disconnecting sync connection..."))
-                        loop.run_until_complete(fresh_sync_manager.disconnect())
-                    except Exception as disconnect_error:
-                        error_msg = str(disconnect_error)
-                        self.parent.after(0, lambda msg=error_msg: self._on_progress(f"⚠️ Sync disconnect warning: {msg}"))
+                # Handle null/empty values for first-time sync
+                if last_sync_timestamp is None or last_sync_timestamp == "" or last_sync_timestamp == 0:
+                    last_sync_timestamp = 0  # First sync - upload all files
+                    progress_tracker = {}
+                    is_partial_sync = False
+                    self.parent.after(0, lambda: self._on_progress("📅 First sync - uploading all ROM files"))
                 else:
-                    self.parent.after(0, lambda: self._on_error("❌ Failed to connect for sync operation"))
+                    last_sync_timestamp = float(last_sync_timestamp)
+                    if is_partial_sync:
+                        self.parent.after(0, lambda: self._on_progress("🔄 Resuming partial sync from last progress"))
+                    else:
+                        import time
+                        time_since_last = time.time() - last_sync_timestamp
+                        self.parent.after(0, lambda msg=f"📅 Incremental sync - checking files newer than {time_since_last/3600:.1f} hours ago": self._on_progress(msg))
+                
+                try:
+                    # Use incremental sync for better resume capability
+                    result = loop.run_until_complete(sync_manager.sync_roms_incremental(local_rom_dir, progress_tracker, cleanup_deleted, last_sync_timestamp))
+                except asyncio.CancelledError:
+                    # Handle cancellation gracefully - save partial progress
+                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled - saving progress"))
+                    # Save partial progress
+                    self.config.set("qusb2snes_partial_sync", True)
+                    self.config.set("qusb2snes_sync_progress", progress_tracker)
+                    self.config.save()
+                    return
+                
+                # Check if operation was cancelled during sync
+                if self.sync_cancelled:
+                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled - saving progress"))
+                    # Save partial progress  
+                    self.config.set("qusb2snes_partial_sync", True)
+                    self.config.set("qusb2snes_sync_progress", result.get("progress", progress_tracker))
+                    self.config.save()
+                    return
+                
+                if result and result.get("success"):
+                    # Save current timestamp and clear partial sync state
+                    import time
+                    current_timestamp = time.time()
+                    self.config.set("qusb2snes_last_sync", current_timestamp)
+                    self.config.set("qusb2snes_partial_sync", False)
+                    self.config.set("qusb2snes_sync_progress", {})  # Clear progress tracker
+                    self.config.save()
+                    
+                    uploaded_count = result.get("uploaded", 0)
+                    skipped_count = len(result.get("directories_skipped", []))
+                    
+                    if uploaded_count > 0:
+                        self.parent.after(0, lambda: self._on_progress(f"✅ Sync complete: {uploaded_count} files uploaded"))
+                    else:
+                        self.parent.after(0, lambda: self._on_progress(f"✅ Sync complete: All files up to date"))
+                else:
+                    # Save partial progress on failure
+                    error_msg = result.get("error", "Unknown error") if result else "Unknown error"
+                    self.config.set("qusb2snes_partial_sync", True)
+                    self.config.set("qusb2snes_sync_progress", result.get("progress", progress_tracker) if result else progress_tracker)
+                    self.config.save()
+                    
+                    self.parent.after(0, lambda msg=error_msg: self._on_error(f"❌ Sync failed: {msg} (Progress saved for resume)"))
                 
             except Exception as e:
                 # Capture exception message to avoid closure issues
@@ -593,26 +567,6 @@ class QUSB2SNESSection:
                 else:
                     self.parent.after(0, lambda msg=error_message: self._on_error(f"Sync failed: {msg}"))
             finally:
-                # CRITICAL FIX: Restore UI connection if it was connected before
-                if ui_was_connected and not self.connected:
-                    try:
-                        self.parent.after(0, lambda: self._on_progress("🔄 Restoring UI connection..."))
-                        # Reconnect the UI sync manager
-                        if loop.run_until_complete(self.sync_manager.connect_and_attach()):
-                            self.connected = True
-                            self.parent.after(0, lambda: self._on_progress("✅ UI connection restored"))
-                        else:
-                            self.parent.after(0, lambda: self._on_progress("⚠️ Could not restore UI connection"))
-                    except Exception as reconnect_error:
-                        error_msg = str(reconnect_error)
-                        self.parent.after(0, lambda msg=error_msg: self._on_progress(f"⚠️ UI reconnect failed: {msg}"))
-                
-                # Ensure fresh_sync_manager is always disconnected
-                try:
-                    loop.run_until_complete(fresh_sync_manager.disconnect())
-                except:
-                    pass  # Ignore disconnect errors
-                
                 # Properly close event loop with cleanup
                 self._cleanup_event_loop(loop)
                 # Reset syncing state and update UI
