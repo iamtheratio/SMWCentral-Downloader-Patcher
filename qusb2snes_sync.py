@@ -219,17 +219,18 @@ class QUSB2SNESSync:
                     if not self.is_rom_file(item_name):
                         continue  # Skip non-ROM files
                     
-                    # Only upload if file doesn't exist remotely OR if it exists but was modified since last sync
+                    # Check if file exists remotely
                     file_exists_remotely = item_name in remote_names
+                    
                     if file_exists_remotely:
-                        # File exists - only upload if it's been modified since last sync
+                        # File exists - only upload if local file is newer than last successful sync
                         should_upload = self.should_upload_file(local_path, last_sync_timestamp)
                         if should_upload:
                             self.log_progress(f"🔄 Re-uploading {item_name} (modified since last sync)")
                         else:
                             self.log_progress(f"⏭️ Skipping {item_name} (already up to date)")
                     else:
-                        # File doesn't exist - upload it
+                        # File doesn't exist remotely - upload it
                         should_upload = True
                         self.log_progress(f"📤 New file: {item_name}")
                     
@@ -885,17 +886,18 @@ class QUSB2SNESSync:
                 local_path = os.path.join(local_dir, item)
                 
                 if os.path.isfile(local_path):
-                    # Smart upload decision: only upload if file doesn't exist OR if it exists but was modified since last sync
+                    # Check if file exists remotely
                     file_exists_remotely = item in remote_names
+                    
                     if file_exists_remotely:
-                        # File exists - only upload if it's been modified since last sync
+                        # File exists - only upload if local file is newer than last successful sync
                         should_upload = self.should_upload_file(local_path, last_sync_timestamp)
                         if should_upload:
                             self.log_progress(f"🔄 Re-uploading {item} (modified since last sync)")
                         else:
                             self.log_progress(f"⏭️ Skipping {item} (already up to date)")
                     else:
-                        # File doesn't exist - upload it
+                        # File doesn't exist remotely - upload it
                         should_upload = True
                         self.log_progress(f"📤 New file: {item}")
                     
@@ -959,17 +961,18 @@ class QUSB2SNESSync:
                 local_item_path = os.path.join(local_dir_path, item)
                 
                 if os.path.isfile(local_item_path):
-                    # Handle file - only upload if it doesn't exist OR if it exists but was modified since last sync
+                    # Check if file exists remotely
                     file_exists_remotely = item in remote_names
+                    
                     if file_exists_remotely:
-                        # File exists - only upload if it's been modified since last sync
+                        # File exists - only upload if local file is newer than last successful sync
                         should_upload = self.should_upload_file(local_item_path, last_sync_timestamp)
                         if should_upload:
                             self.log_progress(f"🔄 Re-uploading {item} (modified since last sync)")
                         else:
                             self.log_progress(f"⏭️ Skipping {item} (already up to date)")
                     else:
-                        # File doesn't exist - upload it
+                        # File doesn't exist remotely - upload it
                         should_upload = True
                         self.log_progress(f"📤 New file: {item}")
                     
