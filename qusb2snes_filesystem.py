@@ -353,10 +353,15 @@ class QUSB2SNESFileSystem:
         """
         normalized_path = self._normalize_path(dir_path)
         
-        # Check if directory already exists
-        if await self.directory_exists(normalized_path):
-            self._log_debug(f"Directory already exists: {normalized_path}")
-            return True
+        # Check if directory already exists (only for simple paths)
+        # For deep paths, let the folder tree logic handle level-by-level checking
+        if "/" not in normalized_path.strip("/"):  # Simple path like "/test_dir"
+            if await self.directory_exists(normalized_path):
+                self._log_debug(f"Directory already exists: {normalized_path}")
+                return True
+        else:
+            # For deep paths, we'll check existence level by level in the tree logic
+            self._log_debug(f"Deep path detected, using folder tree approach: {normalized_path}")
         
         # Build list of path segments to create (folder tree approach)
         path_segments = []
@@ -371,52 +376,65 @@ class QUSB2SNESFileSystem:
         path_segments.reverse()
         
         # Create each directory level by level, following original sync pattern
-        for dir_to_create in path_segments:
+        for i, dir_to_create in enumerate(path_segments):
             # Check if this directory level exists by listing its parent
             path_obj = PurePosixPath(dir_to_create)
             parent_dir = str(path_obj.parent)
             dir_name = path_obj.name
             
+            self._log_info(f"Processing directory level {i+1}/{len(path_segments)}: {dir_to_create}")
+            
             # Always list parent directory first (critical for SD2SNES compatibility)
-            try:
-                # Ensure connection before critical operations
-                if not self.connection.is_connected():
-                    self._log_info("Connection lost, waiting for automatic recovery...")
-                    await asyncio.sleep(2.0)  # Give connection manager time to reconnect
+            max_level_retries = 3
+            level_success = False
+            
+            for level_attempt in range(max_level_retries):
+                try:
+                    # Enhanced connection recovery for each level
+                    await self._ensure_robust_connection_for_level(level_attempt)
                     
-                    # Re-attach device if needed (common after connection recovery)
-                    if hasattr(self, 'device_manager') and not self.device_manager.is_attached():
-                        self._log_info("Re-attaching device after connection recovery")
-                        if not await self.device_manager.attach_device():
-                            self._log_info("Failed to re-attach device")
-                            continue  # Skip this level but try next
+                    if parent_dir == "/":
+                        parent_entries = await self.list_directory("/", use_cache=False)
+                    else:
+                        parent_entries = await self.list_directory(parent_dir, use_cache=False)
+                    
+                    if parent_entries is None:
+                        raise Exception(f"Cannot access parent directory: {parent_dir}")
+                    
+                    # Check if directory already exists at this level
+                    existing_names = {entry.name for entry in parent_entries}
+                    if dir_name in existing_names:
+                        self._log_debug(f"Directory level already exists: {dir_to_create}")
+                        level_success = True
+                        break
+                    
+                    # Directory doesn't exist at this level - create it with retry
+                    if await self._create_single_directory_with_retry(dir_to_create):
+                        level_success = True
+                        break
+                    else:
+                        raise Exception("Directory creation failed")
                 
-                if parent_dir == "/":
-                    parent_entries = await self.list_directory("/", use_cache=False)
-                else:
-                    parent_entries = await self.list_directory(parent_dir, use_cache=False)
-                
-                if parent_entries is None:
-                    self._log_info(f"Cannot access parent directory: {parent_dir}, skipping level")
-                    continue  # Skip this level but continue with others
-                
-                # Check if directory already exists at this level
-                existing_names = {entry.name for entry in parent_entries}
-                if dir_name in existing_names:
-                    self._log_debug(f"Directory level already exists: {dir_to_create}")
-                    continue
-                
-                # Directory doesn't exist at this level - create it
-                await self._create_single_directory(dir_to_create)
-                
-                # Give time for directory creation and potential connection recovery
-                await asyncio.sleep(1.5)
-                
-            except Exception as e:
-                self._log_info(f"Failed to process directory level {dir_to_create}: {str(e)}")
-                # Don't fail completely - continue with remaining levels
-                await asyncio.sleep(1.0)  # Recovery pause
+                except Exception as e:
+                    self._log_info(f"Level attempt {level_attempt + 1}/{max_level_retries} failed: {str(e)}")
+                    if level_attempt < max_level_retries - 1:
+                        # Longer recovery time between level attempts
+                        recovery_time = 2.0 + (level_attempt * 1.0)  # Escalating recovery time
+                        self._log_info(f"Waiting {recovery_time}s for connection recovery...")
+                        await asyncio.sleep(recovery_time)
+                    else:
+                        self._log_error(f"Failed to process directory level after {max_level_retries} attempts: {dir_to_create}")
+            
+            if not level_success:
+                self._log_error(f"Could not create directory level: {dir_to_create}")
+                # Don't return False immediately - continue with other levels for partial success
                 continue
+            
+            # Extended stabilization wait between successful levels
+            if i < len(path_segments) - 1:  # Don't wait after the last level
+                stabilization_time = 2.5  # Longer than original sync's 1.0s
+                self._log_debug(f"Waiting {stabilization_time}s for level stabilization...")
+                await asyncio.sleep(stabilization_time)
         
         # Final verification that target directory exists (best effort)
         try:
@@ -435,57 +453,119 @@ class QUSB2SNESFileSystem:
             self._log_debug(f"Verification error (normal): {str(e)}")
             return True  # Assume success since all MakeDir commands were sent
 
-    async def _create_single_directory(self, dir_path: str) -> bool:
+    async def _ensure_robust_connection_for_level(self, attempt_number: int = 0):
         """
-        Create a single directory without recursion (internal helper)
+        Ensure robust connection before each directory level operation
+        
+        Args:
+            attempt_number: Current attempt number for escalating recovery
+        """
+        # Check connection status
+        if not self.connection.is_connected():
+            self._log_info(f"Connection lost, waiting for automatic recovery (attempt {attempt_number + 1})")
+            
+            # Escalating wait times for connection recovery
+            base_wait = 2.0
+            escalated_wait = base_wait + (attempt_number * 1.0)
+            await asyncio.sleep(escalated_wait)
+            
+            # Check if connection recovered
+            if not self.connection.is_connected():
+                self._log_info("Connection still down, attempting manual recovery...")
+                # Give connection manager more time for automatic reconnection
+                await asyncio.sleep(3.0)
+        
+        # Re-attach device if needed (common after connection recovery)
+        if hasattr(self, 'device_manager'):
+            try:
+                # Check if we have any attached device
+                if not self.device_manager.is_attached():
+                    self._log_info("Re-attaching device after connection recovery")
+                    
+                    # Discover available devices
+                    devices = await self.device_manager.discover_devices(use_cache=False)
+                    if devices:
+                        device_name = devices[0].name
+                        if not await self.device_manager.attach_device(device_name):
+                            self._log_info(f"Failed to re-attach device: {device_name}")
+                    else:
+                        self._log_info("No devices available for re-attachment")
+            except Exception as e:
+                self._log_debug(f"Device re-attachment attempt failed: {str(e)}")
+
+    async def _create_single_directory_with_retry(self, dir_path: str, max_retries: int = 2) -> bool:
+        """
+        Create a single directory with retry logic (enhanced version)
         
         Args:
             dir_path: Directory path to create (single level only)
+            max_retries: Maximum number of retry attempts
             
         Returns:
             bool: True if creation command was sent successfully
         """
-        try:
-            self._log_info(f"Creating directory level: {dir_path}")
-            
-            # According to QUsb2snes source code analysis, MakeDir is fire-and-forget
-            # and commonly causes connection closure. This is expected behavior.
+        for attempt in range(max_retries + 1):
             try:
-                result = await self.connection.send_command(
-                    "MakeDir",
-                    operands=[dir_path],
-                    expect_response=False
-                )
+                self._log_info(f"Creating directory level: {dir_path} (attempt {attempt + 1}/{max_retries + 1})")
                 
-                # If we get here without exception, the command was sent successfully
-                operation_successful = True
+                # Ensure robust connection before attempting
+                if attempt > 0:
+                    await self._ensure_robust_connection_for_level(attempt)
                 
-            except Exception as e:
-                # Connection closure after MakeDir is normal in QUsb2snes protocol
-                if "connection" in str(e).lower() or "closed" in str(e).lower():
-                    self._log_info(f"Connection closed after MakeDir (expected): {str(e)}")
-                    operation_successful = True  # Assume success since MakeDir is fire-and-forget
+                # According to QUsb2snes source code analysis, MakeDir is fire-and-forget
+                # and commonly causes connection closure. This is expected behavior.
+                try:
+                    result = await self.connection.send_command(
+                        "MakeDir",
+                        operands=[dir_path],
+                        expect_response=False
+                    )
+                    
+                    # If we get here without exception, the command was sent successfully
+                    operation_successful = True
+                    
+                except Exception as e:
+                    # Connection closure after MakeDir is normal in QUsb2snes protocol
+                    if "connection" in str(e).lower() or "closed" in str(e).lower():
+                        self._log_info(f"Connection closed after MakeDir (expected): {str(e)}")
+                        operation_successful = True  # Assume success since MakeDir is fire-and-forget
+                    else:
+                        self._log_error(f"Unexpected error during MakeDir: {str(e)}")
+                        operation_successful = False
+                
+                if operation_successful:
+                    # Invalidate caches to reflect new directory
+                    self.invalidate_path(dir_path)
+                    
+                    # Also clear the parent directory cache to ensure fresh listing
+                    parent_dir = str(PurePosixPath(dir_path).parent)
+                    if parent_dir in self.directory_cache:
+                        del self.directory_cache[parent_dir]
+                    
+                    # Enhanced wait time for directory creation stability
+                    await asyncio.sleep(1.5)  # Longer than original sync's 1.0s
+                    
+                    self._log_debug(f"Directory creation command sent successfully: {dir_path}")
+                    return True
                 else:
-                    self._log_error(f"Unexpected error during MakeDir: {str(e)}")
-                    operation_successful = False
-            
-            if operation_successful:
-                # Invalidate caches to reflect new directory
-                self.invalidate_path(dir_path)
-                
-                # Also clear the parent directory cache to ensure fresh listing
-                parent_dir = str(PurePosixPath(dir_path).parent)
-                if parent_dir in self.directory_cache:
-                    del self.directory_cache[parent_dir]
-                
-                self._log_debug(f"Directory creation command sent: {dir_path}")
-                return True
-            else:
-                return False
-                
-        except Exception as e:
-            self._log_error(f"Failed to create directory {dir_path}: {str(e)}")
-            return False
+                    if attempt < max_retries:
+                        retry_wait = 1.5 + (attempt * 0.5)  # Escalating retry delays
+                        self._log_info(f"Retrying directory creation in {retry_wait}s...")
+                        await asyncio.sleep(retry_wait)
+                    else:
+                        self._log_error(f"Failed to create directory after {max_retries + 1} attempts: {dir_path}")
+                        return False
+                        
+            except Exception as e:
+                if attempt < max_retries:
+                    retry_wait = 2.0 + (attempt * 1.0)  # Escalating retry delays
+                    self._log_info(f"Directory creation error, retrying in {retry_wait}s: {str(e)}")
+                    await asyncio.sleep(retry_wait)
+                else:
+                    self._log_error(f"Failed to create directory {dir_path} after {max_retries + 1} attempts: {str(e)}")
+                    return False
+        
+        return False
     
     async def batch_check_files(self, file_paths: List[str]) -> Dict[str, bool]:
         """
