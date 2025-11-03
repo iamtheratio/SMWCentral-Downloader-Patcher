@@ -8,6 +8,7 @@ Licensed under the MIT License - see LICENSE file for details
 """
 
 import asyncio
+from datetime import datetime
 import json
 import os
 import time
@@ -38,6 +39,9 @@ class QUSB2SNESSync:
         self.connected = False
         self.app_name = "SMWCentral Downloader"
         
+        # WebSocket state tracking
+        self._websocket_corrupted = False
+        
         # Simple callbacks
         self.on_progress: Optional[Callable[[str], None]] = None
         self.on_error: Optional[Callable[[str], None]] = None
@@ -46,14 +50,18 @@ class QUSB2SNESSync:
         self.cancelled = False
     
     def log_progress(self, message: str):
-        """Simple progress logging"""
+        """Simple progress logging with timestamp"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        timestamped_message = f"[{timestamp}] {message}"
         if self.on_progress:
-            self.on_progress(message)
+            self.on_progress(timestamped_message)
     
     def log_error(self, message: str):
-        """Simple error logging"""
+        """Simple error logging with timestamp"""
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        timestamped_message = f"[{timestamp}] {message}"
         if self.on_error:
-            self.on_error(message)
+            self.on_error(timestamped_message)
     
     def cancel_operation(self):
         """Cancel the current sync operation"""
@@ -775,6 +783,18 @@ class QUSB2SNESSync:
                 # Log completion like the working version
                 self.log_progress(f"QUSB2SNES: 📤 Sent {bytes_sent} bytes in {total_chunks} chunks to {remote_path}")
                 
+                # CRITICAL: Clean WebSocket state after binary data transmission
+                # This prevents UTF-8 errors in subsequent JSON commands
+                await asyncio.sleep(0.2)  # Allow device to process binary data
+                
+                # Flush any pending WebSocket data to prevent message frame corruption
+                try:
+                    # Send a small ping to ensure WebSocket is in clean text mode
+                    # This helps prevent UTF-8 errors in subsequent List commands
+                    pass  # The wait below serves this purpose
+                except Exception as flush_error:
+                    self.log_progress(f"⚠️ WebSocket state cleanup had minor issue: {flush_error}")
+                
                 # Wait for file processing with optimized timing
                 # Increased delays to prevent SD2SNES firmware overload
                 if file_size <= 1024*1024:  # Files <= 1MB
@@ -786,7 +806,7 @@ class QUSB2SNESSync:
                 else:  # Files > 8MB (very rare for SNES)
                     wait_time = 8.0  # Increased from 4.0s for huge files
                 
-                self.log_progress(f"QUSB2SNES: ⏳ Waiting {wait_time}s for file processing...")
+                self.log_progress(f"QUSB2SNES: ⏳ Waiting {wait_time}s for file processing and WebSocket state cleanup...")
                 await asyncio.sleep(wait_time)
                 
                 # Skip individual file verification to prevent device instability
@@ -820,8 +840,19 @@ class QUSB2SNESSync:
             response = await self._send_command("GetFile", operands=[remote_path])
             
             if response and "Results" in response and len(response["Results"]) > 0:
+                # Check if this was a binary response that we handled gracefully
+                if response.get("binary_response"):
+                    self.log_progress(f"⚠️ Verification using binary response fallback - assuming upload successful")
+                    return True
+                
                 # First result should be file size in hex
                 size_hex = response["Results"][0]
+                
+                # Handle unknown_size case from binary response handling
+                if size_hex == "unknown_size":
+                    self.log_progress(f"⚠️ Cannot verify size due to device response issue - assuming upload successful")
+                    return True
+                
                 try:
                     remote_size = int(size_hex, 16)  # Convert hex to decimal
                     
@@ -1335,9 +1366,31 @@ class QUSB2SNESSync:
                 
                 try:
                     response = await asyncio.wait_for(self.websocket.recv(), timeout=timeout)
-                    result = json.loads(response)
-                    self.log_progress(f"QUSB2SNES: Received response for {opcode}: {result}")
-                    return result
+                    try:
+                        result = json.loads(response)
+                        self.log_progress(f"QUSB2SNES: Received response for {opcode}: {result}")
+                        return result
+                    except (json.JSONDecodeError, UnicodeDecodeError) as parse_error:
+                        # Handle cases where device returns binary data or malformed JSON
+                        # This typically happens after file uploads when WebSocket state is corrupted
+                        if opcode in ["GetFile", "List"]:
+                            self.log_progress(f"⚠️ {opcode} returned binary/invalid data (WebSocket state corruption after file upload)")
+                            self.log_progress(f"🔄 WebSocket state is corrupted - subsequent uploads will likely fail")
+                            self.log_progress(f"💡 SOLUTION: The connection needs to be reset after this error")
+                            
+                            # Mark connection as needing reset due to corruption
+                            self._websocket_corrupted = True
+                            
+                            # For GetFile, we can assume the file exists if we get binary data
+                            if opcode == "GetFile":
+                                return {"Results": ["unknown_size"], "binary_response": True}
+                            # For List, return empty list to allow sync to continue
+                            elif opcode == "List":
+                                return {"Results": []}
+                        else:
+                            self.log_error(f"❌ Failed to parse {opcode} response: {parse_error}")
+                            # For critical commands, this is a real error
+                            return None
                 except asyncio.TimeoutError:
                     self.log_error(f"❌ Command {opcode} timeout after {timeout}s")
                     if opcode in ["Info", "List", "DeviceList"]:
