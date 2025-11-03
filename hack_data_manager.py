@@ -49,6 +49,8 @@ class HackDataManager:
                         hack_data.setdefault("authors", [])
                         # v4.0 NEW fields
                         hack_data.setdefault("obsolete", False)
+                        # v4.8 NEW fields - QUSB2SNES sync tracking
+                        hack_data.setdefault("qusb2snes_last_sync", 0)
                 return data
         except (FileNotFoundError, json.JSONDecodeError):
             return {}

@@ -89,32 +89,71 @@ class QUSB2SNESSync:
     
     async def verify_folder_contents(self, remote_dir: str, expected_files: List[str]) -> bool:
         """
-        Verify that all expected files are present in the remote folder.
-        This is called once per folder after all uploads are complete.
+        Verify that all expected files are present in the remote folder with correct sizes.
+        Uses GetFile for accurate size checking instead of unreliable List command.
         """
         try:
             self.log_progress(f"🔍 Verifying {len(expected_files)} files in {remote_dir}")
             
-            # List the folder contents
-            remote_items = await self.list_directory(remote_dir)
-            remote_files = {item["name"] for item in remote_items if not item.get("is_dir", False)}
-            
-            # Check each expected file
             missing_files = []
+            zero_byte_files = []
+            verified_files = 0
+            
             for filename in expected_files:
-                if filename not in remote_files:
+                remote_path = self.normalize_remote_path(f"{remote_dir}/{filename}")
+                
+                try:
+                    # Use GetFile to check actual file size
+                    response = await self._send_command("GetFile", operands=[remote_path])
+                    
+                    if response and "Results" in response and len(response["Results"]) > 0:
+                        size_hex = response["Results"][0]
+                        try:
+                            remote_size = int(size_hex, 16)
+                            
+                            if remote_size == 0:
+                                zero_byte_files.append(filename)
+                            else:
+                                verified_files += 1
+                                
+                        except ValueError:
+                            self.log_error(f"⚠️ Invalid size format for {filename}: {size_hex}")
+                            missing_files.append(filename)
+                    else:
+                        missing_files.append(filename)
+                        
+                except Exception as e:
+                    # File might not exist or have filename encoding issues
+                    self.log_error(f"⚠️ Could not verify {filename}: {str(e)}")
                     missing_files.append(filename)
             
+            # Report results
+            total_issues = len(missing_files) + len(zero_byte_files)
+            
             if missing_files:
-                self.log_error(f"❌ Folder verification failed: {len(missing_files)} files missing: {missing_files}")
-                return False
+                self.log_error(f"❌ {len(missing_files)} files missing or unreadable: {missing_files[:3]}{'...' if len(missing_files) > 3 else ''}")
+            
+            if zero_byte_files:
+                self.log_error(f"🚨 {len(zero_byte_files)} files are 0 bytes: {zero_byte_files[:3]}{'...' if len(zero_byte_files) > 3 else ''}")
+            
+            if total_issues > 0:
+                success_rate = (verified_files / len(expected_files)) * 100
+                self.log_progress(f"⚠️ Partial verification: {verified_files}/{len(expected_files)} files verified ({success_rate:.1f}%)")
+                
+                # Only fail if more than 10% of files have issues
+                if success_rate < 90:
+                    self.log_error(f"❌ Folder verification failed: {total_issues} files have issues out of {len(expected_files)} expected")
+                    return False
+                else:
+                    self.log_progress(f"✅ Folder verification passed with warnings: {verified_files} files verified")
+                    return True
             else:
-                self.log_progress(f"✅ Folder verification passed: All {len(expected_files)} files present")
+                self.log_progress(f"✅ Folder verification passed: All {len(expected_files)} files present with valid sizes")
                 return True
                 
         except Exception as e:
-            self.log_progress(f"⚠️ Folder verification failed: {str(e)}, but uploads likely succeeded")
-            return True  # Don't fail the whole sync for verification issues
+            self.log_error(f"❌ Folder verification failed with error: {str(e)}")
+            return False
 
     async def sync_directory_tree_based(self, local_dir: str, remote_sync_folder: str, last_sync_timestamp: float = 0, cleanup_deleted: bool = False) -> bool:
         """
@@ -187,6 +226,168 @@ class QUSB2SNESSync:
             self.log_error(f"❌ Tree-based sync failed: {str(e)}")
             return False
     
+    def get_hacks_for_qusb_sync(self) -> List[Dict]:
+        """
+        Query processed.json for hacks that need QUSB2SNES sync.
+        Returns list of hacks where qusb2snes_last_sync == 0 AND obsolete == false AND file exists.
+        Organizes by distinct file_path, sorted by hack_type and folder_name.
+        """
+        import os
+        from utils import load_processed
+        
+        try:
+            processed_data = load_processed()
+            sync_candidates = []
+            
+            for hack_id, hack_data in processed_data.items():
+                if not isinstance(hack_data, dict):
+                    continue
+                
+                # Check sync criteria
+                needs_sync = (
+                    hack_data.get("qusb2snes_last_sync", 0) == 0 and  # Never synced or needs re-sync
+                    hack_data.get("obsolete", False) == False and      # Not obsolete
+                    hack_data.get("file_path", "").strip() != ""       # Has file path
+                )
+                
+                if needs_sync:
+                    file_path = hack_data.get("file_path", "")
+                    
+                    # Validate file exists
+                    if os.path.exists(file_path):
+                        sync_candidates.append({
+                            "hack_id": hack_id,
+                            "title": hack_data.get("title", "Unknown"),
+                            "hack_type": hack_data.get("hack_type", "standard"),
+                            "folder_name": hack_data.get("folder_name", "99 - Unknown"),
+                            "file_path": file_path,
+                            "additional_paths": hack_data.get("additional_paths", [])
+                        })
+                    else:
+                        self.log_progress(f"⚠️ Skipping {hack_data.get('title', 'Unknown')}: File not found at {file_path}")
+            
+            # Group by distinct file_path to avoid duplicates
+            unique_files = {}
+            for hack in sync_candidates:
+                file_path = hack["file_path"]
+                if file_path not in unique_files:
+                    unique_files[file_path] = hack
+            
+            # Sort by hack_type, then folder_name for organized sync
+            sorted_hacks = sorted(
+                unique_files.values(),
+                key=lambda x: (x["hack_type"], x["folder_name"], x["title"])
+            )
+            
+            self.log_progress(f"📋 Found {len(sorted_hacks)} hacks needing QUSB2SNES sync")
+            return sorted_hacks
+            
+        except Exception as e:
+            self.log_error(f"❌ Error querying hacks for sync: {str(e)}")
+            return []
+
+    async def sync_hacks_to_remote(self, remote_base_dir: str = "/ROMS") -> Dict:
+        """
+        Sync hacks from processed.json to remote device using per-hack tracking.
+        This replaces the old filesystem-based sync with processed.json-based sync.
+        """
+        result = {"success": False, "uploaded": 0, "updated_hacks": [], "error": None}
+        
+        try:
+            # Get hacks that need syncing
+            hacks_to_sync = self.get_hacks_for_qusb_sync()
+            
+            if not hacks_to_sync:
+                self.log_progress("✅ No hacks need syncing")
+                result["success"] = True
+                return result
+            
+            self.log_progress(f"🚀 Starting sync of {len(hacks_to_sync)} hacks to {remote_base_dir}")
+            
+            # Track statistics
+            uploaded_count = 0
+            updated_hack_ids = []
+            
+            for i, hack_info in enumerate(hacks_to_sync, 1):
+                # Check for cancellation
+                if self.cancelled:
+                    result["error"] = "Operation cancelled by user"
+                    return result
+                
+                hack_id = hack_info["hack_id"]
+                title = hack_info["title"]
+                file_path = hack_info["file_path"]
+                hack_type = hack_info["hack_type"]
+                folder_name = hack_info["folder_name"]
+                additional_paths = hack_info.get("additional_paths", [])
+                
+                self.log_progress(f"📤 [{i}/{len(hacks_to_sync)}] Syncing: {title}")
+                
+                # Build remote path: /ROMS/Kaizo/05 - Expert/hack.smc
+                remote_dir = self.normalize_remote_path(f"{remote_base_dir}/{hack_type.title()}/{folder_name}")
+                
+                # Ensure remote directory exists
+                await self.ensure_directory_exists(remote_dir)
+                
+                # Upload main file
+                filename = os.path.basename(file_path)
+                remote_file_path = self.normalize_remote_path(f"{remote_dir}/{filename}")
+                
+                upload_success = await self.upload_file(file_path, remote_file_path)
+                verification_success = False
+                
+                if upload_success:
+                    # Verify main file upload
+                    verification_success = await self.verify_file_upload(file_path, remote_file_path)
+                    
+                    if verification_success:
+                        # Upload additional files if they exist
+                        additional_upload_success = True
+                        for additional_path in additional_paths:
+                            if additional_path and os.path.exists(additional_path):
+                                additional_filename = os.path.basename(additional_path)
+                                additional_remote_path = self.normalize_remote_path(f"{remote_dir}/{additional_filename}")
+                                
+                                additional_success = await self.upload_file(additional_path, additional_remote_path)
+                                if additional_success:
+                                    additional_verify = await self.verify_file_upload(additional_path, additional_remote_path)
+                                    if not additional_verify:
+                                        additional_upload_success = False
+                                        self.log_error(f"❌ Additional file verification failed: {additional_filename}")
+                                        break
+                                else:
+                                    additional_upload_success = False
+                                    self.log_error(f"❌ Additional file upload failed: {additional_filename}")
+                                    break
+                        
+                        verification_success = verification_success and additional_upload_success
+                
+                if verification_success:
+                    uploaded_count += 1
+                    updated_hack_ids.append(hack_id)
+                    
+                    # Update the hack's sync timestamp using HackDataManager
+                    await self.update_hack_sync_timestamp(hack_id)
+                    
+                    self.log_progress(f"✅ Successfully synced: {title}")
+                else:
+                    self.log_error(f"❌ Upload or verification failed for: {title}")
+                    # Note: We don't update the timestamp if upload/verification fails
+            
+            result["success"] = uploaded_count > 0 or len(hacks_to_sync) == 0
+            result["uploaded"] = uploaded_count
+            result["updated_hacks"] = updated_hack_ids
+            
+            if uploaded_count > 0:
+                self.log_progress(f"🎉 Sync completed: {uploaded_count}/{len(hacks_to_sync)} hacks synced successfully")
+            
+            return result
+            
+        except Exception as e:
+            self.log_error(f"❌ Sync failed: {str(e)}")
+            result["error"] = str(e)
+            return result
+
     async def sync_local_to_remote_tree(self, local_dir: str, remote_dir: str, last_sync_timestamp: float = 0) -> Dict:
         """
         Recursively sync local directory to remote using tree-based approach.
@@ -222,28 +423,31 @@ class QUSB2SNESSync:
                     # Check if file exists remotely
                     file_exists_remotely = item_name in remote_names
                     
-                    if file_exists_remotely:
-                        # File exists - only upload if local file is newer than last successful sync
-                        should_upload = self.should_upload_file(local_path, last_sync_timestamp)
-                        if should_upload:
-                            self.log_progress(f"🔄 Re-uploading {item_name} (modified since last sync)")
-                        else:
-                            self.log_progress(f"⏭️ Skipping {item_name} (already up to date)")
-                    else:
+                    # Simple logic: only check timestamps, ignore file sizes completely
+                    # The List command is unreliable for size checking
+                    should_upload = False
+                    upload_reason = ""
+                    
+                    if not file_exists_remotely:
                         # File doesn't exist remotely - upload it
                         should_upload = True
-                        self.log_progress(f"📤 New file: {item_name}")
+                        upload_reason = "new file"
+                    else:
+                        # File exists - only check if local is newer than last sync
+                        should_upload = self.should_upload_file(local_path, last_sync_timestamp)
+                        upload_reason = "modified since last sync" if should_upload else "up to date"
                     
                     if should_upload:
+                        self.log_progress(f"🔄 Uploading {item_name} ({upload_reason})")
                         if await self.upload_file(local_path, remote_path):
                             result["uploaded"] += 1
                             files_uploaded_this_folder.append(item_name)
-                            self.log_progress(f"📤 Uploaded: {item_name}")
+                            self.log_progress(f"✅ Uploaded: {item_name}")
                         else:
                             result["error"] = f"Failed to upload {item_name}"
                             return result
                     else:
-                        self.log_progress(f"⏭️ Skipped (up to date): {item_name}")
+                        self.log_progress(f"⏭️ Skipped {item_name} ({upload_reason})")
                 
                 elif os.path.isdir(local_path):
                     # Check for cancellation before processing subdirectories
@@ -276,9 +480,18 @@ class QUSB2SNESSync:
                         result["error"] = f"Failed to sync subdirectory {item_name}: {subdir_result.get('error')}"
                         return result
             
-            # Folder-level verification: check that all uploaded files are present
-            if files_uploaded_this_folder:
-                await self.verify_folder_contents(remote_dir, files_uploaded_this_folder)
+            # Folder-level verification: check that ALL local ROM files are present remotely
+            local_rom_files = [f for f in os.listdir(local_dir) 
+                             if os.path.isfile(os.path.join(local_dir, f)) and self.is_rom_file(f)]
+            
+            if local_rom_files:
+                self.log_progress(f"🔍 Verifying all {len(local_rom_files)} ROM files are synced...")
+                verification_passed = await self.verify_folder_contents(remote_dir, local_rom_files)
+                
+                if not verification_passed:
+                    result["error"] = f"Folder verification failed: not all files were synced successfully"
+                    result["success"] = False
+                    return result
             
             result["success"] = True
             return result
@@ -488,8 +701,8 @@ class QUSB2SNESSync:
             return False
     
     async def upload_file(self, local_path: str, remote_path: str) -> bool:
-        """Upload file to remote location with connection recovery"""
-        max_retries = 2  # Files uploads are more expensive, fewer retries
+        """Upload file to remote location with connection recovery and verification"""
+        max_retries = 3  # Increased retries to handle 0-byte upload issues
         
         for attempt in range(max_retries):
             try:
@@ -512,16 +725,21 @@ class QUSB2SNESSync:
                 if response is None:
                     raise Exception(f"PutFile command failed for {remote_path}")
                 
-                # Small delay before sending file data
-                await asyncio.sleep(0.1)
+                # Longer delay before sending file data to ensure SD card is ready
+                await asyncio.sleep(0.5)  # Increased from 0.1s for SD card preparation
                 
-                # Send file data in chunks with proper progress reporting like the working version
-                chunk_size = 1024  # Standard QUSB2SNES chunk size
+                # Send file data in chunks with proper error handling and connection checks
+                # Try smaller chunks for better reliability with SD card writes
+                chunk_size = 512  # Reduced from 1024 for better SD card compatibility
                 bytes_sent = 0
                 total_chunks = 0
                 
                 with open(local_path, "rb") as f:
                     while bytes_sent < file_size:
+                        # Check connection before each chunk
+                        if not self.connected or not self.websocket:
+                            raise Exception("Connection lost during file transfer")
+                        
                         # Read chunk directly from file (memory efficient)
                         chunk = f.read(min(chunk_size, file_size - bytes_sent))
                         if not chunk:
@@ -537,14 +755,22 @@ class QUSB2SNESSync:
                                 progress_kb = bytes_sent // 1024
                                 total_kb = file_size // 1024
                                 progress_percent = (bytes_sent / file_size) * 100
-                                self.log_progress(f"QUSB2SNES: � Upload progress: {progress_percent:.1f}% ({progress_kb}KB/{total_kb}KB)")
+                                self.log_progress(f"QUSB2SNES: 📤 Upload progress: {progress_percent:.1f}% ({progress_kb}KB/{total_kb}KB)")
                             
-                            # Minimal delay to prevent overwhelming
+                            # Small delay to prevent overwhelming the device and allow SD writes
                             if bytes_sent < file_size:
-                                await asyncio.sleep(0.001)  # Very small delay
+                                # Longer pause every 64KB to let SD card catch up
+                                if bytes_sent % (64 * 1024) == 0:
+                                    await asyncio.sleep(0.1)  # Longer pause for SD card
+                                else:
+                                    await asyncio.sleep(0.005)  # Regular delay
                                 
                         except Exception as e:
                             raise Exception(f"Failed to send chunk at byte {bytes_sent}: {str(e)}")
+                
+                # Verify all bytes were sent
+                if bytes_sent != file_size:
+                    raise Exception(f"Incomplete transfer: sent {bytes_sent} of {file_size} bytes")
                 
                 # Log completion like the working version
                 self.log_progress(f"QUSB2SNES: 📤 Sent {bytes_sent} bytes in {total_chunks} chunks to {remote_path}")
@@ -552,19 +778,23 @@ class QUSB2SNESSync:
                 # Wait for file processing with optimized timing
                 # Increased delays to prevent SD2SNES firmware overload
                 if file_size <= 1024*1024:  # Files <= 1MB
-                    wait_time = 1.0  # Increased from 0.3s for small files
+                    wait_time = 2.0  # Increased from 1.0s for SD card write completion
                 elif file_size <= 4*1024*1024:  # Files <= 4MB (most ROMs)
-                    wait_time = 2.0  # Increased from 0.5s for typical ROM sizes
+                    wait_time = 4.0  # Increased from 2.0s for typical ROM sizes
                 elif file_size <= 8*1024*1024:  # Files <= 8MB (large ROMs)
-                    wait_time = 3.0  # Increased from 1.0s for large ROMs
+                    wait_time = 6.0  # Increased from 3.0s for large ROMs
                 else:  # Files > 8MB (very rare for SNES)
-                    wait_time = 4.0  # Increased from 1.5s for huge files
+                    wait_time = 8.0  # Increased from 4.0s for huge files
                 
                 self.log_progress(f"QUSB2SNES: ⏳ Waiting {wait_time}s for file processing...")
                 await asyncio.sleep(wait_time)
                 
-                # Note: Individual file verification removed for performance
-                # Folder-level verification happens after all files in a folder are uploaded
+                # Skip individual file verification to prevent device instability
+                # Use folder-level verification at the end instead
+                self.log_progress(f"✅ Upload completed: {os.path.basename(local_path)} (skipping individual verification)")
+                
+                # Timestamp update now handled by update_hack_sync_timestamp() in per-hack sync
+                
                 return True
                 
             except Exception as e:
@@ -577,6 +807,47 @@ class QUSB2SNESSync:
                 await asyncio.sleep(3.0)  # Longer delay before retrying file uploads
         
         return False
+    
+    async def _verify_upload_success(self, remote_path: str, expected_size: int) -> bool:
+        """
+        Verify that a file was uploaded successfully by checking its size using GetFile.
+        Returns True if the file exists and has the correct size, False otherwise.
+        """
+        try:
+            self.log_progress(f"🔍 Verifying file size using GetFile: {os.path.basename(remote_path)}")
+            
+            # Use GetFile command to get actual file size
+            response = await self._send_command("GetFile", operands=[remote_path])
+            
+            if response and "Results" in response and len(response["Results"]) > 0:
+                # First result should be file size in hex
+                size_hex = response["Results"][0]
+                try:
+                    remote_size = int(size_hex, 16)  # Convert hex to decimal
+                    
+                    if remote_size == 0:
+                        self.log_error(f"❌ Verification failed: {os.path.basename(remote_path)} is 0 bytes on remote")
+                        return False
+                    elif remote_size != expected_size:
+                        self.log_error(f"❌ Verification failed: {os.path.basename(remote_path)} size mismatch - expected {expected_size}, got {remote_size}")
+                        return False
+                    else:
+                        self.log_progress(f"✅ Verification passed: {os.path.basename(remote_path)} ({remote_size} bytes)")
+                        return True
+                except ValueError as e:
+                    self.log_error(f"❌ Verification failed: Invalid size format '{size_hex}' for {os.path.basename(remote_path)}: {e}")
+                    return False
+            else:
+                self.log_error(f"❌ Verification failed: Could not get file info for {os.path.basename(remote_path)}")
+                return False
+            
+        except UnicodeDecodeError as e:
+            # Handle UTF-8 decode errors - the response might contain binary data
+            self.log_progress(f"⚠️ GetFile response contains binary data - assuming upload successful")
+            return True  # If we get binary data, the file likely exists
+        except Exception as e:
+            self.log_error(f"❌ Verification error for {remote_path}: {str(e)}")
+            return False
     
     def should_upload_file(self, local_path: str, last_sync_timestamp: float = 0) -> bool:
         """
@@ -1083,6 +1354,59 @@ class QUSB2SNESSync:
                 self.log_error("💡 Device may be in use by another application (RetroAchievements, QFile2Snes, etc.)")
             raise e
 
+    async def ensure_directory_exists(self, remote_dir: str) -> bool:
+        """Ensure remote directory exists, creating if necessary"""
+        try:
+            # Check if directory exists
+            items = await self.list_directory(os.path.dirname(remote_dir))
+            dir_name = os.path.basename(remote_dir)
+            
+            for item in items:
+                if item["name"] == dir_name and item.get("is_dir", False):
+                    return True  # Directory exists
+            
+            # Directory doesn't exist, create it
+            result = await self.create_directory(remote_dir)
+            return result
+            
+        except Exception as e:
+            self.log_error(f"❌ Error ensuring directory {remote_dir}: {str(e)}")
+            return False
+
+    async def verify_file_upload(self, local_path: str, remote_path: str) -> bool:
+        """Verify uploaded file by comparing sizes"""
+        try:
+            local_size = os.path.getsize(local_path)
+            return await self._verify_upload_success(remote_path, local_size)
+                
+        except Exception as e:
+            self.log_error(f"❌ Verification error: {str(e)}")
+            return False
+
+    async def update_hack_sync_timestamp(self, hack_id: str) -> bool:
+        """Update hack's qusb2snes_last_sync timestamp using HackDataManager"""
+        try:
+            import time
+            from hack_data_manager import HackDataManager
+            
+            # Get current timestamp
+            current_timestamp = int(time.time())
+            
+            # Use HackDataManager to safely update the hack
+            data_manager = HackDataManager()
+            success = data_manager.update_hack(hack_id, "qusb2snes_last_sync", current_timestamp)
+            
+            if success:
+                self.log_progress(f"🕒 Updated sync timestamp for hack {hack_id}")
+                return True
+            else:
+                self.log_error(f"❌ Failed to update sync timestamp for hack {hack_id}")
+                return False
+                
+        except Exception as e:
+            self.log_error(f"❌ Error updating timestamp for hack {hack_id}: {str(e)}")
+            return False
+
 
 # Simple sync manager for UI integration
 class QUSB2SNESSyncManager:
@@ -1216,6 +1540,31 @@ class QUSB2SNESSyncManager:
                 "progress": progress_tracker or {}
             }
     
+    async def sync_hacks_to_remote(self, remote_base_dir: str = "/ROMS") -> Dict:
+        """
+        Sync hacks using per-hack tracking. Delegates to the sync client.
+        """
+        if not self.sync_client:
+            return {
+                "success": False, 
+                "error": "Not connected to QUSB2SNES",
+                "uploaded": 0,
+                "updated_hacks": []
+            }
+        
+        # Delegate to the sync client's per-hack sync method
+        try:
+            result = await self.sync_client.sync_hacks_to_remote(remote_base_dir)
+            return result
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": str(e),
+                "uploaded": 0,
+                "updated_hacks": []
+            }
+
     async def disconnect(self):
         """Disconnect from QUSB2SNES with cleanup"""
         if self.sync_client:

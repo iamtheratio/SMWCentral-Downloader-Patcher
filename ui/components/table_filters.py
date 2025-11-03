@@ -1092,7 +1092,8 @@ class AddHackDialog:
                 "notes": self.notes_var.get().strip(),
                 "obsolete": False,
                 "file_path": "",  # No file path for user-added hacks
-                "additional_paths": []
+                "additional_paths": [],
+                "qusb2snes_last_sync": 0  # v4.8 NEW: Default new user hacks need QUSB sync
             }
             
             # Add to data manager

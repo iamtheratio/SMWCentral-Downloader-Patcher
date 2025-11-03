@@ -497,7 +497,8 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 "completed_date": existing_hack.get("completed_date", ""),
                 "personal_rating": existing_hack.get("personal_rating", 0),
                 "notes": existing_hack.get("notes", ""),
-                "time_to_beat": existing_hack.get("time_to_beat", 0)  # v3.1 NEW: preserve existing time
+                "time_to_beat": existing_hack.get("time_to_beat", 0),  # v3.1 NEW: preserve existing time
+                "qusb2snes_last_sync": existing_hack.get("qusb2snes_last_sync", 0)  # v4.8 NEW: preserve QUSB sync status
             }
             save_processed(processed)
 
@@ -538,7 +539,8 @@ def save_hack_to_processed_json(hack_data, file_path, hack_type):
         "completed_date": "",
         "personal_rating": 0,
         "notes": "",
-        "time_to_beat": 0  # v3.1 NEW: Time to beat in seconds
+        "time_to_beat": 0,  # v3.1 NEW: Time to beat in seconds
+        "qusb2snes_last_sync": 0  # v4.8 NEW: QUSB sync tracking
     }
     
     # Save to processed.json
@@ -663,7 +665,8 @@ def download_and_patch_hack(hack_data, patch_handler, processed, log=None):
                     "type": type_name,
                     "difficulty": difficulty_name,
                     "authors": authors,
-                    "obsolete": False  # NEW: Default new hacks to not obsolete
+                    "obsolete": False,  # NEW: Default new hacks to not obsolete
+                    "qusb2snes_last_sync": 0  # v4.8 NEW: Default new hacks need QUSB sync
                 }
                 
                 if log: log(f"✅ Successfully processed {hack_name}")

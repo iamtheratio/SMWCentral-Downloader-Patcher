@@ -514,50 +514,39 @@ class QUSB2SNESSection:
                         self.parent.after(0, lambda msg=f"📅 Incremental sync - checking files newer than {time_since_last/3600:.1f} hours ago": self._on_progress(msg))
                 
                 try:
-                    # Use incremental sync for better resume capability
-                    result = loop.run_until_complete(sync_manager.sync_roms_incremental(local_rom_dir, progress_tracker, cleanup_deleted, last_sync_timestamp))
+                    # Use new per-hack sync method instead of filesystem-based sync
+                    self.parent.after(0, lambda: self._on_progress("🔄 Using per-hack tracking for precise sync control"))
+                    result = loop.run_until_complete(sync_manager.sync_hacks_to_remote(self.remote_folder_var.get()))
                 except asyncio.CancelledError:
-                    # Handle cancellation gracefully - save partial progress
-                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled - saving progress"))
-                    # Save partial progress
-                    self.config.set("qusb2snes_partial_sync", True)
-                    self.config.set("qusb2snes_sync_progress", progress_tracker)
-                    self.config.save()
+                    # Handle cancellation gracefully - individual hack timestamps already saved
+                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled - progress preserved per hack"))
                     return
                 
                 # Check if operation was cancelled during sync
                 if self.sync_cancelled:
-                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled - saving progress"))
-                    # Save partial progress  
-                    self.config.set("qusb2snes_partial_sync", True)
-                    self.config.set("qusb2snes_sync_progress", result.get("progress", progress_tracker))
-                    self.config.save()
+                    self.parent.after(0, lambda: self._on_progress("❌ Sync cancelled - progress preserved per hack"))
                     return
                 
                 if result and result.get("success"):
-                    # Save current timestamp and clear partial sync state
-                    import time
-                    current_timestamp = time.time()
-                    self.config.set("qusb2snes_last_sync", current_timestamp)
-                    self.config.set("qusb2snes_partial_sync", False)
-                    self.config.set("qusb2snes_sync_progress", {})  # Clear progress tracker
-                    self.config.save()
+                    # Per-hack tracking - no global timestamp needed
+                    # Individual hack timestamps are already updated by sync_hacks_to_remote
                     
                     uploaded_count = result.get("uploaded", 0)
-                    skipped_count = len(result.get("directories_skipped", []))
+                    updated_hacks = result.get("updated_hacks", [])
                     
                     if uploaded_count > 0:
-                        self.parent.after(0, lambda: self._on_progress(f"✅ Sync complete: {uploaded_count} files uploaded"))
+                        self.parent.after(0, lambda: self._on_progress(f"✅ Sync complete: {uploaded_count} files uploaded, {len(updated_hacks)} hacks updated"))
                     else:
-                        self.parent.after(0, lambda: self._on_progress(f"✅ Sync complete: All files up to date"))
+                        self.parent.after(0, lambda: self._on_progress(f"✅ Sync complete: All hacks up to date"))
                 else:
-                    # Save partial progress on failure
+                    # Handle sync failure - individual hack timestamps preserve progress
                     error_msg = result.get("error", "Unknown error") if result else "Unknown error"
-                    self.config.set("qusb2snes_partial_sync", True)
-                    self.config.set("qusb2snes_sync_progress", result.get("progress", progress_tracker) if result else progress_tracker)
-                    self.config.save()
+                    uploaded_count = result.get("uploaded", 0) if result else 0
                     
-                    self.parent.after(0, lambda msg=error_msg: self._on_error(f"❌ Sync failed: {msg} (Progress saved for resume)"))
+                    if uploaded_count > 0:
+                        self.parent.after(0, lambda msg=error_msg, count=uploaded_count: self._on_error(f"❌ Sync partially failed: {msg} ({count} hacks successfully synced before failure)"))
+                    else:
+                        self.parent.after(0, lambda msg=error_msg: self._on_error(f"❌ Sync failed: {msg}"))
                 
             except Exception as e:
                 # Capture exception message to avoid closure issues
