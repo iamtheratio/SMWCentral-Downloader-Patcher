@@ -526,14 +526,19 @@ class QUSB2SNESUploadManagerV3:
             return None, None
         
         try:
-            # Get local ROM output directory
+            # Get local ROM output directory (try both config keys)
             local_root = self.config_manager.get("output_rom_folder", "")
             if not local_root:
-                self._log_error("No output_rom_folder configured")
+                local_root = self.config_manager.get("output_dir", "")
+            
+            if not local_root:
+                self._log_error("No output_rom_folder or output_dir configured")
                 return None, None
             
-            # Get SD card sync directory
-            remote_root = self.config_manager.get("qusb2snes_sync_to_folder", "/roms")
+            # Get SD card sync directory (try multiple keys)
+            remote_root = self.config_manager.get("qusb2snes_sync_to_folder", "")
+            if not remote_root:
+                remote_root = self.config_manager.get("qusb2snes_remote_folder", "/roms")
             if not remote_root:
                 remote_root = "/roms"  # Default fallback
             
