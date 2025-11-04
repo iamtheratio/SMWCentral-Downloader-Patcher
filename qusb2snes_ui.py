@@ -105,8 +105,8 @@ class QUSB2SNESSyncManager:
             if self.on_progress:
                 self.on_progress("Starting sync...")
             
-            # Create a file filter that checks qusb_last_sync timestamps
-            file_filter = self._create_timestamp_filter()
+            # Create a file filter that checks qusb_last_sync timestamps and file existence
+            file_filter = self._create_timestamp_filter(self.upload_manager.v3_manager)
             
             result = await self.upload_manager.v3_manager.sync_from_config(file_filter)
             
@@ -159,8 +159,8 @@ class QUSB2SNESSyncManager:
                 "error": str(e)
             }
     
-    def _create_timestamp_filter(self):
-        """Create a file filter that checks qusb_last_sync timestamps"""
+    def _create_timestamp_filter(self, v3_manager=None):
+        """Create a file filter that checks qusb_last_sync timestamps and file existence"""
         try:
             import json
             import time
@@ -173,7 +173,7 @@ class QUSB2SNESSyncManager:
                     processed_data = json.load(f)
             
             def should_sync_file(file_path: str) -> bool:
-                """Check if file should be synced based on timestamps"""
+                """Check if file should be synced based on file existence and timestamps"""
                 try:
                     # Get file info
                     filename = os.path.basename(file_path)
@@ -181,6 +181,25 @@ class QUSB2SNESSyncManager:
                     
                     if not os.path.exists(file_path):
                         return False
+                    
+                    # Check if file exists on SD card first
+                    if v3_manager:
+                        # Get the target path on SD card based on current sync folder
+                        remote_folder = getattr(self, 'remote_folder', '/roms')
+                        if not remote_folder.startswith('/'):
+                            remote_folder = '/' + remote_folder
+                        if not remote_folder.endswith('/'):
+                            remote_folder += '/'
+                        
+                        sd_card_path = f"{remote_folder}{filename}"
+                        
+                        # Check if file exists on SD card
+                        file_exists_on_sd = sd_card_path in v3_manager.existing_files
+                        
+                        if not file_exists_on_sd:
+                            if self.logging_system:
+                                self.logging_system.log(f"📤 Will sync: {filename} (missing from SD card location)", "Information")
+                            return True
                     
                     local_mtime = int(os.path.getmtime(file_path))
                     
@@ -200,21 +219,26 @@ class QUSB2SNESSyncManager:
                         qusb_last_sync = matching_hack_data.get("qusb_last_sync", 0)
                         
                         if qusb_last_sync == 0:
-                            print(f"📤 Will sync: {filename} (never synced)")
+                            if self.logging_system:
+                                self.logging_system.log(f"📤 Will sync: {filename} (never synced)", "Information")
                             return True
                         elif qusb_last_sync < local_mtime:
-                            print(f"📤 Will sync: {filename} (file modified since last sync)")
+                            if self.logging_system:
+                                self.logging_system.log(f"📤 Will sync: {filename} (file modified since last sync)", "Information")
                             return True
                         else:
-                            print(f"⏭️ Skipping: {filename} (already up to date)")
+                            if self.logging_system:
+                                self.logging_system.log(f"⏭️ Skipping: {filename} (already up to date)", "Information")
                             return False
                     else:
                         # File not in processed.json - always sync
-                        print(f"📤 Will sync: {filename} (not in processed.json)")
+                        if self.logging_system:
+                            self.logging_system.log(f"📤 Will sync: {filename} (not in processed.json)", "Information")
                         return True
                         
                 except Exception as e:
-                    print(f"Warning: Error checking timestamp for {file_path}: {e}")
+                    if self.logging_system:
+                        self.logging_system.log(f"Warning: Error checking timestamp for {file_path}: {e}", "Warning")
                     return True  # Default to syncing if we can't check
             
             return should_sync_file
@@ -342,6 +366,10 @@ class QUSB2SNESSection:
         self.parent = parent
         self.config = config_manager
         self.logger = logger
+        
+        # Recreate upload manager with correct logger
+        self.upload_manager = QUSB2SNESUploadManager(config_manager=config_manager, logging_system=self.logger)
+        
         self.frame = None
         
         # UI components
@@ -780,7 +808,7 @@ class QUSB2SNESSection:
                 
                 # Use a fresh sync manager for this operation to avoid cross-loop issues
                 # (the UI sync_manager belongs to the main thread's event loop)
-                sync_manager = QUSB2SNESSyncManager(config_manager=self.config)
+                sync_manager = QUSB2SNESSyncManager(config_manager=self.config, logging_system=self.logger)
                 sync_manager.on_progress = self._on_progress
                 sync_manager.on_error = self._on_error
                 

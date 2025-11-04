@@ -71,8 +71,9 @@ class QUSB2SNESUploadManagerV3:
         self.progress = UploadProgress()
         self.on_progress: Optional[Callable[[UploadProgress], None]] = None
         
-        # Directory caching
+        # Directory and file caching
         self.existing_directories: Set[str] = set()
+        self.existing_files: Set[str] = set()
         self.created_directories: Set[str] = set()
         
         # Logging
@@ -86,10 +87,8 @@ class QUSB2SNESUploadManagerV3:
         if self.logging_system:
             self.logging_system.log(formatted_message, "Information")
         else:
-            # Fallback to console
-            if self.logger:
-                self.logger.info(message)
-            print(formatted_message)
+            # Fallback to console - but let's make it obvious this is happening
+            print(f"FALLBACK: {formatted_message}")
     
     def _log_error(self, message: str):
         """Log error message"""
@@ -99,10 +98,8 @@ class QUSB2SNESUploadManagerV3:
         if self.logging_system:
             self.logging_system.log(formatted_message, "Error")
         else:
-            # Fallback to console
-            if self.logger:
-                self.logger.error(message)
-            print(formatted_message)
+            # Fallback to console - but let's make it obvious this is happening
+            print(f"FALLBACK: {formatted_message}")
     
     def _log_debug(self, message: str):
         """Log debug message"""
@@ -157,14 +154,15 @@ class QUSB2SNESUploadManagerV3:
             await self.websocket.close()
             self.websocket = None
 
-    async def scan_sd_card_structure(self, root_path: str = "/roms") -> Set[str]:
+    async def scan_sd_card_structure(self, root_path: str = "/roms") -> tuple[Set[str], Set[str]]:
         """
         Perform a comprehensive scan of SD card directory structure
-        Returns a set of all existing directory paths
+        Returns a tuple of (all_directories, all_files) as sets of paths
         """
         self._log_info(f"🔍 Scanning SD card structure from {root_path}")
         
         all_directories = set()
+        all_files = set()
         directories_to_scan = [root_path]
         
         # Add the root path itself to the found directories
@@ -204,6 +202,16 @@ class QUSB2SNESUploadManagerV3:
                                 all_directories.add(dir_path)
                                 directories_to_scan.append(dir_path)
                                 self._log_debug(f"Found directory: {dir_path}")
+                            
+                            elif file_type == "1":  # File
+                                # Build full file path
+                                if current_dir == "/":
+                                    file_path = f"/{file_name}"
+                                else:
+                                    file_path = f"{current_dir}/{file_name}"
+                                
+                                all_files.add(file_path)
+                                self._log_debug(f"Found file: {file_path}")
                 
                 # Small delay to avoid overwhelming the server
                 await asyncio.sleep(0.1)
@@ -213,8 +221,8 @@ class QUSB2SNESUploadManagerV3:
                 # Continue scanning other directories
                 continue
         
-        self._log_info(f"📁 Scan complete: found {len(all_directories)} directories")
-        return all_directories
+        self._log_info(f"📁 Scan complete: found {len(all_directories)} directories and {len(all_files)} files")
+        return all_directories, all_files
     
     async def find_missing_directories(self, required_dirs: List[str]) -> List[str]:
         """
@@ -230,11 +238,13 @@ class QUSB2SNESUploadManagerV3:
         
         try:
             # Get complete SD card directory structure
-            existing_dirs = await self.scan_sd_card_structure()
+            existing_dirs, existing_files = await self.scan_sd_card_structure()
             await self.disconnect()
             
             # Store in cache for future use
             self.existing_directories.update(existing_dirs)
+            # Store files for sync filtering
+            self.existing_files = existing_files
             
             # Find missing directories (case-insensitive comparison)
             missing_dirs = []
@@ -271,6 +281,44 @@ class QUSB2SNESUploadManagerV3:
         finally:
             await self.disconnect()
     
+    async def check_file_exists(self, file_path: str) -> bool:
+        """Check if file exists on SD card (case-insensitive)"""
+        # Check cache first
+        if file_path in self.existing_files:
+            return True
+        
+        try:
+            parent_path = str(PurePosixPath(file_path).parent)
+            file_name = PurePosixPath(file_path).name
+            
+            self._log_debug(f"Checking file existence: parent='{parent_path}', file='{file_name}'")
+            
+            # List parent directory
+            cmd = {"Opcode": "List", "Space": "SNES", "Operands": [parent_path]}
+            await self.websocket.send(json.dumps(cmd))
+            
+            response = await asyncio.wait_for(self.websocket.recv(), timeout=5.0)
+            data = json.loads(response)
+            
+            if data.get("Results", []):
+                existing_files = set()
+                for item in data["Results"]:
+                    if item.get("Type") == "1":  # File type
+                        existing_files.add(f"{parent_path}/{item['Name']}")
+                
+                # Check if our file exists (case-insensitive)
+                for existing_file in existing_files:
+                    if PurePosixPath(existing_file).name.lower() == file_name.lower():
+                        # Update cache
+                        self.existing_files.add(file_path)
+                        return True
+            
+            return False
+            
+        except Exception as e:
+            self._log_error(f"Error checking file existence for '{file_path}': {e}")
+            return False
+
     async def check_directory_exists(self, dir_path: str) -> bool:
         """Check if directory exists (case-insensitive)"""
         # Check cache first
@@ -539,6 +587,16 @@ class QUSB2SNESUploadManagerV3:
         if not os.path.exists(local_root):
             self._log_error(f"Local directory not found: {local_root}")
             return False
+        
+        # Scan SD card structure first to get existing files for filter decisions
+        try:
+            self._log_info("📂 Scanning SD card structure for sync decisions...")
+            existing_dirs, existing_files = await self.scan_sd_card_structure()
+            self.existing_files = existing_files
+            self._log_info(f"📂 Found {len(existing_files)} files on SD card")
+        except Exception as e:
+            self._log_warning(f"Could not scan SD card structure: {e} - proceeding with timestamp-only sync")
+            self.existing_files = set()
         
         # Build file mappings
         file_mappings = []
