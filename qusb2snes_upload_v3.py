@@ -54,11 +54,12 @@ class QUSB2SNESUploadManagerV3:
     Simplified, proven upload manager using two-phase strategy
     """
     
-    def __init__(self, websocket_url: str = "ws://localhost:8080", config_manager: Optional[object] = None):
+    def __init__(self, websocket_url: str = "ws://localhost:8080", config_manager: Optional[object] = None, logging_system: Optional[object] = None):
         self.websocket_url = websocket_url
         self.websocket = None
         self.device_name = None
         self.config_manager = config_manager
+        self.logging_system = logging_system  # Application logging system
         
         # Configuration
         self.chunk_size = 1024  # Proven chunk size
@@ -79,15 +80,29 @@ class QUSB2SNESUploadManagerV3:
     
     def _log_info(self, message: str):
         """Log info message"""
-        if self.logger:
-            self.logger.info(message)
-        print(f"[UploadV3] {message}")
+        formatted_message = f"[UploadV3] {message}"
+        
+        # Use application logging system if available
+        if self.logging_system:
+            self.logging_system.log(formatted_message, "Information")
+        else:
+            # Fallback to console
+            if self.logger:
+                self.logger.info(message)
+            print(formatted_message)
     
     def _log_error(self, message: str):
         """Log error message"""
-        if self.logger:
-            self.logger.error(message)
-        print(f"[UploadV3] ERROR: {message}")
+        formatted_message = f"[UploadV3] ERROR: {message}"
+        
+        # Use application logging system if available
+        if self.logging_system:
+            self.logging_system.log(formatted_message, "Error")
+        else:
+            # Fallback to console
+            if self.logger:
+                self.logger.error(message)
+            print(formatted_message)
     
     def _log_debug(self, message: str):
         """Log debug message"""
@@ -340,6 +355,11 @@ class QUSB2SNESUploadManagerV3:
             self._log_info("✅ No directories need to be created")
             return True
         
+        # Quick optimization: if we have qusb_last_sync timestamps, directories likely exist
+        if self._has_existing_sync_timestamps():
+            self._log_info("✅ Previous sync detected - assuming directories exist (optimization)")
+            return True
+        
         # Find which directories actually need to be created
         missing_dirs = await self.find_missing_directories(required_dirs)
         
@@ -375,6 +395,30 @@ class QUSB2SNESUploadManagerV3:
         
         self._log_info(f"🎉 PHASE 1 COMPLETE! Created {created_count} new directories")
         return True
+    
+    def _has_existing_sync_timestamps(self) -> bool:
+        """Check if any hacks have qusb_last_sync timestamps (indicating previous sync)"""
+        try:
+            import json
+            from utils import PROCESSED_JSON_PATH
+            
+            if not os.path.exists(PROCESSED_JSON_PATH):
+                return False
+                
+            with open(PROCESSED_JSON_PATH, 'r', encoding='utf-8') as f:
+                processed_data = json.load(f)
+            
+            # Check if any non-obsolete hack has a sync timestamp
+            for hack_data in processed_data.values():
+                if (not hack_data.get("obsolete", False) and 
+                    hack_data.get("qusb_last_sync", 0) > 0):
+                    return True
+                    
+            return False
+            
+        except Exception as e:
+            self._log_debug(f"Could not check sync timestamps: {e}")
+            return False
     
     async def upload_file(self, local_path: str, remote_path: str) -> bool:
         """Upload a single file using proven method"""

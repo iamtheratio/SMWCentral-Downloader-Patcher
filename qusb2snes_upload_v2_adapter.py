@@ -44,7 +44,8 @@ class QUSB2SNESUploadManagerV2Adapter:
         device_manager: Optional[QUSB2SNESDevice] = None,
         filesystem_manager: Optional[QUSB2SNESFileSystem] = None,
         config_manager: Optional[object] = None,
-        websocket_url: str = "ws://localhost:8080"
+        websocket_url: str = "ws://localhost:8080",
+        logging_system: Optional[object] = None
     ):
         # V2 compatibility attributes (legacy interface)
         self.connection = connection
@@ -54,7 +55,8 @@ class QUSB2SNESUploadManagerV2Adapter:
         # V3 implementation (actual workhorse)
         self.v3_manager = QUSB2SNESUploadManagerV3(
             websocket_url=websocket_url,
-            config_manager=config_manager
+            config_manager=config_manager,
+            logging_system=logging_system
         )
         
         # V2 compatibility settings

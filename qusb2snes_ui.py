@@ -20,15 +20,25 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from qusb2snes_upload_v2_adapter import QUSB2SNESUploadManager
 from ui_constants import get_labelframe_padding
 
-# Compatibility wrapper for V1 UI interface
+# Compatibility wrapper for V1 UI interface using V2/V3 implementation
 class QUSB2SNESSyncManager:
     """Compatibility wrapper for V1 UI interface using V2/V3 implementation"""
     
-    def __init__(self):
-        self.upload_manager = QUSB2SNESUploadManager()
+    def __init__(self, config_manager=None, logging_system=None):
+        # Import config manager if not provided
+        if config_manager is None:
+            try:
+                from config_manager import ConfigManager
+                config_manager = ConfigManager()
+            except ImportError:
+                config_manager = None
+        
+        self.upload_manager = QUSB2SNESUploadManager(config_manager=config_manager, logging_system=logging_system)
         self.host = "localhost" 
         self.port = 8080
         self.device_name = ""
+        self.config_manager = config_manager
+        self.logging_system = logging_system
         
         # Callback attributes for compatibility
         self.on_progress = None
@@ -36,16 +46,18 @@ class QUSB2SNESSyncManager:
         self.on_connected = None
         self.on_disconnected = None
         
-    def configure(self, host, port, device):
+    def configure(self, host, port, device, remote_folder=None):
         """Configure connection settings"""
         self.host = host
         self.port = port
         self.device_name = device
+        self.remote_folder = remote_folder or "/roms"
         
     async def connect_and_attach(self):
         """Connect and attach to device"""
         try:
-            success = await self.upload_manager.connect_to_device()
+            # Use V3 manager to connect  
+            success = await self.upload_manager.v3_manager.connect()
             if success and self.on_connected:
                 self.on_connected()
             return success
@@ -57,14 +69,29 @@ class QUSB2SNESSyncManager:
     async def get_devices(self):
         """Get available devices"""
         try:
-            return await self.upload_manager.get_available_devices()
-        except Exception:
+            # Create a temporary connection just to get device list
+            import websockets
+            import json
+            
+            websocket = await websockets.connect("ws://localhost:23074")
+            
+            # Send DeviceList command
+            cmd = {"Opcode": "DeviceList", "Space": "SNES"}
+            await websocket.send(json.dumps(cmd))
+            response = await websocket.recv()
+            devices = json.loads(response).get("Results", [])
+            
+            await websocket.close()
+            return devices or []
+        except Exception as e:
+            if self.on_error:
+                self.on_error(f"Failed to get devices: {e}")
             return []
             
     async def disconnect(self):
         """Disconnect from device"""
         try:
-            await self.upload_manager.disconnect()
+            await self.upload_manager.v3_manager.disconnect()
             if self.on_disconnected:
                 self.on_disconnected()
         except Exception as e:
@@ -74,26 +101,229 @@ class QUSB2SNESSyncManager:
     async def sync_hacks_to_remote(self, remote_folder):
         """Sync ROMs to remote folder - compatibility method"""
         try:
-            # Use upload manager with progress callbacks
-            def progress_callback(message):
-                if self.on_progress:
-                    self.on_progress(message)
-                    
-            # This is a simplified sync - in practice you'd want to integrate
-            # with OutputDirectoryROMSync for full functionality
+            # Use the V2 adapter's sync_from_config method with timestamp filter
             if self.on_progress:
-                self.on_progress("Sync started...")
+                self.on_progress("Starting sync...")
             
-            # For now, just report success - full integration would require
-            # connecting this to the real sync logic
-            if self.on_progress:
-                self.on_progress("✅ Sync completed")
-            return True
+            # Create a file filter that checks qusb_last_sync timestamps
+            file_filter = self._create_timestamp_filter()
+            
+            result = await self.upload_manager.v3_manager.sync_from_config(file_filter)
+            
+            if result:
+                # Update qusb_last_sync timestamps after successful sync
+                updated_hacks = []
+                try:
+                    updated_hacks = await self._update_sync_timestamps()
+                except Exception as timestamp_error:
+                    # Don't fail the sync if timestamp update fails
+                    error_message = f"Warning: Failed to update timestamps: {timestamp_error}"
+                    if self.logging_system:
+                        self.logging_system.log(error_message, "Warning")
+                    else:
+                        print(error_message)
+                    if self.on_progress:
+                        self.on_progress("⚠️ Sync completed but timestamp update failed")
+                
+                if self.on_progress:
+                    self.on_progress("✅ Sync completed successfully")
+                
+                # Return a proper result dictionary for UI compatibility
+                return {
+                    "success": True,
+                    "uploaded": len(updated_hacks),
+                    "updated_hacks": updated_hacks,
+                    "error": None
+                }
+            else:
+                if self.on_progress:
+                    self.on_progress("❌ Sync failed")
+                
+                # Return failure result dictionary
+                return {
+                    "success": False,
+                    "uploaded": 0,
+                    "updated_hacks": [],
+                    "error": "Sync operation failed"
+                }
             
         except Exception as e:
             if self.on_error:
                 self.on_error(f"Sync failed: {e}")
-            return False
+            
+            # Return failure result dictionary
+            return {
+                "success": False,
+                "uploaded": 0,
+                "updated_hacks": [],
+                "error": str(e)
+            }
+    
+    def _create_timestamp_filter(self):
+        """Create a file filter that checks qusb_last_sync timestamps"""
+        try:
+            import json
+            import time
+            from utils import PROCESSED_JSON_PATH
+            
+            # Load processed.json data
+            processed_data = {}
+            if os.path.exists(PROCESSED_JSON_PATH):
+                with open(PROCESSED_JSON_PATH, 'r', encoding='utf-8') as f:
+                    processed_data = json.load(f)
+            
+            def should_sync_file(file_path: str) -> bool:
+                """Check if file should be synced based on timestamps"""
+                try:
+                    # Get file info
+                    filename = os.path.basename(file_path)
+                    name_without_ext = os.path.splitext(filename)[0].lower()
+                    
+                    if not os.path.exists(file_path):
+                        return False
+                    
+                    local_mtime = int(os.path.getmtime(file_path))
+                    
+                    # Find matching hack in processed.json
+                    matching_hack_data = None
+                    for hack_data in processed_data.values():
+                        if hack_data.get("obsolete", False):
+                            continue
+                        
+                        hack_title = hack_data.get("title", "").lower()
+                        if hack_title and (hack_title in name_without_ext or name_without_ext in hack_title):
+                            matching_hack_data = hack_data
+                            break
+                    
+                    if matching_hack_data:
+                        # Check timestamp
+                        qusb_last_sync = matching_hack_data.get("qusb_last_sync", 0)
+                        
+                        if qusb_last_sync == 0:
+                            print(f"📤 Will sync: {filename} (never synced)")
+                            return True
+                        elif qusb_last_sync < local_mtime:
+                            print(f"📤 Will sync: {filename} (file modified since last sync)")
+                            return True
+                        else:
+                            print(f"⏭️ Skipping: {filename} (already up to date)")
+                            return False
+                    else:
+                        # File not in processed.json - always sync
+                        print(f"📤 Will sync: {filename} (not in processed.json)")
+                        return True
+                        
+                except Exception as e:
+                    print(f"Warning: Error checking timestamp for {file_path}: {e}")
+                    return True  # Default to syncing if we can't check
+            
+            return should_sync_file
+            
+        except Exception as e:
+            print(f"Warning: Failed to create timestamp filter: {e}")
+            # Return a filter that syncs everything if we can't create proper filter
+            return lambda x: True
+    
+    async def _update_sync_timestamps(self):
+        """Update qusb_last_sync timestamps for hacks that were actually uploaded"""
+        updated_hacks = []  # Track updated hack titles
+        try:
+            import time
+            import glob
+            from hack_data_manager import HackDataManager
+            from utils import PROCESSED_JSON_PATH
+            
+            # Initialize hack data manager
+            hack_manager = HackDataManager()
+            
+            # Get current timestamp
+            current_timestamp = int(time.time())
+            
+            # Get the output directory from config
+            output_dir = self.config_manager.get("output_dir", "")
+            if not output_dir or not os.path.exists(output_dir):
+                if self.on_progress:
+                    self.on_progress("⚠️ Output directory not found, skipping timestamp updates")
+                return updated_hacks
+            
+            # Find all ROM files in output directory
+            rom_extensions = ["*.smc", "*.sfc", "*.fig"]
+            uploaded_files = []
+            
+            for ext in rom_extensions:
+                pattern = os.path.join(output_dir, "**", ext)
+                files = glob.glob(pattern, recursive=True)
+                uploaded_files.extend(files)
+            
+            if not uploaded_files:
+                if self.on_progress:
+                    self.on_progress("📁 No ROM files found in output directory")
+                return updated_hacks
+            
+            # Extract filenames without extensions for matching
+            uploaded_filenames = set()
+            for file_path in uploaded_files:
+                filename = os.path.basename(file_path)
+                name_without_ext = os.path.splitext(filename)[0]
+                uploaded_filenames.add(name_without_ext.lower())  # Case-insensitive matching
+            
+            # Load processed.json to find matching hacks
+            if not os.path.exists(PROCESSED_JSON_PATH):
+                return updated_hacks
+                
+            import json
+            with open(PROCESSED_JSON_PATH, 'r', encoding='utf-8') as f:
+                processed_data = json.load(f)
+            
+            # Update timestamp for matching non-obsolete hacks
+            updated_count = 0
+            for hack_id, hack_data in processed_data.items():
+                # Skip obsolete hacks
+                if hack_data.get("obsolete", False):
+                    continue
+                
+                # Get hack title for matching
+                hack_title = hack_data.get("title", "").lower()
+                if not hack_title:
+                    continue
+                
+                # Check if this hack matches any uploaded file
+                title_matched = False
+                for uploaded_name in uploaded_filenames:
+                    # Match if hack title is contained in filename or vice versa
+                    if (hack_title in uploaded_name) or (uploaded_name in hack_title):
+                        title_matched = True
+                        break
+                
+                if title_matched:
+                    # Update the timestamp for this hack
+                    success = hack_manager.update_hack(hack_id, "qusb_last_sync", current_timestamp)
+                    if success:
+                        updated_count += 1
+                        hack_name = hack_data.get('title', hack_id)
+                        updated_hacks.append(hack_name)
+                        
+                        # Use logging system if available, otherwise print
+                        log_message = f"📝 Updated timestamp for hack: {hack_name}"
+                        if self.logging_system:
+                            self.logging_system.log(log_message, "Information")
+                        else:
+                            print(log_message)
+            
+            if self.on_progress:
+                self.on_progress(f"📝 Updated sync timestamps for {updated_count} uploaded hacks")
+                
+        except Exception as e:
+            # Log error but don't fail the sync operation
+            error_message = f"Warning: Failed to update sync timestamps: {e}"
+            if self.logging_system:
+                self.logging_system.log(error_message, "Warning")
+            else:
+                print(error_message)
+            import traceback
+            traceback.print_exc()
+        
+        return updated_hacks
             
     # Additional compatibility properties
     @property  
@@ -125,7 +355,7 @@ class QUSB2SNESSection:
         self.sync_button = None
         
         # Sync manager
-        self.sync_manager = QUSB2SNESSyncManager()
+        self.sync_manager = QUSB2SNESSyncManager(config_manager=self.config, logging_system=self.logger)
         self.sync_manager.on_progress = self._on_progress
         self.sync_manager.on_error = self._on_error
         self.sync_manager.on_connected = self._on_connected
@@ -550,7 +780,7 @@ class QUSB2SNESSection:
                 
                 # Use a fresh sync manager for this operation to avoid cross-loop issues
                 # (the UI sync_manager belongs to the main thread's event loop)
-                sync_manager = QUSB2SNESSyncManager()
+                sync_manager = QUSB2SNESSyncManager(config_manager=self.config)
                 sync_manager.on_progress = self._on_progress
                 sync_manager.on_error = self._on_error
                 
