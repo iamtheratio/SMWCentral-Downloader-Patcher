@@ -208,21 +208,25 @@ class QUSB2SNESUploadManagerV3:
 
     async def scan_sd_card_structure(self, root_path: str = "/roms") -> tuple[Set[str], Set[str]]:
         """
-        Perform a comprehensive scan of SD card directory structure
+        Perform a focused recursive scan of SD card directory structure
+        Scans root directory + complete recursive contents of sync folder only
         Returns a tuple of (all_directories, all_files) as sets of paths
         """
         # Normalize the root path for SD card operations
         normalized_root_path = self._normalize_sd_path(root_path)
-        self._log_info(f"🔍 Scanning SD card...")
+        self._log_info(f"🔍 Focused recursive scan of SD card...")
         if normalized_root_path != root_path:
             self._log_debug(f"Using normalized path: {root_path} → {normalized_root_path}")
         
         all_directories = set()
         all_files = set()
         
-        # Step 1: Get list from root "/"
+        # Step 1: Scan root directory to find sync folder
+        sync_folder_exists = False
+        actual_sync_path = normalized_root_path
+        
         try:
-            self._log_debug(f"Listing root directory /")
+            self._log_debug(f"Scanning root directory /")
             cmd = {"Opcode": "List", "Space": "SNES", "Operands": ["/"]}
             await self.websocket.send(json.dumps(cmd))
             
@@ -238,7 +242,6 @@ class QUSB2SNESUploadManagerV3:
                         file_type = results[i]
                         file_name = results[i + 1]
                         
-                        # Skip . and .. entries
                         if file_name in [".", ".."]:
                             continue
                         
@@ -246,6 +249,12 @@ class QUSB2SNESUploadManagerV3:
                             dir_path = f"/{file_name}"
                             all_directories.add(dir_path)
                             self._log_debug(f"Found root directory: {dir_path}")
+                            
+                            # Check if this is our sync folder (case-insensitive)
+                            if dir_path.lower() == normalized_root_path.lower():
+                                sync_folder_exists = True
+                                actual_sync_path = dir_path
+                                self._log_info(f"✅ Found sync folder: {dir_path}")
                         elif file_type == "1":  # File
                             file_path = f"/{file_name}"
                             all_files.add(file_path)
@@ -255,32 +264,28 @@ class QUSB2SNESUploadManagerV3:
             self._log_error(f"Failed to scan root directory: {e}")
             return all_directories, all_files
         
-        # Step 2: Check if our target sync folder exists (case-insensitive)
-        target_folder_exists = False
-        actual_target_path = normalized_root_path
+        if not sync_folder_exists:
+            self._log_info(f"📁 Sync folder {normalized_root_path} not found - will be created")
+            return all_directories, all_files
         
-        for existing_dir in all_directories:
-            if existing_dir.lower() == normalized_root_path.lower():
-                target_folder_exists = True
-                actual_target_path = existing_dir
-                self._log_info(f"✅ Found sync folder: {existing_dir}")
-                break
-        
-        if not target_folder_exists:
-            self._log_info(f"📁 Will create sync folder: {normalized_root_path}")
-        
-        # Step 3: If target folder exists, scan inside it
-        if target_folder_exists:
+        # Step 2: Recursively scan all contents within sync folder
+        async def scan_directory_recursive(dir_path: str):
+            """Recursively scan a directory and all subdirectories"""
             try:
-                self._log_debug(f"Scanning inside target folder: {actual_target_path}")
-                cmd = {"Opcode": "List", "Space": "SNES", "Operands": [actual_target_path]}
+                self._log_debug(f"Recursively scanning: {dir_path}")
+                cmd = {"Opcode": "List", "Space": "SNES", "Operands": [dir_path]}
                 await self.websocket.send(json.dumps(cmd))
+                
+                # Small delay to avoid overwhelming the connection
+                await asyncio.sleep(0.1)
                 
                 response = await asyncio.wait_for(self.websocket.recv(), timeout=10.0)
                 data = json.loads(response)
                 
                 if "Results" in data:
                     results = data["Results"]
+                    subdirs_to_scan = []
+                    
                     for i in range(0, len(results), 2):
                         if i + 1 < len(results):
                             file_type = results[i]
@@ -290,16 +295,25 @@ class QUSB2SNESUploadManagerV3:
                                 continue
                             
                             if file_type == "0":  # Directory
-                                dir_path = f"{actual_target_path}/{file_name}"
-                                all_directories.add(dir_path)
-                                self._log_debug(f"Found subdirectory: {dir_path}")
+                                subdir_path = f"{dir_path}/{file_name}"
+                                all_directories.add(subdir_path)
+                                subdirs_to_scan.append(subdir_path)
+                                self._log_debug(f"Found subdirectory: {subdir_path}")
                             elif file_type == "1":  # File
-                                file_path = f"{actual_target_path}/{file_name}"
+                                file_path = f"{dir_path}/{file_name}"
                                 all_files.add(file_path)
                                 self._log_debug(f"Found file: {file_path}")
-                                
+                    
+                    # Recursively scan all subdirectories found
+                    for subdir in subdirs_to_scan:
+                        await scan_directory_recursive(subdir)
+                        
             except Exception as e:
-                self._log_debug(f"Could not scan inside {actual_target_path}: {e}")
+                self._log_debug(f"Could not scan directory {dir_path}: {e}")
+        
+        # Start recursive scan from the sync folder
+        self._log_info(f"🔍 Recursively scanning sync folder: {actual_sync_path}")
+        await scan_directory_recursive(actual_sync_path)
         
         self._log_info(f"📁 Found {len(all_directories)} directories, {len(all_files)} files")
         return all_directories, all_files
