@@ -28,12 +28,9 @@ class UploadManagerV2Simple:
         self.device = device
         self.filesystem = filesystem
         
-        # V1 proven constants for upload operations
-        self.chunk_size = 512  # Proven for SD card compatibility
-        self.sd_card_prep_delay = 0.5  # V1 proven delay before file data
-        self.regular_delay = 0.005  # V1 proven regular delay
-        self.sd_card_pause_delay = 0.1  # V1 proven longer pause every 64KB
-        self.progress_report_interval = 500 * 1024  # V1 proven 500KB intervals
+        # V2 proven constants with minimal client optimizations  
+        self.chunk_size = 1024  # Back to QFile2SNES standard
+        self.progress_report_interval = 500 * 1024  # Report every 500KB
     
     def log_progress(self, message: str):
         """Simple progress logging"""
@@ -80,7 +77,21 @@ class UploadManagerV2Simple:
             
             self.log_progress(f"📤 Uploading {filename} ({file_size:,} bytes) to {remote_path}")
             
-            # Step 1: Send PutFile command (simple approach - no retries)
+            # Step 1: Ensure target directory exists
+            target_dir = os.path.dirname(remote_path).replace('\\', '/')
+            if target_dir and target_dir != '/':
+                self.log_progress(f"📁 Ensuring directory exists: {target_dir}")
+                try:
+                    success = await self.filesystem.ensure_directory(target_dir)
+                    if not success:
+                        self.log_error(f"Failed to create directory: {target_dir}")
+                        return False
+                    self.log_progress(f"✅ Directory ready: {target_dir}")
+                except Exception as e:
+                    self.log_error(f"Error creating directory {target_dir}: {e}")
+                    return False
+            
+            # Step 2: Send PutFile command (simple approach - no retries)
             size_hex = format(file_size, 'X')
             response = await self.connection.send_command(
                 "PutFile", 
@@ -88,48 +99,66 @@ class UploadManagerV2Simple:
                 expect_response=False  # PutFile is no-reply command
             )
             
-            if response is None:
-                self.log_error(f"PutFile command failed for {remote_path}")
+            # PutFile is a no-reply command, so response being None is expected and correct
+            # We don't check the response for no-reply commands
+            
+            # Step 3: Send binary data immediately (minimal client proven pattern)
+            # NO DELAY - this was the key insight from minimal client success!
+            
+            # Step 4: Load entire file into memory (QFile2SNES pattern)
+            print(f"[UploadV2Simple] 📖 Loading file into memory...")
+            with open(local_path, "rb") as f:
+                file_data = f.read()
+            
+            if len(file_data) != file_size:
+                self.log_error(f"File size mismatch: expected {file_size}, read {len(file_data)}")
                 return False
             
-            # Step 2: V1 proven delay for SD card preparation
-            await asyncio.sleep(self.sd_card_prep_delay)
+            # Step 5: Send file data in chunks (QFile2SNES pattern)
+            print(f"[UploadV2Simple] 📡 Starting binary data transfer...")
+            print(f"[UploadV2Simple] File data size: {len(file_data)} bytes")
+            print(f"[UploadV2Simple] Chunk size: {self.chunk_size} bytes")
             
-            # Step 3: Send file data using simple approach (no complex retry logic)
             bytes_sent = 0
             last_progress_report = 0
+            chunk_count = 0
             
-            with open(local_path, "rb") as f:
-                while bytes_sent < file_size:
-                    # Read chunk
-                    chunk = f.read(min(self.chunk_size, file_size - bytes_sent))
-                    if not chunk:
-                        break
+            while bytes_sent < len(file_data):
+                # Calculate chunk size
+                chunk_size = min(self.chunk_size, len(file_data) - bytes_sent)
+                chunk = file_data[bytes_sent:bytes_sent + chunk_size]
+                chunk_count += 1
+                
+                print(f"[UploadV2Simple] Sending chunk {chunk_count}: {len(chunk)} bytes at offset {bytes_sent}")
+                
+                # Send chunk using websocket binary message (QFile2SNES pattern)
+                # Python websockets: bytes = binary message, str = text message
+                try:
+                    await self.connection.websocket.send(chunk)
+                    bytes_sent += len(chunk)
+                    print(f"[UploadV2Simple] ✅ Chunk {chunk_count} sent successfully")
                     
-                    # Send chunk directly through connection's websocket
-                    # This is the simple approach - direct websocket usage
-                    try:
-                        await self.connection.websocket.send(chunk)
-                        bytes_sent += len(chunk)
-                    except Exception as e:
-                        self.log_error(f"Failed to send chunk at byte {bytes_sent}: {e}")
-                        return False
+                    # NO DELAYS - minimal client pattern works immediately
+                except Exception as e:
+                    self.log_error(f"Failed to send chunk at byte {bytes_sent}: {e}")
+                    return False
                     
-                    # Progress reporting (V1 pattern)
+                    # Progress reporting
                     if bytes_sent - last_progress_report >= self.progress_report_interval or bytes_sent == file_size:
                         percent = (bytes_sent / file_size) * 100
                         self.log_progress(f"📊 Progress: {percent:.1f}% ({bytes_sent:,}/{file_size:,} bytes)")
                         last_progress_report = bytes_sent
                     
                     # V1 proven timing delays for SD card compatibility
-                    if bytes_sent % (64 * 1024) == 0:
-                        # V1 pattern: Longer pause every 64KB for SD card
-                        await asyncio.sleep(self.sd_card_pause_delay)
-                    else:
-                        # V1 pattern: Regular tiny delay
-                        await asyncio.sleep(self.regular_delay)
+                    if bytes_sent < file_size:
+                        if bytes_sent % (64 * 1024) == 0:
+                            # V1 pattern: Longer pause every 64KB for SD card
+                            await asyncio.sleep(0.1)
+                        else:
+                            # V1 pattern: Regular tiny delay
+                            await asyncio.sleep(0.005)
             
-            # Step 4: Wait for SD card processing (V1 proven timing)
+            # Step 5: Wait for SD card processing (V1 proven timing)
             if file_size <= 1024*1024:  # <= 1MB
                 wait_time = 1.0
             elif file_size <= 4*1024*1024:  # <= 4MB

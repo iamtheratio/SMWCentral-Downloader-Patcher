@@ -24,10 +24,10 @@ from config_manager import ConfigManager
 from hack_data_manager import HackDataManager
 from utils import load_processed
 
-# Import V2 components
+# Import V2 components  
 from qusb2snes_connection import QUSB2SNESConnection
 from qusb2snes_device import QUSB2SNESDevice
-from upload_manager_v2_simple import UploadManagerV2Simple
+from qusb2snes_upload_v2_adapter import QUSB2SNESUploadManager
 
 class OutputDirectoryROMSync:
     """
@@ -48,7 +48,12 @@ class OutputDirectoryROMSync:
         # V2 components
         self.connection = QUSB2SNESConnection()
         self.device_manager = QUSB2SNESDevice(self.connection)
-        self.upload_manager = UploadManagerV2Simple(self.connection, self.device_manager, None)  # No filesystem manager
+        self.upload_manager = QUSB2SNESUploadManager(
+            connection=self.connection, 
+            device_manager=self.device_manager, 
+            filesystem_manager=None,
+            config_manager=self.config
+        )
         
     def log_info(self, message: str):
         """Log information message"""
