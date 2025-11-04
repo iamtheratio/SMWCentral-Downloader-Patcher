@@ -54,7 +54,7 @@ class QUSB2SNESUploadManagerV3:
     Simplified, proven upload manager using two-phase strategy
     """
     
-    def __init__(self, websocket_url: str = "ws://localhost:8080", config_manager: Optional[object] = None, logging_system: Optional[object] = None):
+    def __init__(self, websocket_url: str = "ws://localhost:23074", config_manager: Optional[object] = None, logging_system: Optional[object] = None):
         self.websocket_url = websocket_url
         self.websocket = None
         self.device_name = None
@@ -101,6 +101,17 @@ class QUSB2SNESUploadManagerV3:
             # Fallback to console - but let's make it obvious this is happening
             print(f"FALLBACK: {formatted_message}")
     
+    def _log_warning(self, message: str):
+        """Log warning message"""
+        formatted_message = f"[UploadV3] WARNING: {message}"
+        
+        # Use application logging system if available
+        if self.logging_system:
+            self.logging_system.log(formatted_message, "Warning")
+        else:
+            # Fallback to console - but let's make it obvious this is happening
+            print(f"FALLBACK: {formatted_message}")
+    
     def _log_debug(self, message: str):
         """Log debug message"""
         if self.logger:
@@ -114,8 +125,11 @@ class QUSB2SNESUploadManagerV3:
                 return False
             
             # Close existing connection if any
-            if self.websocket and not self.websocket.closed:
-                await self.websocket.close()
+            if self.websocket:
+                try:
+                    await self.websocket.close()
+                except:
+                    pass
             
             # Connect
             self.websocket = await websockets.connect(self.websocket_url)
@@ -150,9 +164,13 @@ class QUSB2SNESUploadManagerV3:
     
     async def disconnect(self):
         """Disconnect from QUSB2SNES"""
-        if self.websocket and not self.websocket.closed:
-            await self.websocket.close()
-            self.websocket = None
+        if self.websocket:
+            try:
+                await self.websocket.close()
+            except Exception as e:
+                self._log_debug(f"Error during disconnect: {e}")
+            finally:
+                self.websocket = None
 
     async def scan_sd_card_structure(self, root_path: str = "/roms") -> tuple[Set[str], Set[str]]:
         """
@@ -163,10 +181,12 @@ class QUSB2SNESUploadManagerV3:
         
         all_directories = set()
         all_files = set()
-        directories_to_scan = [root_path]
         
-        # Add the root path itself to the found directories
-        all_directories.add(root_path)
+        # Always start from root directory to check if target path exists
+        directories_to_scan = ["/"]
+        
+        # Add the root directory to found directories
+        all_directories.add("/")
         
         while directories_to_scan:
             current_dir = directories_to_scan.pop(0)
@@ -200,7 +220,16 @@ class QUSB2SNESUploadManagerV3:
                                     dir_path = f"{current_dir}/{file_name}"
                                 
                                 all_directories.add(dir_path)
-                                directories_to_scan.append(dir_path)
+                                
+                                # Only continue scanning subdirectories if:
+                                # 1. We're still at root level, OR
+                                # 2. The current path is within our target root_path
+                                if (current_dir == "/" or 
+                                    current_dir.startswith(root_path) or 
+                                    dir_path == root_path or
+                                    dir_path.startswith(root_path + "/")):
+                                    directories_to_scan.append(dir_path)
+                                    
                                 self._log_debug(f"Found directory: {dir_path}")
                             
                             elif file_type == "1":  # File
@@ -210,8 +239,11 @@ class QUSB2SNESUploadManagerV3:
                                 else:
                                     file_path = f"{current_dir}/{file_name}"
                                 
-                                all_files.add(file_path)
-                                self._log_debug(f"Found file: {file_path}")
+                                # Only add files that are within our target root_path
+                                if (current_dir == root_path or 
+                                    current_dir.startswith(root_path + "/")):
+                                    all_files.add(file_path)
+                                    self._log_debug(f"Found file: {file_path}")
                 
                 # Small delay to avoid overwhelming the server
                 await asyncio.sleep(0.1)
@@ -221,10 +253,19 @@ class QUSB2SNESUploadManagerV3:
                 # Continue scanning other directories
                 continue
         
-        self._log_info(f"📁 Scan complete: found {len(all_directories)} directories and {len(all_files)} files")
+        # Check if the target root_path exists
+        target_exists = root_path in all_directories
+        
+        if target_exists:
+            self._log_info(f"📁 Scan complete: found {len(all_directories)} directories and {len(all_files)} files")
+            self._log_info(f"✅ Target directory {root_path} exists on SD card")
+        else:
+            self._log_info(f"📁 Scan complete: found {len(all_directories)} directories and {len(all_files)} files")
+            self._log_warning(f"❌ Target directory {root_path} does not exist on SD card")
+            
         return all_directories, all_files
     
-    async def find_missing_directories(self, required_dirs: List[str]) -> List[str]:
+    async def find_missing_directories(self, required_dirs: List[str], remote_root: str = "/roms") -> List[str]:
         """
         Compare required directories against SD card structure
         Returns list of directories that need to be created
@@ -237,8 +278,8 @@ class QUSB2SNESUploadManagerV3:
             return required_dirs  # Assume all are missing if we can't scan
         
         try:
-            # Get complete SD card directory structure
-            existing_dirs, existing_files = await self.scan_sd_card_structure()
+            # Get complete SD card directory structure using the correct remote root
+            existing_dirs, existing_files = await self.scan_sd_card_structure(remote_root)
             await self.disconnect()
             
             # Store in cache for future use
@@ -366,8 +407,9 @@ class QUSB2SNESUploadManagerV3:
             await self.websocket.send(json.dumps(cmd))
             await asyncio.sleep(0.1)  # Brief pause after MakeDir
             
-            if self.websocket.closed:
-                self._log_error(f"Connection closed after creating: {dir_path}")
+            # Check if connection is still valid (simplified check)
+            if not self.websocket:
+                self._log_error(f"Connection lost after creating: {dir_path}")
                 return False
             
             self.created_directories.add(dir_path)
@@ -403,13 +445,22 @@ class QUSB2SNESUploadManagerV3:
             self._log_info("✅ No directories need to be created")
             return True
         
-        # Quick optimization: if we have qusb_last_sync timestamps, directories likely exist
-        if self._has_existing_sync_timestamps():
-            self._log_info("✅ Previous sync detected - assuming directories exist (optimization)")
-            return True
+        # Extract remote root from file mappings to determine scan directory
+        remote_root = "/" 
+        if file_mappings:
+            # Get the first remote path and extract its root
+            first_remote_path = file_mappings[0][1]  # (local, remote) tuple
+            # Find the root directory (e.g., "/ROMS2" from "/ROMS2/Kaizo/file.smc")
+            path_parts = first_remote_path.split('/')
+            if len(path_parts) >= 2:
+                remote_root = "/" + path_parts[1]  # "/ROMS2"
+        
+        # Always check if directories actually exist on SD card
+        # (Previous optimization was unreliable - SD card might be formatted/changed)
+        self._log_info(f"🔍 Checking which directories need to be created...")
         
         # Find which directories actually need to be created
-        missing_dirs = await self.find_missing_directories(required_dirs)
+        missing_dirs = await self.find_missing_directories(required_dirs, remote_root)
         
         if not missing_dirs:
             self._log_info("✅ All required directories already exist")
@@ -591,11 +642,11 @@ class QUSB2SNESUploadManagerV3:
         # Scan SD card structure first to get existing files for filter decisions
         try:
             self._log_info("📂 Scanning SD card structure for sync decisions...")
-            existing_dirs, existing_files = await self.scan_sd_card_structure()
+            existing_dirs, existing_files = await self.scan_sd_card_structure(remote_root)
             self.existing_files = existing_files
             self._log_info(f"📂 Found {len(existing_files)} files on SD card")
         except Exception as e:
-            self._log_warning(f"Could not scan SD card structure: {e} - proceeding with timestamp-only sync")
+            self._log_error(f"Could not scan SD card structure: {e} - proceeding with timestamp-only sync")
             self.existing_files = set()
         
         # Build file mappings
@@ -614,6 +665,10 @@ class QUSB2SNESUploadManagerV3:
                 remote_path = str(PurePosixPath(remote_root) / rel_path.replace(os.sep, '/'))
                 
                 file_mappings.append((local_path, remote_path))
+        
+        # Log summary statistics if the filter supports it
+        if file_filter and hasattr(file_filter, 'log_summary'):
+            file_filter.log_summary()
         
         self._log_info(f"📁 Syncing {local_root} → {remote_root} ({len(file_mappings)} files)")
         

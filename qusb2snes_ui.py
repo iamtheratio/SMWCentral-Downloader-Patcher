@@ -35,7 +35,7 @@ class QUSB2SNESSyncManager:
         
         self.upload_manager = QUSB2SNESUploadManager(config_manager=config_manager, logging_system=logging_system)
         self.host = "localhost" 
-        self.port = 8080
+        self.port = 23074
         self.device_name = ""
         self.config_manager = config_manager
         self.logging_system = logging_system
@@ -56,6 +56,10 @@ class QUSB2SNESSyncManager:
     async def connect_and_attach(self):
         """Connect and attach to device"""
         try:
+            # Update V3 manager's websocket URL with configured host/port
+            websocket_url = f"ws://{self.host}:{self.port}"
+            self.upload_manager.v3_manager.websocket_url = websocket_url
+            
             # Use V3 manager to connect  
             success = await self.upload_manager.v3_manager.connect()
             if success and self.on_connected:
@@ -69,11 +73,12 @@ class QUSB2SNESSyncManager:
     async def get_devices(self):
         """Get available devices"""
         try:
-            # Create a temporary connection just to get device list
+            # Create a temporary connection just to get device list using configured host/port
             import websockets
             import json
             
-            websocket = await websockets.connect("ws://localhost:23074")
+            websocket_url = f"ws://{self.host}:{self.port}"
+            websocket = await websockets.connect(websocket_url)
             
             # Send DeviceList command
             cmd = {"Opcode": "DeviceList", "Space": "SNES"}
@@ -172,6 +177,16 @@ class QUSB2SNESSyncManager:
                 with open(PROCESSED_JSON_PATH, 'r', encoding='utf-8') as f:
                     processed_data = json.load(f)
             
+            # Statistics counters
+            sync_stats = {
+                'missing_from_sd': 0,
+                'never_synced': 0, 
+                'file_modified': 0,
+                'not_in_processed': 0,
+                'already_up_to_date': 0,
+                'errors': 0
+            }
+            
             def should_sync_file(file_path: str) -> bool:
                 """Check if file should be synced based on file existence and timestamps"""
                 try:
@@ -197,8 +212,7 @@ class QUSB2SNESSyncManager:
                         file_exists_on_sd = sd_card_path in v3_manager.existing_files
                         
                         if not file_exists_on_sd:
-                            if self.logging_system:
-                                self.logging_system.log(f"📤 Will sync: {filename} (missing from SD card location)", "Information")
+                            sync_stats['missing_from_sd'] += 1
                             return True
                     
                     local_mtime = int(os.path.getmtime(file_path))
@@ -219,27 +233,55 @@ class QUSB2SNESSyncManager:
                         qusb_last_sync = matching_hack_data.get("qusb_last_sync", 0)
                         
                         if qusb_last_sync == 0:
-                            if self.logging_system:
-                                self.logging_system.log(f"📤 Will sync: {filename} (never synced)", "Information")
+                            sync_stats['never_synced'] += 1
                             return True
                         elif qusb_last_sync < local_mtime:
-                            if self.logging_system:
-                                self.logging_system.log(f"📤 Will sync: {filename} (file modified since last sync)", "Information")
+                            sync_stats['file_modified'] += 1
                             return True
                         else:
-                            if self.logging_system:
-                                self.logging_system.log(f"⏭️ Skipping: {filename} (already up to date)", "Information")
+                            sync_stats['already_up_to_date'] += 1
                             return False
                     else:
                         # File not in processed.json - always sync
-                        if self.logging_system:
-                            self.logging_system.log(f"📤 Will sync: {filename} (not in processed.json)", "Information")
+                        sync_stats['not_in_processed'] += 1
                         return True
                         
                 except Exception as e:
+                    sync_stats['errors'] += 1
                     if self.logging_system:
                         self.logging_system.log(f"Warning: Error checking timestamp for {file_path}: {e}", "Warning")
                     return True  # Default to syncing if we can't check
+            
+            # Add a method to log the summary
+            def log_sync_summary():
+                if self.logging_system:
+                    total_files = sum(sync_stats.values())
+                    total_to_sync = (sync_stats['missing_from_sd'] + 
+                                   sync_stats['never_synced'] + 
+                                   sync_stats['file_modified'] + 
+                                   sync_stats['not_in_processed'])
+                    
+                    self.logging_system.log(f"📊 Sync Analysis Complete: {total_files} files processed", "Information")
+                    
+                    if total_to_sync > 0:
+                        self.logging_system.log(f"📤 Will sync {total_to_sync} files:", "Information")
+                        if sync_stats['missing_from_sd'] > 0:
+                            self.logging_system.log(f"   • {sync_stats['missing_from_sd']} missing from SD card", "Information")
+                        if sync_stats['never_synced'] > 0:
+                            self.logging_system.log(f"   • {sync_stats['never_synced']} never synced", "Information")
+                        if sync_stats['file_modified'] > 0:
+                            self.logging_system.log(f"   • {sync_stats['file_modified']} modified since last sync", "Information")
+                        if sync_stats['not_in_processed'] > 0:
+                            self.logging_system.log(f"   • {sync_stats['not_in_processed']} not in processed.json", "Information")
+                    
+                    if sync_stats['already_up_to_date'] > 0:
+                        self.logging_system.log(f"⏭️ Skipping {sync_stats['already_up_to_date']} files (already up to date)", "Information")
+                    
+                    if sync_stats['errors'] > 0:
+                        self.logging_system.log(f"⚠️ {sync_stats['errors']} files had analysis errors", "Warning")
+            
+            # Attach the summary function to the filter
+            should_sync_file.log_summary = log_sync_summary
             
             return should_sync_file
             
