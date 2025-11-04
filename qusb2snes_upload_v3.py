@@ -535,7 +535,7 @@ class QUSB2SNESUploadManagerV3:
                 self._log_error(f"❌ Failed to create: {os.path.basename(dir_path)}")
                 return False
         
-        self._log_info(f"🎉 PHASE 1 COMPLETE! Created {created_count} new directories")
+        self._log_info(f"🎉 Phase 1 complete! Created {created_count} directories")
         return True
     
     def _has_existing_sync_timestamps(self) -> bool:
