@@ -632,7 +632,7 @@ class QUSB2SNESUploadManagerV3:
         try:
             cmd = {"Opcode": "List", "Space": "SNES", "Operands": [folder_path]}
             await self.websocket.send(json.dumps(cmd))
-            response = json.loads(await asyncio.wait_for(self.websocket.recv(), timeout=5.0))
+            response = json.loads(await asyncio.wait_for(self.websocket.recv(), timeout=15.0))
             
             if 'Results' not in response:
                 self._log_error(f"No Results in List response for {folder_path}")
