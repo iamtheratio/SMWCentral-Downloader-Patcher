@@ -76,6 +76,9 @@ class QUSB2SNESUploadManagerV3:
         self.existing_files: Set[str] = set()
         self.created_directories: Set[str] = set()
         
+        # Sync timestamp updates
+        self.update_sync_timestamp = True  # Enable automatic sync timestamp updates
+        
         # Logging
         self.logger = logging.getLogger("QUSB2SNESUploadV3")
     
@@ -558,8 +561,42 @@ class QUSB2SNESUploadManagerV3:
             self._log_debug(f"Could not check sync timestamps: {e}")
             return False
     
+    async def file_exists(self, sd_path: str) -> bool:
+        """Check if a file exists on SD card by listing its parent directory"""
+        try:
+            # Split path into directory and filename
+            parts = sd_path.rsplit('/', 1)
+            if len(parts) == 1:
+                directory = '/'
+                filename = parts[0]
+            else:
+                directory = parts[0]
+                filename = parts[1]
+            
+            # List directory
+            cmd = {"Opcode": "List", "Space": "SNES", "Operands": [directory]}
+            await self.websocket.send(json.dumps(cmd))
+            response = json.loads(await asyncio.wait_for(self.websocket.recv(), timeout=5.0))
+            
+            if 'Results' not in response:
+                return False
+            
+            results = response['Results']
+            for i in range(0, len(results), 2):
+                if i + 1 < len(results):
+                    file_type = results[i]
+                    file_name = results[i + 1]
+                    if file_type == '1' and file_name == filename:
+                        return True
+            
+            return False
+            
+        except Exception as e:
+            self._log_debug(f"Could not check file existence for {sd_path}: {e}")
+            return False
+    
     async def upload_file(self, local_path: str, remote_path: str) -> bool:
-        """Upload a single file using proper fire-and-forget protocol"""
+        """Upload a single file and verify it was written successfully"""
         try:
             # Read file data
             with open(local_path, 'rb') as f:
@@ -569,35 +606,80 @@ class QUSB2SNESUploadManagerV3:
                 self._log_error(f"Cannot upload empty file: {local_path}")
                 return False
             
-            # PutFile command (fire-and-forget, no response expected)
+            # PutFile command
             cmd = {"Opcode": "PutFile", "Space": "SNES", "Operands": [remote_path, hex(len(file_data))]}
             await self.websocket.send(json.dumps(cmd))
             
-            # Send file data in chunks (as per QFile2SNES source code)
+            # Send file data in chunks
             for i in range(0, len(file_data), self.chunk_size):
                 chunk = file_data[i:i + self.chunk_size]
                 await self.websocket.send(chunk)
             
-            # Brief pause between files to avoid overwhelming server
-            await asyncio.sleep(0.1)
+            # Wait for server to write the file to SD card
+            # This delay is CRITICAL - without it, files are not actually written
+            await asyncio.sleep(1.0)  # 1 second per file for reliable writes
             
-            # Success is assumed after sending (protocol design)
             # Update progress tracking
             self.progress.bytes_uploaded += len(file_data)
-            
             return True
             
         except Exception as e:
             self._log_error(f"Failed to upload {local_path}: {e}")
             return False
     
+    async def verify_folder_files(self, folder_path: str, expected_files: List[str]) -> bool:
+        """Verify all expected files exist in a folder"""
+        try:
+            cmd = {"Opcode": "List", "Space": "SNES", "Operands": [folder_path]}
+            await self.websocket.send(json.dumps(cmd))
+            response = json.loads(await asyncio.wait_for(self.websocket.recv(), timeout=5.0))
+            
+            if 'Results' not in response:
+                self._log_error(f"No Results in List response for {folder_path}")
+                return False
+            
+            # Get all files in folder
+            results = response['Results']
+            sd_files = set()
+            for i in range(0, len(results), 2):
+                if i + 1 < len(results) and results[i] == '1':
+                    sd_files.add(results[i + 1])
+            
+            self._log_debug(f"Found {len(sd_files)} files on SD, expecting {len(expected_files)}")
+            self._log_debug(f"SD files: {list(sd_files)[:5]}")
+            self._log_debug(f"Expected: {expected_files[:5]}")
+            
+            # Check if all expected files are present
+            missing = [f for f in expected_files if f not in sd_files]
+            if missing:
+                self._log_error(f"Missing {len(missing)}/{len(expected_files)} files in {folder_path}")
+                self._log_error(f"First missing: {missing[:3]}")
+                return False
+            
+            return True
+            
+        except Exception as e:
+            self._log_error(f"Folder verification error for {folder_path}: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+    
     async def phase2_upload_files(self, file_mappings: List[tuple]) -> bool:
-        """Phase 2: Upload all files in a single connection"""
+        """Phase 2: Upload all files grouped by folder with folder-level verification"""
         self._log_info("📤 PHASE 2: Uploading Files")
         
         if not file_mappings:
             self._log_info("✅ No files to upload")
             return True
+        
+        # Group files by their parent folder
+        from collections import defaultdict
+        folders = defaultdict(list)
+        for local_path, remote_path in file_mappings:
+            folder = remote_path.rsplit('/', 1)[0]
+            folders[folder].append((local_path, remote_path))
+        
+        self._log_info(f"📁 Organized {len(file_mappings)} files into {len(folders)} folders")
         
         # Connect once for all uploads
         if not await self.connect():
@@ -605,41 +687,98 @@ class QUSB2SNESUploadManagerV3:
             return False
         
         try:
-            uploaded_count = 0
-            for i, (local_path, remote_path) in enumerate(file_mappings, 1):
-                self._log_info(f"📄 Uploading file {i}/{len(file_mappings)}: {os.path.basename(local_path)}")
+            total_uploaded = 0
+            verified_files = []  # Track files for processed.json updates
+            
+            # Process each folder
+            for folder_idx, (folder_path, folder_files) in enumerate(folders.items(), 1):
+                folder_name = folder_path.split('/')[-1] if '/' in folder_path else folder_path
+                self._log_info(f"\n� Folder {folder_idx}/{len(folders)}: {folder_name} ({len(folder_files)} files)")
                 
-                self.progress.current_file = os.path.basename(local_path)
+                folder_uploaded = []
                 
-                success = await self.upload_file(local_path, remote_path)
+                # Upload all files in this folder
+                for i, (local_path, remote_path) in enumerate(folder_files, 1):
+                    filename = os.path.basename(local_path)
+                    self._log_info(f"  📄 {i}/{len(folder_files)}: {filename}")
+                    
+                    self.progress.current_file = filename
+                    
+                    success = await self.upload_file(local_path, remote_path)
+                    
+                    if success:
+                        total_uploaded += 1
+                        self.progress.files_completed += 1
+                        folder_uploaded.append((local_path, remote_path, filename))
+                    else:
+                        self._log_error(f"  ❌ Failed: {filename}")
+                        return False
+                    
+                    # Report progress
+                    if self.on_progress:
+                        self.on_progress(self.progress)
                 
-                if success:
-                    uploaded_count += 1
-                    self.progress.files_completed += 1
-                    self._log_info(f"✅ Uploaded: {os.path.basename(local_path)}")
+                # Verify entire folder
+                self._log_info(f"  🔍 Verifying {len(folder_uploaded)} files in {folder_name}...")
+                self._log_info(f"  📂 Folder path: {folder_path}")
+                # Wait longer for large folders - server needs time to finish writing
+                wait_time = max(5.0, len(folder_uploaded) * 0.1)  # 5s minimum, 0.1s per file
+                self._log_info(f"  ⏳ Waiting {wait_time:.1f}s for server to finish writing...")
+                await asyncio.sleep(wait_time)
+                
+                expected_filenames = [f[2] for f in folder_uploaded]
+                if await self.verify_folder_files(folder_path, expected_filenames):
+                    self._log_info(f"  ✅ Folder verified! All {len(folder_uploaded)} files present")
+                    # Mark these files as successfully synced
+                    verified_files.extend(folder_uploaded)
                 else:
-                    self._log_error(f"❌ Failed: {os.path.basename(local_path)}")
+                    self._log_error(f"  ❌ Folder verification failed!")
                     return False
-                
-                # Report progress
-                if self.on_progress:
-                    self.on_progress(self.progress)
             
-            self._log_info(f"📤 Uploaded {uploaded_count} files")
+            self._log_info(f"\n✅ Upload complete! {total_uploaded} files in {len(folders)} folders")
             
-            # CRITICAL: Wait for server to finish writing files before disconnecting!
-            # PutFile is fire-and-forget for responses, but the server needs time
-            # to actually write the files to the SD card. If we disconnect too soon,
-            # the server stops processing and files are not written.
-            delay_per_file = 1.0  # Empirically determined - server needs ~1s per file
-            total_delay = max(2.0, uploaded_count * delay_per_file)
-            self._log_info(f"⏳ Waiting {total_delay:.1f}s for server to finish writing...")
-            await asyncio.sleep(total_delay)
+            # Update processed.json for verified files
+            if verified_files and self.update_sync_timestamp:
+                self._log_info(f"💾 Updating sync timestamps for {len(verified_files)} verified files...")
+                await self.update_sync_timestamps(verified_files)
             
             return True
             
         finally:
             await self.disconnect()
+    
+    async def update_sync_timestamps(self, verified_files: List[tuple]):
+        """Update qusb_last_sync for successfully uploaded and verified files"""
+        try:
+            import json
+            import time
+            from utils import PROCESSED_JSON_PATH
+            
+            if not os.path.exists(PROCESSED_JSON_PATH):
+                return
+            
+            with open(PROCESSED_JSON_PATH, 'r', encoding='utf-8') as f:
+                processed_data = json.load(f)
+            
+            current_time = int(time.time())
+            updated_count = 0
+            
+            for local_path, remote_path, filename in verified_files:
+                # Find the hack by matching filename
+                for hack_id, hack_data in processed_data.items():
+                    if hack_data.get('file_path') == local_path:
+                        hack_data['qusb_last_sync'] = current_time
+                        updated_count += 1
+                        break
+            
+            # Save updated data
+            with open(PROCESSED_JSON_PATH, 'w', encoding='utf-8') as f:
+                json.dump(processed_data, f, indent=2, ensure_ascii=False)
+            
+            self._log_info(f"✅ Updated {updated_count} sync timestamps")
+            
+        except Exception as e:
+            self._log_error(f"Could not update sync timestamps: {e}")
     
     async def upload_files(self, file_mappings: List[tuple]) -> bool:
         """
