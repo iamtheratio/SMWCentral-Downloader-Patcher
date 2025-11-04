@@ -81,41 +81,75 @@ class QUSB2SNESUploadManagerV3:
     
     def _log_info(self, message: str):
         """Log info message"""
-        formatted_message = f"[UploadV3] {message}"
-        
         # Use application logging system if available
         if self.logging_system:
-            self.logging_system.log(formatted_message, "Information")
+            self.logging_system.log(message, "Information")
         else:
-            # Fallback to console - but let's make it obvious this is happening
-            print(f"FALLBACK: {formatted_message}")
+            # Fallback to console
+            print(message)
     
     def _log_error(self, message: str):
         """Log error message"""
-        formatted_message = f"[UploadV3] ERROR: {message}"
-        
         # Use application logging system if available
         if self.logging_system:
-            self.logging_system.log(formatted_message, "Error")
+            self.logging_system.log(message, "Error")
         else:
-            # Fallback to console - but let's make it obvious this is happening
-            print(f"FALLBACK: {formatted_message}")
+            # Fallback to console
+            print(f"ERROR: {message}")
     
     def _log_warning(self, message: str):
         """Log warning message"""
-        formatted_message = f"[UploadV3] WARNING: {message}"
-        
         # Use application logging system if available
         if self.logging_system:
-            self.logging_system.log(formatted_message, "Warning")
+            self.logging_system.log(message, "Warning")
         else:
-            # Fallback to console - but let's make it obvious this is happening
-            print(f"FALLBACK: {formatted_message}")
+            # Fallback to console
+            print(f"WARNING: {message}")
     
     def _log_debug(self, message: str):
         """Log debug message"""
         if self.logger:
             self.logger.debug(message)
+    
+    def _normalize_sd_path(self, path: str) -> str:
+        """
+        Normalize path for SD card operations (convert to Pascal case)
+        SD card file systems may have case sensitivity issues,
+        so we normalize to Pascal case for consistent, readable paths.
+        Example: /ROMS2/kaizo/expert → /Roms2/Kaizo/Expert
+        """
+        if not path or path == "/":
+            return path
+        
+        # Split path into components
+        parts = path.strip('/').split('/')
+        
+        # Convert each part to Pascal case (first letter uppercase, rest lowercase)
+        normalized_parts = []
+        for part in parts:
+            if part:  # Skip empty parts
+                # Handle special cases like "01 - Newcomer" or "Tool-Assisted"
+                if ' - ' in part:
+                    # Split on " - " and capitalize each section
+                    sections = part.split(' - ')
+                    normalized_sections = [section.strip().capitalize() for section in sections]
+                    normalized_part = ' - '.join(normalized_sections)
+                elif '-' in part and not part.startswith('-'):
+                    # Handle hyphenated words like "Tool-Assisted"
+                    words = part.split('-')
+                    normalized_words = [word.capitalize() for word in words if word]
+                    normalized_part = '-'.join(normalized_words)
+                else:
+                    # Regular word - just capitalize
+                    normalized_part = part.capitalize()
+                
+                normalized_parts.append(normalized_part)
+        
+        # Rebuild the path
+        if normalized_parts:
+            return '/' + '/'.join(normalized_parts)
+        else:
+            return path
     
     async def connect(self) -> bool:
         """Connect and setup QUSB2SNES session"""
@@ -177,25 +211,69 @@ class QUSB2SNESUploadManagerV3:
         Perform a comprehensive scan of SD card directory structure
         Returns a tuple of (all_directories, all_files) as sets of paths
         """
-        self._log_info(f"🔍 Scanning SD card structure from {root_path}")
+        # Normalize the root path for SD card operations
+        normalized_root_path = self._normalize_sd_path(root_path)
+        self._log_info(f"🔍 Scanning SD card...")
+        if normalized_root_path != root_path:
+            self._log_debug(f"Using normalized path: {root_path} → {normalized_root_path}")
         
         all_directories = set()
         all_files = set()
         
-        # Always start from root directory to check if target path exists
-        directories_to_scan = ["/"]
-        
-        # Add the root directory to found directories
-        all_directories.add("/")
-        
-        while directories_to_scan:
-            current_dir = directories_to_scan.pop(0)
+        # Step 1: Get list from root "/"
+        try:
+            self._log_debug(f"Listing root directory /")
+            cmd = {"Opcode": "List", "Space": "SNES", "Operands": ["/"]}
+            await self.websocket.send(json.dumps(cmd))
             
-            try:
-                self._log_debug(f"Scanning directory: {current_dir}")
+            response = await asyncio.wait_for(self.websocket.recv(), timeout=10.0)
+            data = json.loads(response)
+            
+            if "Results" in data:
+                results = data["Results"]
+                all_directories.add("/")  # Add root to directories
                 
-                # List current directory
-                cmd = {"Opcode": "List", "Space": "SNES", "Operands": [current_dir]}
+                for i in range(0, len(results), 2):
+                    if i + 1 < len(results):
+                        file_type = results[i]
+                        file_name = results[i + 1]
+                        
+                        # Skip . and .. entries
+                        if file_name in [".", ".."]:
+                            continue
+                        
+                        if file_type == "0":  # Directory
+                            dir_path = f"/{file_name}"
+                            all_directories.add(dir_path)
+                            self._log_debug(f"Found root directory: {dir_path}")
+                        elif file_type == "1":  # File
+                            file_path = f"/{file_name}"
+                            all_files.add(file_path)
+                            self._log_debug(f"Found root file: {file_path}")
+            
+        except Exception as e:
+            self._log_error(f"Failed to scan root directory: {e}")
+            return all_directories, all_files
+        
+        # Step 2: Check if our target sync folder exists (case-insensitive)
+        target_folder_exists = False
+        actual_target_path = normalized_root_path
+        
+        for existing_dir in all_directories:
+            if existing_dir.lower() == normalized_root_path.lower():
+                target_folder_exists = True
+                actual_target_path = existing_dir
+                self._log_info(f"✅ Found sync folder: {existing_dir}")
+                break
+        
+        if not target_folder_exists:
+            self._log_info(f"📁 Will create sync folder: {normalized_root_path}")
+        
+        # Step 3: If target folder exists, scan inside it
+        if target_folder_exists:
+            try:
+                self._log_debug(f"Scanning inside target folder: {actual_target_path}")
+                cmd = {"Opcode": "List", "Space": "SNES", "Operands": [actual_target_path]}
                 await self.websocket.send(json.dumps(cmd))
                 
                 response = await asyncio.wait_for(self.websocket.recv(), timeout=10.0)
@@ -208,61 +286,22 @@ class QUSB2SNESUploadManagerV3:
                             file_type = results[i]
                             file_name = results[i + 1]
                             
-                            # Skip . and .. entries
                             if file_name in [".", ".."]:
                                 continue
                             
                             if file_type == "0":  # Directory
-                                # Build full path
-                                if current_dir == "/":
-                                    dir_path = f"/{file_name}"
-                                else:
-                                    dir_path = f"{current_dir}/{file_name}"
-                                
+                                dir_path = f"{actual_target_path}/{file_name}"
                                 all_directories.add(dir_path)
-                                
-                                # Only continue scanning subdirectories if:
-                                # 1. We're still at root level, OR
-                                # 2. The current path is within our target root_path
-                                if (current_dir == "/" or 
-                                    current_dir.startswith(root_path) or 
-                                    dir_path == root_path or
-                                    dir_path.startswith(root_path + "/")):
-                                    directories_to_scan.append(dir_path)
-                                    
-                                self._log_debug(f"Found directory: {dir_path}")
-                            
+                                self._log_debug(f"Found subdirectory: {dir_path}")
                             elif file_type == "1":  # File
-                                # Build full file path
-                                if current_dir == "/":
-                                    file_path = f"/{file_name}"
-                                else:
-                                    file_path = f"{current_dir}/{file_name}"
+                                file_path = f"{actual_target_path}/{file_name}"
+                                all_files.add(file_path)
+                                self._log_debug(f"Found file: {file_path}")
                                 
-                                # Only add files that are within our target root_path
-                                if (current_dir == root_path or 
-                                    current_dir.startswith(root_path + "/")):
-                                    all_files.add(file_path)
-                                    self._log_debug(f"Found file: {file_path}")
-                
-                # Small delay to avoid overwhelming the server
-                await asyncio.sleep(0.1)
-                
             except Exception as e:
-                self._log_error(f"Failed to scan directory {current_dir}: {e}")
-                # Continue scanning other directories
-                continue
+                self._log_debug(f"Could not scan inside {actual_target_path}: {e}")
         
-        # Check if the target root_path exists
-        target_exists = root_path in all_directories
-        
-        if target_exists:
-            self._log_info(f"📁 Scan complete: found {len(all_directories)} directories and {len(all_files)} files")
-            self._log_info(f"✅ Target directory {root_path} exists on SD card")
-        else:
-            self._log_info(f"📁 Scan complete: found {len(all_directories)} directories and {len(all_files)} files")
-            self._log_warning(f"❌ Target directory {root_path} does not exist on SD card")
-            
+        self._log_info(f"📁 Found {len(all_directories)} directories, {len(all_files)} files")
         return all_directories, all_files
     
     async def find_missing_directories(self, required_dirs: List[str], remote_root: str = "/roms") -> List[str]:
@@ -270,11 +309,11 @@ class QUSB2SNESUploadManagerV3:
         Compare required directories against SD card structure
         Returns list of directories that need to be created
         """
-        self._log_info("🔍 Analyzing SD card structure...")
+        self._log_info("🔍 Checking directory structure...")
         
         # Connect for scanning
         if not await self.connect():
-            self._log_error("Failed to connect for SD card scan")
+            self._log_error("Connection failed - assuming all directories missing")
             return required_dirs  # Assume all are missing if we can't scan
         
         try:
@@ -303,20 +342,19 @@ class QUSB2SNESUploadManagerV3:
                     missing_dirs.append(required_dir)
                     self._log_debug(f"Directory missing: {required_dir}")
             
-            self._log_info(f"📊 Analysis complete:")
-            self._log_info(f"   Required: {len(required_dirs)} directories")
-            self._log_info(f"   Existing: {len(existing_dirs)} directories")  
-            self._log_info(f"   Missing:  {len(missing_dirs)} directories")
+            self._log_info(f"📊 Need to create {len(missing_dirs)} of {len(required_dirs)} directories")
             
             if missing_dirs:
-                self._log_info("📋 Missing directories:")
-                for missing_dir in missing_dirs:
-                    self._log_info(f"   {missing_dir}")
+                self._log_debug("Missing directories:")
+                for missing_dir in missing_dirs[:5]:  # Show first 5 only
+                    self._log_debug(f"   {missing_dir}")
+                if len(missing_dirs) > 5:
+                    self._log_debug(f"   ... and {len(missing_dirs) - 5} more")
             
             return missing_dirs
             
         except Exception as e:
-            self._log_error(f"Failed to analyze SD card structure: {e}")
+            self._log_error(f"Directory check failed: {e}")
             return required_dirs  # Assume all are missing if analysis fails
         
         finally:
@@ -433,7 +471,12 @@ class QUSB2SNESUploadManagerV3:
                     current_path = str(PurePosixPath(current_path).parent)
         
         # Sort hierarchically (shorter paths first)
-        return sorted(directories, key=lambda x: (x.count('/'), x))
+        sorted_dirs = sorted(directories, key=lambda x: (x.count('/'), x))
+        
+        # Debug: log the required directories
+        self._log_debug(f"Required directories ({len(sorted_dirs)}): {sorted_dirs[:5]}..." if len(sorted_dirs) > 5 else f"Required directories: {sorted_dirs}")
+        
+        return sorted_dirs
     
     async def phase1_create_directories(self, file_mappings: List[tuple]) -> bool:
         """Phase 1: Create all required directories using smart analysis"""
@@ -470,7 +513,7 @@ class QUSB2SNESUploadManagerV3:
         
         created_count = 0
         for i, dir_path in enumerate(missing_dirs, 1):
-            self._log_info(f"📂 Creating directory {i}/{len(missing_dirs)}: {dir_path}")
+            self._log_info(f"📂 Creating directory {i}/{len(missing_dirs)}: {os.path.basename(dir_path)}")
             
             # Wait before creating (critical for server stability)
             if created_count > 0:  # No delay before first creation
@@ -487,9 +530,9 @@ class QUSB2SNESUploadManagerV3:
             
             if success:
                 created_count += 1
-                self._log_info(f"✅ Created directory: {dir_path}")
+                self._log_info(f"✅ Created: {os.path.basename(dir_path)}")
             else:
-                self._log_error(f"❌ Failed to create directory: {dir_path}")
+                self._log_error(f"❌ Failed to create: {os.path.basename(dir_path)}")
                 return False
         
         self._log_info(f"🎉 PHASE 1 COMPLETE! Created {created_count} new directories")
@@ -573,9 +616,9 @@ class QUSB2SNESUploadManagerV3:
                 if success:
                     uploaded_count += 1
                     self.progress.files_completed += 1
-                    self._log_info(f"✅ Uploaded: {remote_path}")
+                    self._log_info(f"✅ Uploaded: {os.path.basename(local_path)}")
                 else:
-                    self._log_error(f"❌ Failed to upload: {local_path}")
+                    self._log_error(f"❌ Failed: {os.path.basename(local_path)}")
                     return False
                 
                 # Report progress
@@ -664,7 +707,10 @@ class QUSB2SNESUploadManagerV3:
                 rel_path = os.path.relpath(local_path, local_root)
                 remote_path = str(PurePosixPath(remote_root) / rel_path.replace(os.sep, '/'))
                 
-                file_mappings.append((local_path, remote_path))
+                # Normalize the remote path for consistent SD card formatting
+                normalized_remote_path = self._normalize_sd_path(remote_path)
+                
+                file_mappings.append((local_path, normalized_remote_path))
         
         # Log summary statistics if the filter supports it
         if file_filter and hasattr(file_filter, 'log_summary'):

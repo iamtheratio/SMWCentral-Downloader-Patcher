@@ -539,9 +539,61 @@ class QUSB2SNESSection:
         try:
             self.config.set("qusb2snes_host", self.host_var.get())
             self.config.set("qusb2snes_port", self.port_var.get())
-            self.config.set("qusb2snes_remote_folder", self.remote_folder_var.get())
+            
+            # Validate remote folder before saving
+            remote_folder = self.remote_folder_var.get().strip()
+            if self._validate_remote_folder(remote_folder):
+                self.config.set("qusb2snes_remote_folder", remote_folder)
         except tk.TclError:
             pass  # Ignore invalid port values during typing
+    
+    def _validate_remote_folder(self, folder_path: str) -> bool:
+        """
+        Validate remote folder path to prevent using system directories
+        Returns True if valid, False if invalid
+        """
+        if not folder_path:
+            return False
+        
+        # Remove leading/trailing slashes and convert to lowercase for comparison
+        folder_name = folder_path.strip('/').lower()
+        
+        # List of reserved/system directories that should not be used
+        reserved_names = {
+            'system volume information',
+            'sd2snes',
+            'saves',
+            '$recycle.bin',
+            'recycler',
+            'system32',
+            'windows',
+            'boot',
+            'lost+found',
+            'tmp',
+            'temp'
+        }
+        
+        # Check if the folder name (or first part of path) is reserved
+        first_part = folder_name.split('/')[0] if '/' in folder_name else folder_name
+        
+        if first_part in reserved_names:
+            # Show warning to user
+            if self.logger:
+                self.logger.log(f"⚠️ Cannot use system directory '{folder_path}' as sync folder", "Warning")
+            return False
+        
+        # Check for other invalid patterns
+        if first_part.startswith('.'):
+            if self.logger:
+                self.logger.log(f"⚠️ Cannot use hidden directory '{folder_path}' as sync folder", "Warning") 
+            return False
+            
+        if first_part.startswith('#') and first_part != folder_name:
+            # Allow #kaizo, #standard etc. as top-level folders, but warn about subfolders
+            if self.logger:
+                self.logger.log(f"⚠️ Using existing directory '{folder_path}' - ensure this is intentional", "Warning")
+        
+        return True
     
     def _on_device_changed(self, event=None):
         """Handle device selection change"""
