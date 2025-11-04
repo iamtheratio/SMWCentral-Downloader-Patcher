@@ -149,8 +149,28 @@ class QUSB2SNESUploadManagerV3:
         if normalized_parts:
             return '/' + '/'.join(normalized_parts)
         else:
-            return path
+            return '/'
     
+    def _check_file_exists_on_sd(self, target_path: str) -> bool:
+        """
+        Check if a file exists on SD card using case-insensitive matching
+        This handles the case where local files have different casing than SD card files
+        """
+        if not self.existing_files:
+            return False
+        
+        # First try exact match
+        if target_path in self.existing_files:
+            return True
+        
+        # If exact match fails, try case-insensitive match
+        target_lower = target_path.lower()
+        for existing_file in self.existing_files:
+            if existing_file.lower() == target_lower:
+                return True
+        
+        return False
+
     async def connect(self) -> bool:
         """Connect and setup QUSB2SNES session"""
         try:
@@ -374,44 +394,6 @@ class QUSB2SNESUploadManagerV3:
         finally:
             await self.disconnect()
     
-    async def check_file_exists(self, file_path: str) -> bool:
-        """Check if file exists on SD card (case-insensitive)"""
-        # Check cache first
-        if file_path in self.existing_files:
-            return True
-        
-        try:
-            parent_path = str(PurePosixPath(file_path).parent)
-            file_name = PurePosixPath(file_path).name
-            
-            self._log_debug(f"Checking file existence: parent='{parent_path}', file='{file_name}'")
-            
-            # List parent directory
-            cmd = {"Opcode": "List", "Space": "SNES", "Operands": [parent_path]}
-            await self.websocket.send(json.dumps(cmd))
-            
-            response = await asyncio.wait_for(self.websocket.recv(), timeout=5.0)
-            data = json.loads(response)
-            
-            if data.get("Results", []):
-                existing_files = set()
-                for item in data["Results"]:
-                    if item.get("Type") == "1":  # File type
-                        existing_files.add(f"{parent_path}/{item['Name']}")
-                
-                # Check if our file exists (case-insensitive)
-                for existing_file in existing_files:
-                    if PurePosixPath(existing_file).name.lower() == file_name.lower():
-                        # Update cache
-                        self.existing_files.add(file_path)
-                        return True
-            
-            return False
-            
-        except Exception as e:
-            self._log_error(f"Error checking file existence for '{file_path}': {e}")
-            return False
-
     async def check_directory_exists(self, dir_path: str) -> bool:
         """Check if directory exists (case-insensitive)"""
         # Check cache first
@@ -577,7 +559,7 @@ class QUSB2SNESUploadManagerV3:
             return False
     
     async def upload_file(self, local_path: str, remote_path: str) -> bool:
-        """Upload a single file using proven method"""
+        """Upload a single file using proper fire-and-forget protocol"""
         try:
             # Read file data
             with open(local_path, 'rb') as f:
@@ -587,16 +569,20 @@ class QUSB2SNESUploadManagerV3:
                 self._log_error(f"Cannot upload empty file: {local_path}")
                 return False
             
-            # PutFile command (no response expected)
+            # PutFile command (fire-and-forget, no response expected)
             cmd = {"Opcode": "PutFile", "Space": "SNES", "Operands": [remote_path, hex(len(file_data))]}
             await self.websocket.send(json.dumps(cmd))
             
-            # Send file data in chunks
+            # Send file data in chunks (as per QFile2SNES source code)
             for i in range(0, len(file_data), self.chunk_size):
                 chunk = file_data[i:i + self.chunk_size]
                 await self.websocket.send(chunk)
             
-            # Update progress
+            # Brief pause between files to avoid overwhelming server
+            await asyncio.sleep(0.1)
+            
+            # Success is assumed after sending (protocol design)
+            # Update progress tracking
             self.progress.bytes_uploaded += len(file_data)
             
             return True
@@ -640,6 +626,16 @@ class QUSB2SNESUploadManagerV3:
                     self.on_progress(self.progress)
             
             self._log_info(f"📤 Uploaded {uploaded_count} files")
+            
+            # CRITICAL: Wait for server to finish writing files before disconnecting!
+            # PutFile is fire-and-forget for responses, but the server needs time
+            # to actually write the files to the SD card. If we disconnect too soon,
+            # the server stops processing and files are not written.
+            delay_per_file = 1.0  # Empirically determined - server needs ~1s per file
+            total_delay = max(2.0, uploaded_count * delay_per_file)
+            self._log_info(f"⏳ Waiting {total_delay:.1f}s for server to finish writing...")
+            await asyncio.sleep(total_delay)
+            
             return True
             
         finally:
@@ -670,6 +666,10 @@ class QUSB2SNESUploadManagerV3:
         if not await self.phase1_create_directories(file_mappings):
             self._log_error("Phase 1 (directory creation) failed")
             return False
+        
+        # CRITICAL: Wait between phases for server to finish processing directories
+        self._log_info("⏳ Waiting for server to finish processing directories...")
+        await asyncio.sleep(2.0)
         
         # Phase 2: Upload files
         if not await self.phase2_upload_files(file_mappings):
@@ -706,25 +706,44 @@ class QUSB2SNESUploadManagerV3:
             self._log_error(f"Could not scan SD card structure: {e} - proceeding with timestamp-only sync")
             self.existing_files = set()
         
-        # Build file mappings
-        file_mappings = []
+        # Build ALL file mappings first (so we have correct remote paths)
+        all_file_mappings = []
         
         for root, dirs, files in os.walk(local_root):
             for file in files:
                 local_path = os.path.join(root, file)
                 
-                # Apply filter if provided
-                if file_filter and not file_filter(local_path):
-                    continue
-                
                 # Calculate relative path and convert to remote path
                 rel_path = os.path.relpath(local_path, local_root)
                 remote_path = str(PurePosixPath(remote_root) / rel_path.replace(os.sep, '/'))
                 
-                # Normalize the remote path for consistent SD card formatting
+                # Store both raw and normalized paths for different purposes
+                # Raw path for existence checking, normalized for creation
                 normalized_remote_path = self._normalize_sd_path(remote_path)
                 
-                file_mappings.append((local_path, normalized_remote_path))
+                all_file_mappings.append((local_path, remote_path, normalized_remote_path))
+        
+        # Now apply the filter with full context (including file existence on SD)
+        file_mappings = []
+        
+        for local_path, raw_remote_path, normalized_remote_path in all_file_mappings:
+            # Apply the filter if provided
+            if file_filter:
+                # Enhanced filter call - check if file exists on SD using case-insensitive matching
+                file_exists_on_sd = self._check_file_exists_on_sd(raw_remote_path)
+                
+                # Enhanced filter call - pass multiple parameters for better decisions
+                if hasattr(file_filter, '__code__') and file_filter.__code__.co_argcount >= 2:
+                    # Filter accepts both local and remote paths
+                    if not file_filter(local_path, raw_remote_path):
+                        continue
+                else:
+                    # Filter only accepts local path (legacy)
+                    if not file_filter(local_path):
+                        continue
+            
+            # Use normalized path for actual upload operations
+            file_mappings.append((local_path, normalized_remote_path))
         
         # Log summary statistics if the filter supports it
         if file_filter and hasattr(file_filter, 'log_summary'):

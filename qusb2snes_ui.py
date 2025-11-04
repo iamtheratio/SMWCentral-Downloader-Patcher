@@ -187,7 +187,7 @@ class QUSB2SNESSyncManager:
                 'errors': 0
             }
             
-            def should_sync_file(file_path: str) -> bool:
+            def should_sync_file(file_path: str, remote_path: str = None) -> bool:
                 """Check if file should be synced based on file existence and timestamps"""
                 try:
                     # Get file info
@@ -197,9 +197,16 @@ class QUSB2SNESSyncManager:
                     if not os.path.exists(file_path):
                         return False
                     
-                    # Check if file exists on SD card first
-                    if v3_manager:
-                        # Get the target path on SD card based on current sync folder
+                    # Check if file exists on SD card first (using correct remote path)
+                    if v3_manager and remote_path:
+                        # Use the case-insensitive file existence check
+                        file_exists_on_sd = v3_manager._check_file_exists_on_sd(remote_path)
+                        
+                        if not file_exists_on_sd:
+                            sync_stats['missing_from_sd'] += 1
+                            return True
+                    elif v3_manager:
+                        # Fallback to old method if remote_path not provided (legacy support)
                         remote_folder = getattr(self, 'remote_folder', '/roms')
                         if not remote_folder.startswith('/'):
                             remote_folder = '/' + remote_folder
@@ -209,7 +216,7 @@ class QUSB2SNESSyncManager:
                         sd_card_path = f"{remote_folder}{filename}"
                         
                         # Check if file exists on SD card
-                        file_exists_on_sd = sd_card_path in v3_manager.existing_files
+                        file_exists_on_sd = v3_manager._check_file_exists_on_sd(sd_card_path)
                         
                         if not file_exists_on_sd:
                             sync_stats['missing_from_sd'] += 1
