@@ -67,7 +67,7 @@ def set_window_icon(window):
 DIFFICULTY_LOOKUP = {
     "diff_1": "Newcomer",
     "diff_2": "Casual",
-    "diff_3": "Skilled",
+    "diff_3": "Intermediate",  # Changed from "Skilled" to match SMWC update
     "diff_4": "Advanced",
     "diff_5": "Expert",
     "diff_6": "Master",
@@ -78,7 +78,8 @@ DIFFICULTY_LOOKUP = {
 DIFFICULTY_KEYMAP = {
     "newcomer": "1",
     "casual": "2",
-    "skilled": "3",
+    "intermediate": "3",  # Changed from "skilled" to match SMWC update
+    "skilled": "3",  # Keep for backward compatibility during transition
     "advanced": "4",
     "expert": "5",
     "master": "6",
@@ -89,7 +90,7 @@ DIFFICULTY_KEYMAP = {
 DIFFICULTY_SORTED = {
     "Newcomer": "01 - Newcomer",
     "Casual": "02 - Casual",
-    "Skilled": "03 - Skilled",
+    "Intermediate": "03 - Intermediate",  # Changed from "Skilled" to match SMWC update
     "Advanced": "04 - Advanced",
     "Expert": "05 - Expert",
     "Master": "06 - Master",
