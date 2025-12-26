@@ -557,6 +557,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                 # Update processed data with multi-type support
                 processed[hack_id] = {
                     "title": current_title,
+                    "difficulty_id": raw_diff,  # Store raw difficulty ID for migration detection
                     "current_difficulty": display_diff,
                     "folder_name": folder_name,
                     "file_path": primary_output_path,  # Use primary path for backward compatibility

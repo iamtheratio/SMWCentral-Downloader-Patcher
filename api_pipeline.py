@@ -480,6 +480,7 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
             # Update processed data
             processed[hack_id] = {
                 "title": clean_hack_title(raw_title),  # Clean the title
+                "difficulty_id": raw_diff,  # Store raw difficulty ID for migration detection
                 "current_difficulty": display_diff,
                 "folder_name": folder_name,
                 "file_path": output_path,
