@@ -581,21 +581,16 @@ class CollectionPage:
         
         hack_data = self._find_hack_data(hack_id)
         if not hack_data:
-            self._log(f"❌ Could not find hack data for ID: {hack_id}", "Error")
             return
         
         file_path = hack_data.get("file_path", "")
         hack_title = hack_data.get("title", "Unknown")
         
+        # Silently return if no file path (hack not downloaded) - don't show error
         if not file_path:
-            self._log(f"⚠️ No file path available for '{hack_title}' - this hack may not be downloaded yet", "Warning")
-            messagebox.showinfo(
-                "File Not Available",
-                f"No file location found for '{hack_title}'.\n\n"
-                f"This hack may not have been downloaded yet, or the file may have been moved."
-            )
             return
         
+        # Only show error if file_path exists but file is missing (was moved/deleted)
         if not os.path.exists(file_path):
             self._log(f"⚠️ File not found: {file_path} for '{hack_title}'", "Warning")
             messagebox.showwarning(
