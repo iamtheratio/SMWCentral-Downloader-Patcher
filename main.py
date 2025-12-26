@@ -327,9 +327,12 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
             # Move file to correct difficulty folder if needed (either difficulty changed OR file is in wrong location)
             old_file_path = existing_hack.get("file_path")
             if old_file_path and os.path.exists(old_file_path):
+                # Get hack type from existing data
+                hack_type = existing_hack.get("hack_type", "standard").lower()
+                
                 # Calculate expected path based on current difficulty
                 filename = os.path.basename(old_file_path)
-                expected_file_path = os.path.join(make_output_path(output_dir, primary_type, folder_name), filename)
+                expected_file_path = os.path.join(make_output_path(output_dir, hack_type, folder_name), filename)
                 
                 # Move if file is not in the expected location
                 if old_file_path != expected_file_path:
