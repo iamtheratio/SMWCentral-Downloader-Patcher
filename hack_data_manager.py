@@ -107,7 +107,7 @@ class HackDataManager:
                     "demo": hack_data.get("demo", False),
                     "obsolete": hack_data.get("obsolete", False),  # NEW: Include obsolete status
                     "authors": hack_data.get("authors", []),  # Include authors for filtering
-                    # Removed file_path for privacy - contains usernames
+                    "file_path": hack_data.get("file_path", ""),  # Include file_path for folder icon feature
                     "completed": hack_data.get("completed", False),
                     "completed_date": hack_data.get("completed_date", ""),
                     "personal_rating": hack_data.get("personal_rating", 0),
