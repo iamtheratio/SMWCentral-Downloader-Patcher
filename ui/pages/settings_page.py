@@ -208,6 +208,48 @@ class SettingsPage:
         # Load auto-check setting
         self._load_auto_check_setting()
 
+        # Difficulty Migration Section
+        migration_frame = ttk.LabelFrame(self.frame, text="Difficulty Migration", padding=(15, 10))
+        migration_frame.pack(fill="x", pady=(5, 20))
+        
+        ttk.Label(
+            migration_frame,
+            text="SMWCentral occasionally renames difficulty categories (e.g., 'Skilled' → 'Intermediate').\n"
+                 "This tool automatically detects when your downloaded hacks have outdated difficulty names\n"
+                 "and helps you update your folders and files to match the current categories.",
+            style="Custom.TLabel",
+            wraplength=700
+        ).pack(anchor="w", pady=(0, 10))
+        
+        # Status label
+        self.migration_status_label = ttk.Label(
+            migration_frame,
+            text="Click 'Check for Migrations' to scan your collection",
+            style="Custom.TLabel"
+        )
+        self.migration_status_label.pack(anchor="w", pady=(0, 10))
+        
+        # Buttons
+        migration_buttons = ttk.Frame(migration_frame)
+        migration_buttons.pack(fill="x")
+        
+        self.check_migration_button = ttk.Button(
+            migration_buttons,
+            text="Check for Migrations",
+            command=self._check_difficulty_migration,
+            style="Custom.TButton"
+        )
+        self.check_migration_button.pack(side="left", padx=(0, 10))
+        
+        self.apply_migration_button = ttk.Button(
+            migration_buttons,
+            text="Apply Migrations",
+            command=self._apply_difficulty_migration,
+            style="Accent.TButton",
+            state="disabled"
+        )
+        self.apply_migration_button.pack(side="left")
+
         # Log section with level dropdown and clear button
         log_header_frame = ttk.Frame(self.frame)
         log_header_frame.pack(fill="x", pady=(0, 5))
@@ -379,3 +421,145 @@ class SettingsPage:
         except Exception as e:
             print(f"Error loading auto-check setting: {e}")
             self.auto_check_updates_var.set(True)  # Default to True
+    
+    def _check_difficulty_migration(self):
+        """Check if difficulty migrations are needed"""
+        self.check_migration_button.config(state="disabled", text="Checking...")
+        self.frame.update_idletasks()
+        
+        try:
+            from difficulty_migration import DifficultyMigrator
+            from config_manager import ConfigManager
+            
+            config = ConfigManager()
+            output_dir = config.get("output_dir", "")
+            
+            if not output_dir or not os.path.exists(output_dir):
+                self.migration_status_label.config(
+                    text="⚠️ Please configure your output directory in Setup section first",
+                    foreground="orange"
+                )
+                self.apply_migration_button.config(state="disabled")
+                self.check_migration_button.config(state="normal", text="Check for Migrations")
+                return
+            
+            # Auto-detect renames
+            migrator = DifficultyMigrator(output_dir)
+            detected = migrator.detect_renames_from_data()
+            
+            if not detected:
+                self.migration_status_label.config(
+                    text="✅ Everything is up to date! Your hacks are using the latest difficulty categories.",
+                    foreground="green"
+                )
+                self.apply_migration_button.config(state="disabled")
+                self.check_migration_button.config(state="normal", text="Check for Migrations")
+                return
+            
+            # Build status message
+            rename_count = len(detected)
+            total_hacks = sum(count for _, count in detected.values())
+            
+            if rename_count == 1:
+                old_name, (new_name, count) = list(detected.items())[0]
+                status_text = f"⚠️ Found outdated difficulty name: '{old_name}' should be '{new_name}' ({count:,} hacks affected)"
+            else:
+                renames = [f"'{old}' → '{new}'" for old, (new, _) in detected.items()]
+                status_text = f"⚠️ Found {rename_count} outdated difficulty names affecting {total_hacks:,} hacks: {', '.join(renames)}"
+            
+            self.migration_status_label.config(text=status_text, foreground="orange")
+            self.apply_migration_button.config(state="normal")
+            self.check_migration_button.config(state="normal", text="Check for Migrations")
+                
+        except Exception as e:
+            self.migration_status_label.config(
+                text=f"❌ Error checking for updates: {str(e)}",
+                foreground="red"
+            )
+            self.apply_migration_button.config(state="disabled")
+            self.check_migration_button.config(state="normal", text="Check for Migrations")
+            if self.logger:
+                self.logger.log(f"Error checking difficulty migrations: {str(e)}", "Error")
+        
+        self.frame.update_idletasks()
+    
+    def _apply_difficulty_migration(self):
+        """Apply difficulty migrations"""
+        try:
+            from difficulty_migration import DifficultyMigrator
+            from config_manager import ConfigManager
+            from tkinter import messagebox
+            
+            config = ConfigManager()
+            output_dir = config.get("output_dir", "")
+            
+            if not output_dir or not os.path.exists(output_dir):
+                messagebox.showerror("Migration Error", "Output directory not configured or doesn't exist")
+                return
+            
+            # Auto-detect renames
+            migrator = DifficultyMigrator(output_dir)
+            detected = migrator.detect_renames_from_data()
+            
+            if not detected:
+                messagebox.showinfo(
+                    "No Migrations Needed", 
+                    "Everything is up to date! Your hacks are already using the latest difficulty categories from SMWCentral."
+                )
+                return
+            
+            # Build confirmation message
+            total_hacks = sum(count for _, count in detected.values())
+            renames = [f"  • '{old}' will become '{new}' ({count:,} hacks)" for old, (new, count) in detected.items()]
+            confirm_msg = f"Update difficulty names for {total_hacks:,} hacks?\n\n" + "\n".join(renames)
+            confirm_msg += f"\n\nThis will:\n• Rename your difficulty folders to match SMWCentral\n• Update all hack records in your database\n• Create a backup before making any changes\n\nDo you want to proceed?"
+            
+            if not messagebox.askyesno("Confirm Migration", confirm_msg, icon='warning'):
+                return
+            
+            # Disable button during migration
+            self.apply_migration_button.config(state="disabled", text="Applying...")
+            self.migration_status_label.config(text="⏳ Applying migrations...", foreground="blue")
+            self.frame.update_idletasks()
+            
+            # Apply migrations
+            results = migrator.perform_migrations(dry_run=False)
+            
+            if results.get("success"):
+                summary = results.get("summary", {})
+                folders = summary.get("folders_renamed", 0)
+                json_entries = summary.get("json_entries_updated", 0)
+                
+                success_msg = f"✅ Update Complete!\n\n"
+                success_msg += f"• Renamed {folders} folder(s)\n"
+                success_msg += f"• Updated {json_entries} hack records\n\n"
+                success_msg += "Your collection now uses the latest difficulty categories from SMWCentral!\n"
+                success_msg += "(A backup was created in case you need to undo this change)"
+                
+                messagebox.showinfo("Update Complete", success_msg)
+                
+                self.migration_status_label.config(
+                    text="✅ All migrations applied successfully",
+                    foreground="green"
+                )
+                self.apply_migration_button.config(state="disabled", text="Apply Migrations")
+                
+                if self.logger:
+                    for old_name, (new_name, count) in detected.items():
+                        self.logger.log(f"Migrated '{old_name}' → '{new_name}' ({count:,} hacks)", "Information")
+                    self.logger.log(f"Difficulty migration completed: {folders} folders, {json_entries} entries updated", "Information")
+            else:
+                errors = results.get("errors", [])
+                error_msg = "Migration failed:\n\n" + "\n".join(errors) if errors else "Unknown error occurred"
+                messagebox.showerror("Migration Failed", error_msg)
+                
+                self.migration_status_label.config(text="❌ Migration failed", foreground="red")
+                self.apply_migration_button.config(state="normal", text="Apply Migrations")
+                
+        except Exception as e:
+            messagebox.showerror("Migration Error", f"Failed to apply migrations: {str(e)}")
+            self.migration_status_label.config(text=f"❌ Error: {str(e)}", foreground="red")
+            self.apply_migration_button.config(state="normal", text="Apply Migrations")
+            
+            if self.logger:
+                self.logger.log(f"Error applying difficulty migrations: {str(e)}", "Error")

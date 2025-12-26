@@ -265,14 +265,14 @@ class DashboardCharts:
         difficulty_colors = {
             'Newcomer': colors.get('diff_newcomer'),
             'Casual': colors.get('diff_casual'),        
-            'Skilled': colors.get('diff_skilled'),
+            'Intermediate': colors.get('diff_skilled'),  # Reuse skilled color for intermediate
             'Advanced': colors.get('diff_advanced'),
             'Expert': colors.get('diff_expert'),
             'Master': colors.get('diff_master'),
             'Grandmaster': colors.get('diff_grandmaster')
         }
         
-        difficulty_order = ['Newcomer', 'Casual', 'Skilled', 'Advanced', 'Expert', 'Master', 'Grandmaster']
+        difficulty_order = ['Newcomer', 'Casual', 'Intermediate', 'Advanced', 'Expert', 'Master', 'Grandmaster']
         
         # Extract data for each difficulty
         difficulty_lines = {}

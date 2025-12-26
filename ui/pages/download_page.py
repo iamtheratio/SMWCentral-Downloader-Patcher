@@ -33,7 +33,7 @@ class DownloadPage:
         self.download_button_component = None
         
         # Create difficulty section with the same list as bulk download
-        difficulty_list = ["newcomer", "casual", "skilled", "advanced", "expert", "master", "grandmaster", "no difficulty"]
+        difficulty_list = ["newcomer", "casual", "intermediate", "advanced", "expert", "master", "grandmaster", "no difficulty"]
         self.difficulty_section = DifficultySection(None, difficulty_list)
     
     def _log(self, message, level="Information"):

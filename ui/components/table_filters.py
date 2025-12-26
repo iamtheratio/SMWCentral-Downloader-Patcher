@@ -466,7 +466,7 @@ class AddHackDialog:
         self.difficulty_var = tk.StringVar()
         difficulty_combo = ttk.Combobox(diff_frame, textvariable=self.difficulty_var, state="readonly", 
                                        font=("Segoe UI", 10))
-        difficulty_combo['values'] = ["Newcomer", "Casual", "Skilled", "Advanced", "Expert", "Master", "Grandmaster"]
+        difficulty_combo['values'] = ["Newcomer", "Casual", "Intermediate", "Advanced", "Expert", "Master", "Grandmaster"]
         difficulty_combo.set("Newcomer")  # Default to Newcomer
         difficulty_combo.pack(fill="x", pady=(5, 0))
         
