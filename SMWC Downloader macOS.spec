@@ -5,11 +5,11 @@ a = Analysis(
     pathex=[],
     binaries=[],
     datas=[('assets', 'assets'), ('ui', 'ui')],
-    hiddenimports=['tkinter.filedialog', 'tkinter.messagebox'],
+    hiddenimports=['tkinter.filedialog', 'tkinter.messagebox', 'websockets', 'websockets.client', 'websockets.exceptions', 'qusb2snes_sync', 'qusb2snes_ui'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['PIL'],
+    excludes=['PIL', 'websockets.speedups'],  # Exclude native speedups that cause universal2 issues
     noarchive=False,
     optimize=0,
 )

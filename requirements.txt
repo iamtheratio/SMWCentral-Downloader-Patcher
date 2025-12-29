@@ -7,3 +7,4 @@ ips_util
 python-bps
 packaging
 customtkinter
+websockets==12.0

@@ -69,7 +69,8 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 3. **Track progress**: Mark hacks as completed, rate them (1-5 stars), and add personal notes
 4. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
 5. **Advanced editing**: Double-click any hack to open the full edit dialog
-6. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
+6. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open its file location in your system's file manager
+7. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
 #### Input Format Guide
 
