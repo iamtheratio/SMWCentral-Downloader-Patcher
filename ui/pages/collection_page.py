@@ -576,6 +576,45 @@ class CollectionPage:
         else:
             self._log(f"❌ Failed to update rating for '{hack_data.get('title', 'Unknown')}' (hack #{hack_id_str}) - data manager update failed", "Error")
     
+    def _open_hack_in_explorer(self, hack_id):
+        """Open the hack file location in the system file explorer"""
+        
+        hack_data = self._find_hack_data(hack_id)
+        if not hack_data:
+            return
+        
+        file_path = hack_data.get("file_path", "")
+        hack_title = hack_data.get("title", "Unknown")
+        
+        # Silently return if no file path (hack not downloaded) - don't show error
+        if not file_path:
+            return
+        
+        # Only show error if file_path exists but file is missing (was moved/deleted)
+        if not os.path.exists(file_path):
+            self._log(f"⚠️ File not found: {file_path} for '{hack_title}'", "Warning")
+            messagebox.showwarning(
+                "File Not Found",
+                f"The file for '{hack_title}' could not be found:\n\n"
+                f"{file_path}\n\n"
+                f"The file may have been moved or deleted."
+            )
+            return
+        
+        # Try to open the file in the system explorer
+        success = open_file_in_explorer(file_path)
+        
+        if success:
+            self._log(f"📂 Opened file location for '{hack_title}' in system explorer", "Information")
+        else:
+            # Fallback message if the explorer couldn't be opened
+            self._log(f"❌ Failed to open file explorer for '{hack_title}'", "Error")
+            messagebox.showerror(
+                "Explorer Error",
+                f"Could not open file explorer for '{hack_title}'.\n\n"
+                f"File path: {file_path}"
+            )
+    
     def _find_hack_data(self, hack_id_str):
         """Find hack data by ID"""
         # Convert to string for comparison to handle both string and integer IDs

@@ -194,7 +194,7 @@ class HackDataManager:
                     difficulties.add(diff)
 
         # Define the logical order from easiest to hardest
-        difficulty_order = ["Newcomer", "Casual", "Skilled", "Advanced", "Expert", "Master", "Grandmaster"]
+        difficulty_order = ["Newcomer", "Casual", "Intermediate", "Advanced", "Expert", "Master", "Grandmaster"]
 
         # Sort difficulties by their position in the defined order
         ordered_difficulties = []

@@ -90,10 +90,7 @@ class ConfigManager:
 
         # Only allow specific configuration keys
         allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path",
-                        "multi_type_enabled", "multi_type_download_mode",
-                        "qusb2snes_enabled", "qusb2snes_host", "qusb2snes_port",
-                        "qusb2snes_device", "qusb2snes_remote_folder", "qusb2snes_last_sync",
-                        "qusb2snes_cleanup_deleted", "qusb2snes_sync_progress", "qusb2snes_partial_sync"}
+                        "multi_type_enabled", "multi_type_download_mode", "difficulty_lookup"}
         cleaned = {}
 
         for key, value in config.items():
@@ -130,6 +127,15 @@ class ConfigManager:
         """Save current configuration to file"""
         self._save_config(self.config)
 
+    def get_difficulty_lookup(self):
+        """Get difficulty lookup, returns dict or None if not cached"""
+        return self.config.get("difficulty_lookup")
+    
+    def set_difficulty_lookup(self, lookup_dict):
+        """Save difficulty lookup to config"""
+        self.config["difficulty_lookup"] = lookup_dict
+        self.save()
+    
     def get(self, key, default=""):
         """Get a configuration value with optional default"""
         return self.config.get(key, default)

@@ -2,49 +2,61 @@
 
 All notable changes to SMWC Downloader & Patcher will be documented in this file.
 
-## [4.8.0] - 2025-10-31
+## [4.8] - 2025-12-29
 
 ### Added
-- **🎮 QUSB2SNES Sync Feature**: Complete SD2SNES/FXPAK Pro integration for one-click ROM transfers
-  - Smart incremental sync (only uploads new/changed files)
-  - **🗑️ Automatic cleanup**: Optional removal of deleted ROMs from SD card during sync
-  - Organized folder structure maintenance on SD card
-  - Real-time progress tracking with automatic retry logic
-  - Easy setup with host/port/device configuration in Settings
-  - WebSocket communication with connection resilience
-  - Automatic device detection and conflict resolution
-  - **Persistent checkbox settings**: "Remove deleted files" option saves between sessions
-- **📁 Folder Icon Feature**: Clickable folder icons in collection to open hack file locations
-- **Cross-Platform File Explorer Integration**: Support for Windows Explorer, macOS Finder, and Linux file managers
-- **Smart File Navigation**: Automatically highlights specific files in the system file manager
-- **QUSB2SNES Settings Panel**: Dedicated configuration section with persistent settings
-- **Connection Management**: Connect/disconnect controls with device status feedback
+- **Live Difficulty Mapping from SMWC API**: Automatically fetches current difficulty categories from SMWC on app startup
+  - Difficulty mappings cached in config.json for offline use
+  - Ensures app always uses latest SMWC difficulty names without code updates
+  - Falls back to hardcoded defaults if API unavailable
+- **Difficulty Migration System**: Automatic detection and migration of SMWC difficulty category renames
+  - Auto-detects when difficulty names have changed by comparing against live SMWC data
+  - Migration UI in Settings page with check/apply buttons
+  - Shows affected hack counts before applying changes
+  - Automatically renames difficulty folders and updates file paths
+  - Creates automatic backups before making any changes
+  - Zero configuration needed - fully data-driven detection
+- **Difficulty ID Tracking**: Store raw difficulty IDs (`diff_1`, `diff_2`, etc.) for reliable rename detection
+  - Enables automatic detection of future SMWC difficulty renames
+  - Backward compatible with existing data via automatic v4.8 migration
+- **Automatic v4.8 Migration**: Seamless upgrade from v4.7
+  - Automatically adds `current_difficulty` and `difficulty_id` fields to existing hacks
+  - Silent migration on first launch - no user intervention needed
+  - Creates backup at `processed.json.pre-v4.8.backup`
 
-### Improved
-- **Enhanced User Experience**: One-click ROM sync eliminates manual file copying for SD2SNES users
-- **Optimized File Transfer**: Tree-based sync algorithm for maximum efficiency (99%+ improvement)
-- **Better Error Recovery**: Improved handling of device conflicts and connection timeouts
-- **Cross-Platform Reliability**: Comprehensive support for multiple operating systems and file managers
-- **Settings Persistence**: All QUSB2SNES settings automatically save and restore
-
-### Technical
-- **New Module**: `qusb2snes_sync.py` - Complete QUSB2SNES WebSocket protocol implementation
-- **New Module**: `qusb2snes_ui.py` - Settings UI integration with connection management
-- **Enhanced Config**: Added QUSB2SNES settings with default values (host: localhost, port: 8080)
-- **File Explorer Utils**: `file_explorer_utils.py` for cross-platform file manager integration
-- **Updated Settings Page**: Integrated QUSB2SNES configuration panel with optimized layout
-- **Timestamp Tracking**: Smart incremental sync with last-sync timestamp persistence
+### Changed
+- **Difficulty Data Model Consolidation**:
+  - Removed redundant `difficulty` field
+  - Now uses only `difficulty_id` (source) and `current_difficulty` (display)
+  - Collection page and filters updated to use new field structure
+- Updated difficulty category from "Skilled" to "Intermediate" to match SMWC
+- All UI components now use "Intermediate" instead of "Skilled"
+- Updated difficulty lists in download page, filters, charts, and data manager
+- Difficulty mappings now fetched from SMWC API instead of hardcoded
 
 ### Fixed
-- Connection timeouts during large file transfers
-- Error recovery when QUSB2SNES device is in use by other applications
-- Better handling of special characters in ROM file names
-- Enhanced Unicode support for international file names
+- Collection page Type filter now correctly finds multi-type hacks (e.g., searching "Puzzle" finds "Standard, Puzzle")
+- Collection page difficulty filter now works correctly with new data model
+- Removed obsolete difficulty field sync that was causing false migration warnings
 
-## [4.7.0] - 2025-10-13
+### Technical
+- New `difficulty_lookup_manager.py` module for fetching difficulty mappings from SMWC API
+- Enhanced `difficulty_migration.py` with backfill and API-based detection
+- New `migrate_to_v48()` function in `migration_manager.py` for automatic upgrades
+- `ConfigManager` extended to store and retrieve difficulty lookup cache
+- Global `DIFFICULTY_LOOKUP` in utils.py updated on app startup with live data
+- `hack_data_manager.get_all_hacks()` transforms data for UI consumption
+- Comprehensive migration documentation in DIFFICULTY_MIGRATION_README.md
+- Migration system compares stored difficulty_id vs live SMWC API data
+- Backward compatibility maintained with "skilled" search term
+- Type filter uses containment check for multi-type hack support
 
-### Improved
-- Enhanced cross-platform compatibility
+## [4.7] - 2025-01-XX
+
+### Added
+- Enhanced download selection and filter controls
+- Improved layout and responsiveness of UI components
+
 - Improved UI responsiveness and scrolling
 - Better error handling and stability
 - Threading cleanup improvements

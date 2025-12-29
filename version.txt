@@ -36,7 +36,7 @@ VSVersionInfo(
         StringStruct(u'LegalCopyright', u'Copyright (c) 2025 iamtheratio'),
         StringStruct(u'OriginalFilename', u'SMWC Downloader.exe'),
         StringStruct(u'ProductName', u'SMWCentral Downloader & Patcher'),
-        StringStruct(u'ProductVersion', u'4.8.0')]))
+        StringStruct(u'ProductVersion', u'4.8.0')])
       ]), 
     VarFileInfo([VarStruct(u'Translation', [1033, 1200])])
   ]

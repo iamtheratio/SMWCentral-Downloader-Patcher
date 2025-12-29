@@ -8,10 +8,14 @@
   "qusb2snes_port": 23074,
   "qusb2snes_device": "SD2SNES COM3",
   "multi_type_download_mode": "primary_only",
-  "qusb2snes_remote_folder": "/ROMS",
-  "qusb2snes_last_sync": 1762002865.7851896,
-  "qusb2snes_sync_progress": {},
-  "qusb2snes_partial_sync": false,
-  "qusb2snes_cleanup_deleted": true,
-  "auto_check_updates": true
+  "multi_type_enabled": true,
+  "difficulty_lookup": {
+    "diff_1": "Newcomer",
+    "diff_2": "Casual",
+    "diff_3": "Intermediate",
+    "diff_4": "Advanced",
+    "diff_5": "Expert",
+    "diff_6": "Master",
+    "diff_7": "Grandmaster"
+  }
 }

@@ -625,10 +625,103 @@ class MigrationManager:
         
         return migrated_count
 
+
+def needs_v48_migration():
+    """Check if processed.json needs migration to v4.8 format (current_difficulty field)"""
+    from utils import PROCESSED_JSON_PATH
+    
+    if not os.path.exists(PROCESSED_JSON_PATH):
+        return False
+    
+    try:
+        with open(PROCESSED_JSON_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        # Check if any hack is missing current_difficulty field
+        for hack_id, hack_data in data.items():
+            if isinstance(hack_data, dict):
+                # If has difficulty but no current_difficulty, needs migration
+                if "difficulty" in hack_data and "current_difficulty" not in hack_data:
+                    return True
+        
+        return False
+    except Exception:
+        return False
+
+
+def migrate_to_v48():
+    """
+    Migrate processed.json to v4.8 format.
+    Adds current_difficulty and difficulty_id fields for compatibility with new system.
+    """
+    from utils import PROCESSED_JSON_PATH, DIFFICULTY_LOOKUP
+    
+    if not os.path.exists(PROCESSED_JSON_PATH):
+        return {"success": False, "message": "processed.json not found"}
+    
+    try:
+        # Load data
+        with open(PROCESSED_JSON_PATH, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        
+        # Create backup
+        backup_path = f"{PROCESSED_JSON_PATH}.pre-v4.8.backup"
+        with open(backup_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        
+        # Create reverse mapping: difficulty_name -> difficulty_id
+        name_to_id = {}
+        for diff_id, diff_name in DIFFICULTY_LOOKUP.items():
+            if diff_name:
+                name_to_id[diff_name] = diff_id
+        
+        # Add backward compatibility mappings
+        name_to_id["Skilled"] = "diff_3"  # Old name for Intermediate
+        
+        migrated_count = 0
+        
+        for hack_id, hack_data in data.items():
+            if not isinstance(hack_data, dict):
+                continue
+            
+            # Get the old difficulty field
+            difficulty = hack_data.get("difficulty", "")
+            
+            # If missing current_difficulty, copy from difficulty
+            if "current_difficulty" not in hack_data and difficulty:
+                hack_data["current_difficulty"] = difficulty
+                migrated_count += 1
+            
+            # If missing difficulty_id, try to add it
+            if "difficulty_id" not in hack_data:
+                current_diff = hack_data.get("current_difficulty", difficulty)
+                if current_diff and current_diff in name_to_id:
+                    hack_data["difficulty_id"] = name_to_id[current_diff]
+        
+        # Save updated data
+        with open(PROCESSED_JSON_PATH, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+        
+        return {
+            "success": True,
+            "migrated_count": migrated_count,
+            "message": f"Successfully migrated {migrated_count} hacks to v4.8 format"
+        }
+        
+    except Exception as e:
+        return {"success": False, "message": f"Migration failed: {str(e)}"}
+
+
 # Global function for easy access
 def check_and_migrate(root, callback=None):
     """Check if migration is needed and run it if necessary"""
     try:
+        # Check for v4.8 migration first (silent, fast)
+        if needs_v48_migration():
+            result = migrate_to_v48()
+            if result.get("success"):
+                print(f"✅ v4.8 Migration: {result.get('message')}")
+        
         migration_manager = MigrationManager()
         
         needs_migration = migration_manager.needs_migration()

@@ -63,11 +63,13 @@ def set_window_icon(window):
         print(f"Icon setting failed: {e}")  # Debug info
         pass  # Fallback silently if icon not found or not supported
 
-# Difficulty mappings
-DIFFICULTY_LOOKUP = {
+# Difficulty mappings - Fallback/default values
+# The actual DIFFICULTY_LOOKUP is loaded from config (fetched from SMWC API on app startup)
+# This serves as a fallback if API fetch fails
+_DIFFICULTY_LOOKUP_FALLBACK = {
     "diff_1": "Newcomer",
     "diff_2": "Casual",
-    "diff_3": "Skilled",
+    "diff_3": "Intermediate",  # Changed from "Skilled" to match SMWC update
     "diff_4": "Advanced",
     "diff_5": "Expert",
     "diff_6": "Master",
@@ -75,10 +77,29 @@ DIFFICULTY_LOOKUP = {
     "": "No Difficulty"  # for hacks without difficulty
 }
 
+# This will be updated on app startup with live data from SMWC API
+DIFFICULTY_LOOKUP = _DIFFICULTY_LOOKUP_FALLBACK.copy()
+
+def update_difficulty_lookup(new_lookup):
+    """
+    Update the global DIFFICULTY_LOOKUP with fresh data from SMWC API.
+    Called on app startup to ensure difficulty mappings are current.
+    
+    Args:
+        new_lookup: Dictionary mapping difficulty IDs to friendly names
+    """
+    global DIFFICULTY_LOOKUP
+    if new_lookup and isinstance(new_lookup, dict):
+        # Preserve the "No Difficulty" mapping
+        DIFFICULTY_LOOKUP = new_lookup.copy()
+        if "" not in DIFFICULTY_LOOKUP:
+            DIFFICULTY_LOOKUP[""] = "No Difficulty"
+
 DIFFICULTY_KEYMAP = {
     "newcomer": "1",
     "casual": "2",
-    "skilled": "3",
+    "intermediate": "3",  # Changed from "skilled" to match SMWC update
+    "skilled": "3",  # Keep for backward compatibility during transition
     "advanced": "4",
     "expert": "5",
     "master": "6",
@@ -89,7 +110,7 @@ DIFFICULTY_KEYMAP = {
 DIFFICULTY_SORTED = {
     "Newcomer": "01 - Newcomer",
     "Casual": "02 - Casual",
-    "Skilled": "03 - Skilled",
+    "Intermediate": "03 - Intermediate",  # Changed from "Skilled" to match SMWC update
     "Advanced": "04 - Advanced",
     "Expert": "05 - Expert",
     "Master": "06 - Master",

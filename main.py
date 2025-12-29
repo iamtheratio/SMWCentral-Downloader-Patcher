@@ -314,13 +314,64 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     log(f"📝 Updated title from {old_title} -> {current_clean_title}", "Information")
 
             # Update other metadata
-            if existing_hack.get("current_difficulty") != display_diff:
+            difficulty_changed = existing_hack.get("current_difficulty") != display_diff
+            if difficulty_changed:
                 old_diff = existing_hack.get("current_difficulty", "N/A")
                 existing_hack["current_difficulty"] = display_diff
+                existing_hack["difficulty_id"] = raw_diff  # Update difficulty_id as well
                 metadata_updated = True
                 if log:
 
                     log(f"📝 Updated difficulty from {old_diff} -> {display_diff}", "Information")
+            
+            # Move file to correct difficulty folder if needed (either difficulty changed OR file is in wrong location)
+            old_file_path = existing_hack.get("file_path")
+            if old_file_path and os.path.exists(old_file_path):
+                # Get hack type from existing data
+                hack_type = existing_hack.get("hack_type", "standard").lower()
+                
+                # Calculate expected path based on current difficulty
+                filename = os.path.basename(old_file_path)
+                expected_file_path = os.path.join(make_output_path(output_dir, hack_type, folder_name), filename)
+                
+                # Move if file is not in the expected location
+                if old_file_path != expected_file_path:
+                    try:
+                        # Create new directory if needed
+                        os.makedirs(os.path.dirname(expected_file_path), exist_ok=True)
+                        # Move the file
+                        shutil.move(old_file_path, expected_file_path)
+                        # Update file_path in processed data
+                        existing_hack["file_path"] = expected_file_path
+                        metadata_updated = True
+                        if log:
+                            log(f"📁 Moved file from {os.path.dirname(old_file_path)} to {os.path.dirname(expected_file_path)}", "Information")
+                        
+                        # Also move additional_paths if they exist (for multi-type hacks)
+                        additional_paths = existing_hack.get("additional_paths", [])
+                        if additional_paths:
+                            new_additional_paths = []
+                            for old_additional_path in additional_paths:
+                                if os.path.exists(old_additional_path):
+                                    # Extract hack type from path
+                                    path_parts = old_additional_path.split(os.sep)
+                                    hack_type_folder = next((p for p in path_parts if p.lower() in ["standard", "kaizo", "pit", "tool-assisted"]), None)
+                                    if hack_type_folder:
+                                        new_additional_path = os.path.join(make_output_path(output_dir, hack_type_folder.lower(), folder_name), filename)
+                                        if old_additional_path != new_additional_path:
+                                            os.makedirs(os.path.dirname(new_additional_path), exist_ok=True)
+                                            shutil.move(old_additional_path, new_additional_path)
+                                            new_additional_paths.append(new_additional_path)
+                                        else:
+                                            new_additional_paths.append(old_additional_path)
+                                    else:
+                                        new_additional_paths.append(old_additional_path)
+                                else:
+                                    new_additional_paths.append(old_additional_path)
+                            existing_hack["additional_paths"] = new_additional_paths
+                    except Exception as e:
+                        if log:
+                            log(f"⚠️ Failed to move file to correct difficulty folder: {str(e)}", "Warning")
             if existing_hack.get("folder_name") != folder_name:
                 old_folder = existing_hack.get("folder_name", "N/A")
                 existing_hack["folder_name"] = folder_name
@@ -557,6 +608,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                 # Update processed data with multi-type support
                 processed[hack_id] = {
                     "title": current_title,
+                    "difficulty_id": raw_diff,  # Store raw difficulty ID for migration detection
                     "current_difficulty": display_diff,
                     "folder_name": folder_name,
                     "file_path": primary_output_path,  # Use primary path for backward compatibility
@@ -665,6 +717,15 @@ def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=
 def main():
     """Main application entry point"""
     try:
+        # Initialize difficulty lookup from SMWC API before starting UI
+        from config_manager import ConfigManager
+        from difficulty_lookup_manager import get_difficulty_lookup
+        from utils import update_difficulty_lookup as set_difficulty_lookup
+        
+        config_manager = ConfigManager()
+        difficulty_lookup = get_difficulty_lookup(config_manager)
+        set_difficulty_lookup(difficulty_lookup)
+        
         root = tk.Tk()
         root.title("SMWC Downloader & Patcher")
 
