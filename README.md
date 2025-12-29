@@ -139,21 +139,26 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 ### v4.8.0
 
 ### 🆕 New Features
-- **🎮 QUSB2SNES Sync**: Complete SD2SNES/FXPAK Pro integration for one-click ROM transfers
-  - Smart incremental sync (only uploads new/changed files)
-  - Organized folder structure maintenance
-  - Real-time progress tracking and automatic retry logic
-  - Easy setup with host/port/device configuration
-- **📁 Folder Icons**: Added clickable folder icons in collection to quickly open hack file locations
-- **🗂️ Cross-Platform File Explorer Integration**: Open file managers on Windows (Explorer), macOS (Finder), and Linux (various)
-- **🎯 Smart File Navigation**: Click folder icons to open and highlight specific hack files
+- **Live Difficulty Mapping from SMWC API**: Automatically fetches current difficulty categories from SMWC on app startup
+  - Difficulty mappings cached in config.json for offline use
+  - Ensures app always uses latest SMWC difficulty names without code updates
+- **Difficulty Migration System**: Automatic detection and migration of SMWC difficulty category renames
+  - Auto-detects when difficulty names have changed by comparing against live SMWC data
+  - Migration UI in Settings page with check/apply buttons
+  - Automatically renames difficulty folders and updates file paths
+- **Automatic v4.8 Migration**: Seamless upgrade from v4.7
+  - Automatically adds new fields to existing hacks on first launch
+  - Silent migration - no user intervention needed
 
-### 🔧 Improvements  
-- **Enhanced QUSB2SNES Communication**: Full WebSocket integration with connection resilience
-- **Optimized File Transfer**: Tree-based sync algorithm for maximum efficiency
-- **Better Error Recovery**: Improved handling of device conflicts and connection timeouts
-- **Enhanced Settings**: New QUSB2SNES configuration section with persistent settings
-- **Cross-Platform Reliability**: Comprehensive support for multiple operating systems
+### 🔧 Improvements
+- Updated difficulty category from "Skilled" to "Intermediate" to match SMWC
+- Collection page Type filter now correctly finds multi-type hacks
+- Difficulty data model consolidated for better performance
+
+### 🐛 Bug Fixes
+- Fixed Type filter not finding multi-type hacks (e.g., searching "Puzzle" now finds "Standard, Puzzle")
+- Fixed Collection page difficulty filter with new data model
+- Removed false migration warnings
 
 </details>
 
@@ -167,10 +172,6 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 - **Improved Filter Layout**: Responsive filter sections work better when window is maximized
 - **Clearer Filter Controls**: Renamed "Search Criteria" to "Show/Hide Filters" for better clarity
 
-</details>
-
-<details>
-<summary><strong>Older Versions</strong></summary>
 
 ### v4.6.0
 
