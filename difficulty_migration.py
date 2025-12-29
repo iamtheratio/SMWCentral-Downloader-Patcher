@@ -19,8 +19,10 @@ When SMWC renames a difficulty (e.g., "Skilled" → "Intermediate"):
    }
 
 2. Migration AUTO-DETECTS the mismatch:
-   - Scans all hacks with difficulty_id = "diff_3"
-   - Compares stored current_difficulty ("Skilled") vs DIFFICULTY_LOOKUP["diff_3"] ("Intermediate")
+   - Step 1: Backfills missing difficulty_id fields using current_difficulty names
+     (e.g., hack with current_difficulty="Skilled" gets difficulty_id="diff_3")
+   - Step 2: Compares stored current_difficulty vs DIFFICULTY_LOOKUP using difficulty_id
+     (e.g., difficulty_id="diff_3" should be "Intermediate" not "Skilled")
    - If mismatch found, queues "Skilled" → "Intermediate" rename
 
 3. Users go to Settings → Difficulty Migration:
@@ -75,6 +77,7 @@ class DifficultyMigrator:
     def detect_renames_from_data(self) -> Dict[str, Tuple[str, int]]:
         """
         Auto-detect difficulty renames by comparing stored names vs current DIFFICULTY_LOOKUP.
+        Note: Run backfill_difficulty_ids() first to ensure all hacks have difficulty_id fields.
         
         Returns:
             Dict mapping old_name -> (new_name, count_of_affected_hacks)
@@ -98,21 +101,19 @@ class DifficultyMigrator:
             difficulty_id = hack_data.get("difficulty_id", "")
             current_difficulty = hack_data.get("current_difficulty", "")
             
-            # Skip if no difficulty_id (old format) or no stored name
-            if not difficulty_id or not current_difficulty:
-                continue
-            
-            # Look up what the current name SHOULD be
-            expected_name = DIFFICULTY_LOOKUP.get(difficulty_id, "")
-            
-            # If mismatch found, track it
-            if expected_name and expected_name != current_difficulty:
-                old_name = current_difficulty
-                new_name = expected_name
+            # Primary method: Check hacks WITH difficulty_id
+            if difficulty_id and current_difficulty:
+                # Look up what the current name SHOULD be
+                expected_name = DIFFICULTY_LOOKUP.get(difficulty_id, "")
                 
-                if old_name not in mismatches:
-                    mismatches[old_name] = {"new_name": new_name, "count": 0}
-                mismatches[old_name]["count"] += 1
+                # If mismatch found, track it
+                if expected_name and expected_name != current_difficulty:
+                    old_name = current_difficulty
+                    new_name = expected_name
+                    
+                    if old_name not in mismatches:
+                        mismatches[old_name] = {"new_name": new_name, "count": 0}
+                    mismatches[old_name]["count"] += 1
         
         # Convert to simpler format
         result = {}
@@ -121,9 +122,134 @@ class DifficultyMigrator:
         
         return result
     
+    def backfill_difficulty_ids(self, dry_run: bool = False) -> Dict:
+        """
+        Backfill missing difficulty_id fields for old hacks (pre-v4.8) using their current_difficulty.
+        This creates a reverse mapping from difficulty names to difficulty IDs.
+        
+        Returns:
+            Dictionary with backfill results
+        """
+        if not os.path.exists(self.processed_json_path):
+            return {"success": False, "message": "processed.json not found"}
+        
+        try:
+            with open(self.processed_json_path, 'r', encoding='utf-8') as f:
+                processed = json.load(f)
+        except Exception as e:
+            return {"success": False, "message": f"Error reading processed.json: {str(e)}"}
+        
+        # Create reverse mapping: difficulty_name -> difficulty_id
+        # Using DIFFICULTY_LOOKUP from utils.py
+        name_to_id = {}
+        for diff_id, diff_name in DIFFICULTY_LOOKUP.items():
+            name_to_id[diff_name] = diff_id
+        
+        # Also add old names for backward compatibility
+        name_to_id["Skilled"] = "diff_3"  # Old name for Intermediate
+        
+        backfilled_count = 0
+        updated_hacks = []
+        
+        for hack_id, hack_data in processed.items():
+            if not isinstance(hack_data, dict):
+                continue
+            
+            # Only process hacks that are missing difficulty_id
+            if hack_data.get("difficulty_id"):
+                continue
+            
+            current_difficulty = hack_data.get("current_difficulty", "")
+            
+            # Try to find the difficulty_id for this difficulty name
+            if current_difficulty and current_difficulty in name_to_id:
+                difficulty_id = name_to_id[current_difficulty]
+                
+                if not dry_run:
+                    hack_data["difficulty_id"] = difficulty_id
+                
+                backfilled_count += 1
+                updated_hacks.append({
+                    "hack_id": hack_id,
+                    "title": hack_data.get("title", "Unknown"),
+                    "difficulty": current_difficulty,
+                    "difficulty_id": difficulty_id
+                })
+        
+        # Save the updated processed.json
+        if not dry_run and backfilled_count > 0:
+            try:
+                with open(self.processed_json_path, 'w', encoding='utf-8') as f:
+                    json.dump(processed, f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                return {"success": False, "message": f"Error saving processed.json: {str(e)}"}
+        
+        return {
+            "success": True,
+            "backfilled_count": backfilled_count,
+            "updated_hacks": updated_hacks,
+            "message": f"Backfilled {backfilled_count} hacks with missing difficulty_id fields"
+        }
+    
+    def sync_difficulty_fields(self, dry_run: bool = False) -> Dict:
+        """
+        Sync the legacy 'difficulty' field with 'current_difficulty' field.
+        This fixes cases where migration updated current_difficulty but not difficulty.
+        
+        Returns:
+            Dictionary with sync results
+        """
+        if not os.path.exists(self.processed_json_path):
+            return {"success": False, "message": "processed.json not found"}
+        
+        try:
+            with open(self.processed_json_path, 'r', encoding='utf-8') as f:
+                processed = json.load(f)
+        except Exception as e:
+            return {"success": False, "message": f"Error reading processed.json: {str(e)}"}
+        
+        synced_count = 0
+        synced_hacks = []
+        
+        for hack_id, hack_data in processed.items():
+            if not isinstance(hack_data, dict):
+                continue
+            
+            current_difficulty = hack_data.get("current_difficulty", "")
+            difficulty = hack_data.get("difficulty", "")
+            
+            # If they don't match, sync difficulty to current_difficulty
+            if current_difficulty and difficulty != current_difficulty:
+                if not dry_run:
+                    hack_data["difficulty"] = current_difficulty
+                
+                synced_count += 1
+                synced_hacks.append({
+                    "hack_id": hack_id,
+                    "title": hack_data.get("title", "Unknown"),
+                    "old_difficulty": difficulty,
+                    "new_difficulty": current_difficulty
+                })
+        
+        # Save the updated processed.json
+        if not dry_run and synced_count > 0:
+            try:
+                with open(self.processed_json_path, 'w', encoding='utf-8') as f:
+                    json.dump(processed, f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                return {"success": False, "message": f"Error saving processed.json: {str(e)}"}
+        
+        return {
+            "success": True,
+            "synced_count": synced_count,
+            "synced_hacks": synced_hacks,
+            "message": f"Synced {synced_count} difficulty fields"
+        }
+    
     def perform_migrations(self, dry_run: bool = False) -> Dict:
         """
         Perform all pending difficulty migrations using auto-detection.
+        First backfills missing difficulty_id fields, then detects and applies renames.
         
         Args:
             dry_run: If True, only report what would be changed without making changes
@@ -131,11 +257,28 @@ class DifficultyMigrator:
         Returns:
             Dictionary with migration results
         """
-        # Auto-detect renames from data
+        # Step 0: Backfill missing difficulty_id fields for old hacks
+        backfill_result = self.backfill_difficulty_ids(dry_run)
+        
+        # Auto-detect renames from data (now with backfilled difficulty_ids)
         detected = self.detect_renames_from_data()
         
         if not detected:
-            return {"success": True, "message": "No migrations needed", "detected_renames": {}}
+            message_parts = []
+            if backfill_result.get("backfilled_count", 0) > 0:
+                message_parts.append(f"backfilled {backfill_result['backfilled_count']} difficulty_id fields")
+            
+            if message_parts:
+                message = "No migrations needed (" + ", ".join(message_parts) + ")"
+            else:
+                message = "No migrations needed"
+            
+            return {
+                "success": True, 
+                "message": message, 
+                "detected_renames": {},
+                "backfill_result": backfill_result
+            }
         
         # Convert to simple dict for processing
         self.detected_renames = {old: new for old, (new, count) in detected.items()}
@@ -145,7 +288,8 @@ class DifficultyMigrator:
             "migrations": [],
             "errors": [],
             "dry_run": dry_run,
-            "detected_renames": detected  # Include detection info
+            "detected_renames": detected,  # Include detection info
+            "backfill_result": backfill_result  # Include backfill info
         }
         
         # Step 1: Rename folders
@@ -165,7 +309,8 @@ class DifficultyMigrator:
         results["summary"] = {
             "folders_renamed": self.files_moved,
             "json_entries_updated": self.json_entries_updated,
-            "renames_applied": len(self.migrations_performed)
+            "renames_applied": len(self.migrations_performed),
+            "difficulty_ids_backfilled": backfill_result.get("backfilled_count", 0)
         }
         
         return results
@@ -278,6 +423,15 @@ class DifficultyMigrator:
                     updated_fields["current_difficulty"] = (old_diff, new_diff)
                     if not dry_run:
                         hack_data["current_difficulty"] = new_diff
+            
+            # Update difficulty field (legacy/display field - must stay in sync with current_difficulty)
+            if "difficulty" in hack_data:
+                old_diff = hack_data["difficulty"]
+                if old_diff in self.detected_renames:
+                    new_diff = self.detected_renames[old_diff]
+                    updated_fields["difficulty"] = (old_diff, new_diff)
+                    if not dry_run:
+                        hack_data["difficulty"] = new_diff
             
             # Update folder_name field
             if "folder_name" in hack_data:

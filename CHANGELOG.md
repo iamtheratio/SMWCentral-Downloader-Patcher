@@ -2,30 +2,54 @@
 
 All notable changes to SMWC Downloader & Patcher will be documented in this file.
 
-## [4.8] - 2025-12-26
+## [4.8] - 2025-12-29
 
 ### Added
+- **Live Difficulty Mapping from SMWC API**: Automatically fetches current difficulty categories from SMWC on app startup
+  - Difficulty mappings cached in config.json for offline use
+  - Ensures app always uses latest SMWC difficulty names without code updates
+  - Falls back to hardcoded defaults if API unavailable
 - **Difficulty Migration System**: Automatic detection and migration of SMWC difficulty category renames
-  - Auto-detects when difficulty names have changed (e.g., "Skilled" → "Intermediate")
+  - Auto-detects when difficulty names have changed by comparing against live SMWC data
   - Migration UI in Settings page with check/apply buttons
   - Shows affected hack counts before applying changes
+  - Automatically renames difficulty folders and updates file paths
   - Creates automatic backups before making any changes
   - Zero configuration needed - fully data-driven detection
-- **Difficulty ID Tracking**: Store raw difficulty IDs for reliable rename detection
+- **Difficulty ID Tracking**: Store raw difficulty IDs (`diff_1`, `diff_2`, etc.) for reliable rename detection
   - Enables automatic detection of future SMWC difficulty renames
-  - Backward compatible with existing data
+  - Backward compatible with existing data via automatic v4.8 migration
+- **Automatic v4.8 Migration**: Seamless upgrade from v4.7
+  - Automatically adds `current_difficulty` and `difficulty_id` fields to existing hacks
+  - Silent migration on first launch - no user intervention needed
+  - Creates backup at `processed.json.pre-v4.8.backup`
 
 ### Changed
+- **Difficulty Data Model Consolidation**:
+  - Removed redundant `difficulty` field
+  - Now uses only `difficulty_id` (source) and `current_difficulty` (display)
+  - Collection page and filters updated to use new field structure
 - Updated difficulty category from "Skilled" to "Intermediate" to match SMWC
 - All UI components now use "Intermediate" instead of "Skilled"
 - Updated difficulty lists in download page, filters, charts, and data manager
+- Difficulty mappings now fetched from SMWC API instead of hardcoded
+
+### Fixed
+- Collection page Type filter now correctly finds multi-type hacks (e.g., searching "Puzzle" finds "Standard, Puzzle")
+- Collection page difficulty filter now works correctly with new data model
+- Removed obsolete difficulty field sync that was causing false migration warnings
 
 ### Technical
-- New `difficulty_migration.py` module for handling migrations
-- Added `difficulty_id` field to processed hack data
+- New `difficulty_lookup_manager.py` module for fetching difficulty mappings from SMWC API
+- Enhanced `difficulty_migration.py` with backfill and API-based detection
+- New `migrate_to_v48()` function in `migration_manager.py` for automatic upgrades
+- `ConfigManager` extended to store and retrieve difficulty lookup cache
+- Global `DIFFICULTY_LOOKUP` in utils.py updated on app startup with live data
+- `hack_data_manager.get_all_hacks()` transforms data for UI consumption
 - Comprehensive migration documentation in DIFFICULTY_MIGRATION_README.md
-- Migration system compares stored difficulty_id vs current DIFFICULTY_LOOKUP
+- Migration system compares stored difficulty_id vs live SMWC API data
 - Backward compatibility maintained with "skilled" search term
+- Type filter uses containment check for multi-type hack support
 
 ## [4.7] - 2025-01-XX
 

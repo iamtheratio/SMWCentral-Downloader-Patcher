@@ -717,6 +717,15 @@ def detect_and_handle_duplicates(processed, current_hack_id, current_title, log=
 def main():
     """Main application entry point"""
     try:
+        # Initialize difficulty lookup from SMWC API before starting UI
+        from config_manager import ConfigManager
+        from difficulty_lookup_manager import get_difficulty_lookup
+        from utils import update_difficulty_lookup as set_difficulty_lookup
+        
+        config_manager = ConfigManager()
+        difficulty_lookup = get_difficulty_lookup(config_manager)
+        set_difficulty_lookup(difficulty_lookup)
+        
         root = tk.Tk()
         root.title("SMWC Downloader & Patcher")
 

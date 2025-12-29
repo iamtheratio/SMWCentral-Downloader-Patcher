@@ -215,8 +215,9 @@ class SettingsPage:
         ttk.Label(
             migration_frame,
             text="SMWCentral occasionally renames difficulty categories (e.g., 'Skilled' → 'Intermediate').\n"
-                 "This tool automatically detects when your downloaded hacks have outdated difficulty names\n"
-                 "and helps you update your folders and files to match the current categories.",
+                 "This tool automatically detects when your downloaded hacks have outdated difficulty names,\n"
+                 "backfills missing difficulty IDs for old hacks, and helps you update your folders and files\n"
+                 "to match the current categories.",
             style="Custom.TLabel",
             wraplength=700
         ).pack(anchor="w", pady=(0, 10))
@@ -443,11 +444,15 @@ class SettingsPage:
                 self.check_migration_button.config(state="normal", text="Check for Migrations")
                 return
             
-            # Auto-detect renames
+            # Check for missing difficulty_id fields first
             migrator = DifficultyMigrator(output_dir)
+            backfill_check = migrator.backfill_difficulty_ids(dry_run=True)
+            backfill_count = backfill_check.get("backfilled_count", 0)
+            
+            # Auto-detect renames
             detected = migrator.detect_renames_from_data()
             
-            if not detected:
+            if not detected and backfill_count == 0:
                 self.migration_status_label.config(
                     text="✅ Everything is up to date! Your hacks are using the latest difficulty categories.",
                     foreground="green"
@@ -457,15 +462,25 @@ class SettingsPage:
                 return
             
             # Build status message
-            rename_count = len(detected)
-            total_hacks = sum(count for _, count in detected.values())
+            status_parts = []
             
-            if rename_count == 1:
-                old_name, (new_name, count) = list(detected.items())[0]
-                status_text = f"⚠️ Found outdated difficulty name: '{old_name}' should be '{new_name}' ({count:,} hacks affected)"
-            else:
-                renames = [f"'{old}' → '{new}'" for old, (new, _) in detected.items()]
-                status_text = f"⚠️ Found {rename_count} outdated difficulty names affecting {total_hacks:,} hacks: {', '.join(renames)}"
+            # Add backfill info if needed
+            if backfill_count > 0:
+                status_parts.append(f"{backfill_count:,} hacks need difficulty_id backfill")
+            
+            # Add rename info if needed
+            if detected:
+                rename_count = len(detected)
+                total_hacks = sum(count for _, count in detected.values())
+                
+                if rename_count == 1:
+                    old_name, (new_name, count) = list(detected.items())[0]
+                    status_parts.append(f"'{old_name}' → '{new_name}' ({count:,} hacks)")
+                else:
+                    renames = [f"'{old}' → '{new}'" for old, (new, _) in detected.items()]
+                    status_parts.append(f"{rename_count} difficulty renames ({total_hacks:,} hacks)")
+            
+            status_text = "⚠️ " + " | ".join(status_parts)
             
             self.migration_status_label.config(text=status_text, foreground="orange")
             self.apply_migration_button.config(state="normal")
@@ -497,11 +512,14 @@ class SettingsPage:
                 messagebox.showerror("Migration Error", "Output directory not configured or doesn't exist")
                 return
             
-            # Auto-detect renames
+            # Check for backfill needs and auto-detect renames
             migrator = DifficultyMigrator(output_dir)
+            backfill_check = migrator.backfill_difficulty_ids(dry_run=True)
             detected = migrator.detect_renames_from_data()
             
-            if not detected:
+            backfill_count = backfill_check.get("backfilled_count", 0)
+            
+            if not detected and backfill_count == 0:
                 messagebox.showinfo(
                     "No Migrations Needed", 
                     "Everything is up to date! Your hacks are already using the latest difficulty categories from SMWCentral."
@@ -509,10 +527,18 @@ class SettingsPage:
                 return
             
             # Build confirmation message
-            total_hacks = sum(count for _, count in detected.values())
-            renames = [f"  • '{old}' will become '{new}' ({count:,} hacks)" for old, (new, count) in detected.items()]
-            confirm_msg = f"Update difficulty names for {total_hacks:,} hacks?\n\n" + "\n".join(renames)
-            confirm_msg += f"\n\nThis will:\n• Rename your difficulty folders to match SMWCentral\n• Update all hack records in your database\n• Create a backup before making any changes\n\nDo you want to proceed?"
+            confirm_parts = []
+            
+            if backfill_count > 0:
+                confirm_parts.append(f"Add missing difficulty_id field to {backfill_count:,} hacks")
+            
+            if detected:
+                total_hacks = sum(count for _, count in detected.values())
+                renames = [f"  • '{old}' will become '{new}' ({count:,} hacks)" for old, (new, count) in detected.items()]
+                confirm_parts.append(f"Update difficulty names for {total_hacks:,} hacks:\n" + "\n".join(renames))
+            
+            confirm_msg = "The following updates will be applied:\n\n" + "\n\n".join(confirm_parts)
+            confirm_msg += f"\n\nThis will:\n• Backfill missing difficulty_id fields (for old hacks)\n• Rename your difficulty folders to match SMWCentral\n• Update all hack records in your database\n• Create a backup before making any changes\n\nDo you want to proceed?"
             
             if not messagebox.askyesno("Confirm Migration", confirm_msg, icon='warning'):
                 return
@@ -529,12 +555,19 @@ class SettingsPage:
                 summary = results.get("summary", {})
                 folders = summary.get("folders_renamed", 0)
                 json_entries = summary.get("json_entries_updated", 0)
+                backfilled = summary.get("difficulty_ids_backfilled", 0)
+                synced = summary.get("difficulty_fields_synced", 0)
                 
                 success_msg = f"✅ Update Complete!\n\n"
+                if backfilled > 0:
+                    success_msg += f"• Backfilled {backfilled} difficulty_id field(s)\n"
+                if synced > 0:
+                    success_msg += f"• Synced {synced} difficulty field(s)\n"
                 success_msg += f"• Renamed {folders} folder(s)\n"
                 success_msg += f"• Updated {json_entries} hack records\n\n"
                 success_msg += "Your collection now uses the latest difficulty categories from SMWCentral!\n"
-                success_msg += "(A backup was created in case you need to undo this change)"
+                if folders > 0:
+                    success_msg += "(A backup was created in case you need to undo this change)"
                 
                 messagebox.showinfo("Update Complete", success_msg)
                 
@@ -545,9 +578,28 @@ class SettingsPage:
                 self.apply_migration_button.config(state="disabled", text="Apply Migrations")
                 
                 if self.logger:
+                    if backfilled > 0:
+                        self.logger.log(f"Backfilled {backfilled} difficulty_id fields", "Information")
+                    if synced > 0:
+                        self.logger.log(f"Synced {synced} difficulty fields", "Information")
                     for old_name, (new_name, count) in detected.items():
                         self.logger.log(f"Migrated '{old_name}' → '{new_name}' ({count:,} hacks)", "Information")
-                    self.logger.log(f"Difficulty migration completed: {folders} folders, {json_entries} entries updated", "Information")
+                    
+                    # Build comprehensive summary message
+                    summary_parts = []
+                    if backfilled > 0:
+                        summary_parts.append(f"{backfilled} IDs backfilled")
+                    if synced > 0:
+                        summary_parts.append(f"{synced} fields synced")
+                    if folders > 0:
+                        summary_parts.append(f"{folders} folders renamed")
+                    if json_entries > 0:
+                        summary_parts.append(f"{json_entries} entries updated")
+                    
+                    if summary_parts:
+                        self.logger.log(f"Difficulty migration completed: {', '.join(summary_parts)}", "Information")
+                    else:
+                        self.logger.log("Difficulty migration completed: no changes needed", "Information")
             else:
                 errors = results.get("errors", [])
                 error_msg = "Migration failed:\n\n" + "\n".join(errors) if errors else "Unknown error occurred"

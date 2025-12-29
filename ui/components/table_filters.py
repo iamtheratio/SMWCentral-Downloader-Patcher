@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
-from utils import resource_path
+from utils import resource_path, get_hack_types
 
 class TableFilters:
     """Manages table filtering logic"""
@@ -278,10 +278,15 @@ class TableFilters:
                 if author_filter_text not in authors.lower():
                     return False
             
-        # Type filter
+        # Type filter - support multi-type hacks
         type_filter_value = self.type_filter.get()
-        if type_filter_value != "All" and hack.get("hack_type", "").title() != type_filter_value:
-            return False
+        if type_filter_value != "All":
+            hack_types = get_hack_types(hack)
+            # Check if the filter type is in the hack's types (case-insensitive)
+            filter_type_lower = type_filter_value.lower()
+            hack_types_lower = [t.lower() for t in hack_types]
+            if filter_type_lower not in hack_types_lower:
+                return False
             
         # Difficulty filter
         difficulty_filter_value = self.difficulty_filter.get()

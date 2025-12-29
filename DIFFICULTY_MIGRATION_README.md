@@ -11,7 +11,14 @@ When downloading hacks, the app now stores TWO difficulty fields:
 - `difficulty_id`: The raw API identifier (e.g., "diff_3") - never changes
 - `current_difficulty`: The display name (e.g., "Intermediate") - can change
 
-### 2. **Auto-Detection**
+### 2. **Backfilling Missing IDs**
+For old hacks (pre-v4.8) that don't have `difficulty_id`:
+- The migration system uses `DIFFICULTY_LOOKUP` to create a reverse mapping
+- Maps current difficulty name (e.g., "Skilled") to its ID (e.g., "diff_3")
+- Adds the missing `difficulty_id` field to the hack data
+- This happens automatically when you check for or apply migrations
+
+### 3. **Auto-Detection**
 The migration system compares stored data against the current `DIFFICULTY_LOOKUP`:
 
 ```python
@@ -25,12 +32,13 @@ DIFFICULTY_LOOKUP = {
 ```
 
 When scanning processed.json:
-- Hack has `difficulty_id="diff_3"` and `current_difficulty="Skilled"`
+- Hack has `difficulty_id="diff_3"` (backfilled if needed) and `current_difficulty="Skilled"`
 - Lookup says `DIFFICULTY_LOOKUP["diff_3"] = "Intermediate"`
 - **Mismatch detected!** → Skilled needs migrating to Intermediate
 
-### 3. **Migration Actions**
+### 4. **Migration Actions**
 When applied, the migration system:
+0. **Backfills missing IDs**: Adds `difficulty_id` to old hacks based on their `current_difficulty`
 1. **Renames folders**: `03 - Skilled` → `03 - Intermediate`
 2. **Updates JSON**: Changes all difficulty fields in processed.json
 3. **Creates backup**: Timestamped backup before any changes
@@ -201,9 +209,12 @@ SMWC changes "Expert" → "Very Hard" and "Kaizo" → "Extreme"
 ## Backward Compatibility
 
 ### Old Hacks (no difficulty_id field)
-- Still work normally
-- Skip during migration detection
-- Get updated field next time they're downloaded/updated
+- **Automatically backfilled** when checking for or applying migrations
+- System creates reverse mapping from difficulty names to IDs
+- Maps "Skilled" → "diff_3", "Expert" → "diff_5", etc.
+- Adds the missing `difficulty_id` field to processed.json
+- Then proceeds with normal migration detection and processing
+- All hacks get proper difficulty_id regardless of when downloaded
 
 ### DIFFICULTY_KEYMAP
 Still maintains old names for search backward compatibility:
