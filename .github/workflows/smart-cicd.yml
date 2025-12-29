@@ -1,8 +1,4 @@
 name: Smart CI/CD Pipeline
-# Note: Using macos-13 instead of macos-latest for compatibility
-# GitHub will migrate macos-latest to macOS 15 on August 4, 2025
-# See: https://github.com/actions/runner-images/issues/12520
-# When ready for macOS 15, update to macos-15 or macos-latest
 
 permissions:
   contents: write
@@ -25,20 +21,18 @@ jobs:
   build-and-test:
     strategy:
       matrix:
-        os: [windows-latest, macos-13, ubuntu-latest]  # Use macos-13 for broader compatibility
+        os: [windows-latest, macos-latest, ubuntu-latest]  # Updated to macos-latest (macOS 15)
         include:
           - os: windows-latest
             platform: Windows
             spec: "SMWC Downloader.spec"
             artifact_name_pattern: "SMWC-Downloader-{version}-Windows-x64.zip"
             asset_content_type: "application/zip"
-          - os: macos-13
+          - os: macos-latest
             platform: macOS
             spec: "SMWC Downloader macOS.spec"
             artifact_name_pattern: "SMWC-Downloader-{version}-macOS-Universal.dmg"
             asset_content_type: "application/x-apple-diskimage"
-            # Note: Using macos-13 for broader compatibility. macOS 13+ supports Intel + Apple Silicon universal binaries
-            # When ready for macOS 15, change to macos-15 or macos-latest after August 4, 2025
           - os: ubuntu-latest
             platform: Linux
             spec: "SMWC Downloader.spec"
@@ -68,7 +62,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y python3-tk python3-dev xvfb
     - name: Install system dependencies (macOS)
-      if: matrix.os == 'macos-13'
+      if: matrix.os == 'macos-latest'
       run: |
         brew install tcl-tk
     - name: Install Python dependencies
@@ -178,7 +172,7 @@ jobs:
         echo "ARTIFACT_NAME=$packageDir" >> $env:GITHUB_OUTPUT
       id: windows_package
     - name: Create macOS package
-      if: matrix.os == 'macos-13' && github.event_name != 'pull_request'
+      if: matrix.os == 'macos-latest' && github.event_name != 'pull_request'
       run: |
         VERSION="${{ steps.get_version.outputs.VERSION }}"
         DMG_NAME="SMWC-Downloader-$VERSION-macOS-Universal.dmg"
@@ -330,7 +324,7 @@ jobs:
         path: ${{ steps.windows_package.outputs.ARTIFACT_NAME }}
         retention-days: 30
     - name: Upload macOS artifact
-      if: github.event_name != 'pull_request' && matrix.os == 'macos-13'
+      if: github.event_name != 'pull_request' && matrix.os == 'macos-latest'
       uses: actions/upload-artifact@v4
       with:
         name: ${{ steps.macos_package.outputs.ARTIFACT_NAME }}

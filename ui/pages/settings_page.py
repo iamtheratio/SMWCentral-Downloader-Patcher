@@ -307,8 +307,8 @@ class SettingsPage:
     def _load_multi_type_settings(self):
         """Load multi-type settings from config"""
         try:
-            from config_manager import ConfigManager
-            config = ConfigManager()
+            # Use shared config instead of creating new instance
+            config = self.setup_section.config
             
             # Load settings with defaults
             enabled = config.get("multi_type_enabled", True)
@@ -326,14 +326,15 @@ class SettingsPage:
     def _save_multi_type_settings(self, *args):
         """Save multi-type settings to config"""
         try:
-            from config_manager import ConfigManager
-            config = ConfigManager()
+            # Use shared config instead of creating new instance
+            config = self.setup_section.config
             
             enabled = self.multi_type_enabled_var.get()
             mode = self.download_mode_var.get()
             
             config.set("multi_type_enabled", enabled)
             config.set("multi_type_download_mode", mode)  
+            config.save()  # Critical: Save changes to disk!
             
         except Exception as e:
             print(f"Error saving multi-type settings: {e}")
@@ -401,11 +402,12 @@ class SettingsPage:
     def _save_auto_check_setting(self):
         """Save auto-check updates setting"""
         try:
-            from config_manager import ConfigManager
-            config = ConfigManager()
+            # Use shared config instead of creating new instance
+            config = self.setup_section.config
             
             auto_check = self.auto_check_updates_var.get()
             config.set("auto_check_updates", auto_check)
+            config.save()  # Critical: Save changes to disk!
             
         except Exception as e:
             print(f"Error saving auto-check setting: {e}")
@@ -413,10 +415,10 @@ class SettingsPage:
     def _load_auto_check_setting(self):
         """Load auto-check updates setting"""
         try:
-            from config_manager import ConfigManager
-            config = ConfigManager()
+            # Use shared config instead of creating new instance
+            config = self.setup_section.config
             
-            auto_check = config.get("auto_check_updates", True)  # Default to True
+            auto_check = config.get("auto_check_updates", False)
             self.auto_check_updates_var.set(auto_check)
             
         except Exception as e:

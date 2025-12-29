@@ -624,6 +624,51 @@ class CollectionPage:
                 return hack
         return None
     
+    def _open_hack_in_explorer(self, hack_id):
+        """Open the hack file location in the system file explorer"""
+        
+        hack_data = self._find_hack_data(hack_id)
+        if not hack_data:
+            self._log(f"❌ Could not find hack data for ID: {hack_id}", "Error")
+            return
+        
+        file_path = hack_data.get("file_path", "")
+        hack_title = hack_data.get("title", "Unknown")
+        
+        if not file_path:
+            self._log(f"📁 No file path available for '{hack_title}' - this hack may not be downloaded yet", "Warning")
+            messagebox.showinfo(
+                "File Not Available", 
+                f"No file location found for '{hack_title}'.\n\n"
+                f"This hack may not have been downloaded yet, or the file may have been moved."
+            )
+            return
+        
+        if not os.path.exists(file_path):
+            self._log(f"📁 File not found: {file_path} for '{hack_title}'", "Warning")
+            messagebox.showwarning(
+                "File Not Found", 
+                f"The file for '{hack_title}' could not be found:\n\n"
+                f"{file_path}\n\n"
+                f"The file may have been moved or deleted."
+            )
+            return
+        
+        # Try to open the file in the system explorer
+        success = open_file_in_explorer(file_path)
+        
+        if success:
+            self._log(f"📁 Opened file location for '{hack_title}' in system explorer", "Information")
+        else:
+            # Fallback message if the explorer couldn't be opened
+            self._log(f"❌ Failed to open file explorer for '{hack_title}'", "Error")
+            messagebox.showerror(
+                "Explorer Error", 
+                f"Could not open the file explorer for '{hack_title}'.\n\n"
+                f"File location: {file_path}\n\n"
+                f"You can manually navigate to this location using your file manager."
+            )
+    
     def _show_hack_details(self, hack_data):
         """Show detailed hack information"""
         title = hack_data.get("title", "Unknown Hack")
