@@ -47,7 +47,7 @@ from typing import Dict, List, Tuple, Optional, Set
 # Import the current difficulty lookup from utils
 import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from utils import DIFFICULTY_LOOKUP
+from utils import DIFFICULTY_LOOKUP, PROCESSED_JSON_PATH
 
 # Sorted folder name patterns (number prefix)
 FOLDER_NUMBER_MAP = {
@@ -66,9 +66,10 @@ FOLDER_NUMBER_MAP = {
 class DifficultyMigrator:
     """Manages difficulty name migrations across the entire app using auto-detection"""
     
-    def __init__(self, output_dir: str, processed_json_path: str = "processed.json"):
+    def __init__(self, output_dir: str, processed_json_path: str = None):
         self.output_dir = output_dir
-        self.processed_json_path = processed_json_path
+        # Use platform-specific path by default to support macOS/Linux
+        self.processed_json_path = processed_json_path if processed_json_path is not None else PROCESSED_JSON_PATH
         self.migrations_performed: List[Tuple[str, str]] = []
         self.files_moved = 0
         self.json_entries_updated = 0

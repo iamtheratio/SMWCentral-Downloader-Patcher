@@ -2,6 +2,16 @@
 
 All notable changes to SMWC Downloader & Patcher will be documented in this file.
 
+## [Unreleased]
+
+### Fixed
+- **macOS/Linux Difficulty Migration Fix**: Fixed difficulty migration not working on macOS and Linux
+  - DifficultyMigrator now uses platform-specific processed.json path by default
+  - Windows stores processed.json next to executable (portable mode)
+  - macOS stores in ~/Library/Application Support/SMWC Downloader/
+  - Linux stores in ~/.smwc-downloader/
+  - Added difficulty_migration and difficulty_lookup_manager to PyInstaller hiddenimports
+
 ## [4.8] - 2025-12-29
 
 ### Added
