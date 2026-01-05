@@ -70,7 +70,8 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 4. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
 5. **Advanced editing**: Double-click any hack to open the full edit dialog
 6. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open its file location in your system's file manager
-7. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
+7. **🎮 Quick launch**: Click the play icon (▶) next to any hack to launch it directly in your configured emulator
+8. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
 #### Input Format Guide
 
@@ -101,9 +102,65 @@ When editing **Completed Date** and **Time to Beat** fields, the app supports fl
 - **Multi-type downloads**: Configure how hacks with multiple types (like "Kaizo, Tool-Assisted") are handled
   - **Primary only**: Download to the main type folder only
   - **Copy to all folders**: Create copies in each applicable type folder
+- **Emulator integration**: Configure your favorite emulator to launch games directly from the Collection page
+  - Supports RetroArch, Snes9x, and any other emulator
+  - Custom command-line arguments with `%1` placeholder support
+  - Cross-platform: Windows, macOS (.app bundles), and Linux
 - **Auto-updates**: Choose if you want automatic app updates
 - **Theme**: Switch between light and dark modes with instant, smooth transitions and optimized performance
 - **API Delay Slider**: Set delay from 0.0 to 3.0 seconds between API requests to avoid rate limiting issues
+
+### Emulator Configuration
+
+The app supports launching ROMs directly in your favorite emulator with one click!
+
+#### Setup Instructions
+
+1. **Go to Settings** → **Emulator Configuration**
+2. **Browse for your emulator executable**:
+   - **Windows**: Select the `.exe` file (e.g., `snes9x-x64.exe`, `retroarch.exe`)
+   - **macOS**: Select the `.app` bundle (e.g., `Snes9x.app`) - the app will automatically find the executable inside
+   - **Linux**: Select the binary (e.g., `/usr/bin/snes9x-gtk`, `/usr/games/retroarch`)
+3. **Optional: Add command-line arguments**
+   - Check "Use Custom Command Line Arguments"
+   - Enter your desired arguments (see examples below)
+4. **Save and test**: The play icon (▶) will appear next to downloaded hacks in your Collection
+
+#### Command-Line Arguments Examples
+
+**RetroArch:**
+```
+-L cores\snes9x_libretro.dll "%1"
+```
+Or on Linux/Mac:
+```
+-L ~/.config/retroarch/cores/snes9x_libretro.so "%1"
+```
+
+**Snes9x:**
+```
+--fullscreen
+```
+
+**Custom Arguments:**
+- Use `%1` as a placeholder for the ROM file path
+- If you don't use `%1`, the ROM will be automatically added at the end
+- Arguments are parsed with proper quote handling
+
+#### Platform-Specific Notes
+
+**Windows:**
+- Browse for `.exe` files
+- Emulator runs without console window
+
+**macOS:**
+- Browse for `.app` bundles (e.g., `Snes9x.app`, `RetroArch.app`)
+- The app automatically converts `.app` paths to the actual executable inside
+- Example: `Snes9x.app` → `Snes9x.app/Contents/MacOS/Snes9x`
+
+**Linux:**
+- Browse for binaries in `/usr/bin/`, `/usr/games/`, or custom locations
+- Make sure the binary has execute permissions
 
 ## 🛠️ Troubleshooting
 
@@ -124,17 +181,48 @@ Check the folder path shown in Settings. By default, ROMs are saved to:
 - **Mac**: `Desktop/SMWCentral Hacks/`
 - **Linux**: `~/Desktop/SMWCentral Hacks/`
 
+### Emulator Won't Launch
+If clicking the play icon doesn't work:
+1. **Check emulator path**: Go to Settings → Emulator Configuration and verify the path is correct
+2. **macOS users**: Make sure you selected the `.app` file, not the executable inside
+3. **Check arguments**: Disable "Use Custom Command Line Arguments" to test without arguments first
+4. **Test manually**: Try launching your emulator with a ROM file manually to ensure it works
+5. **Check logs**: Go to Settings page and check the log output for error messages
+
 ## 📝 What You Need
 
 - **Your Operating System**: Windows 10+, macOS 10.15+, or modern Linux
 - **A clean SMW ROM**: Unmodified Super Mario World ROM file (.smc or .sfc)
 - **Storage space**: About 20 MB for the app, plus space for your ROM collection
 - **Internet connection**: Required for downloading hacks and app updates
+- **Optional - Emulator**: Any SNES emulator (Snes9x, RetroArch, bsnes, etc.) for the quick-launch feature
 
 ##  Changelog
 
 <details>
-<summary><strong>Version 4.8 - Latest Release</strong></summary>
+<summary><strong>Version 4.9 - Latest Release</strong></summary>
+
+### v4.9.0
+
+### 🆕 New Features
+- **Emulator Integration**: Launch ROMs directly from the Collection page with one click
+  - Configure any emulator (RetroArch, Snes9x, bsnes, etc.)
+  - Custom command-line arguments with `%1` placeholder support
+  - Cross-platform support: Windows, macOS (.app bundles), and Linux
+  - Play icon (▶) appears next to downloaded hacks when emulator is configured
+- **macOS .app Bundle Support**: Automatic conversion of `.app` bundles to executable paths
+  - Select `Snes9x.app` and the app automatically finds `Snes9x.app/Contents/MacOS/Snes9x`
+  - Works with all standard macOS application bundles
+
+### 🔧 Improvements
+- Settings page layout optimized: Emulator and Difficulty Migration sections now side-by-side for better space utilization
+- Enhanced log section with more vertical space
+- Improved cross-platform emulator path handling
+
+</details>
+
+<details>
+<summary><strong>Previous Versions</strong></summary>
 
 ### v4.8.0
 

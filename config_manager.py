@@ -71,6 +71,10 @@ class ConfigManager:
             "multi_type_enabled": True,
             "multi_type_download_mode": "primary_only",
             "auto_check_updates": True,  # Auto-check for updates on startup
+            # Emulator settings
+            "emulator_path": "",
+            "emulator_args": "",
+            "emulator_args_enabled": False,
             # QUSB2SNES settings
             "qusb2snes_enabled": False,
             "qusb2snes_host": "localhost",
@@ -90,7 +94,11 @@ class ConfigManager:
 
         # Only allow specific configuration keys
         allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path",
-                        "multi_type_enabled", "multi_type_download_mode", "difficulty_lookup"}
+                        "multi_type_enabled", "multi_type_download_mode", "difficulty_lookup",
+                        "emulator_path", "emulator_args", "emulator_args_enabled", "auto_check_updates",
+                        "qusb2snes_enabled", "qusb2snes_host", "qusb2snes_port",
+                        "qusb2snes_device", "qusb2snes_remote_folder", "qusb2snes_last_sync",
+                        "qusb2snes_sync_progress", "qusb2snes_partial_sync", "qusb2snes_cleanup_deleted"}
         cleaned = {}
 
         for key, value in config.items():

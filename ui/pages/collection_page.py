@@ -148,15 +148,15 @@ class CollectionPage:
         table_frame = ttk.Frame(self.frame)
         table_frame.pack(fill="both", expand=True)
         
-        # Create treeview with custom Collection style - Added folder column
-        columns = ("completed", "folder", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
+        # Create treeview with custom Collection style - Added play column
+        columns = ("completed", "play", "folder", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15, style="Collection.Treeview")
         
-        # Configure headers and columns - Added folder icon column
-        headers = ["✓", get_file_icon_unicode(), "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
-        widths = [45, 35, 220, 90, 100, 90, 110, 120, 150]
-        min_widths = [35, 25, 170, 70, 80, 70, 90, 100, 120]
-        anchors = ["center", "center", "w", "center", "center", "center", "center", "center", "w"]
+        # Configure headers and columns - Added play icon column
+        headers = ["✓", "▶", get_file_icon_unicode(), "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
+        widths = [45, 35, 35, 220, 90, 100, 90, 110, 120, 150]
+        min_widths = [35, 25, 25, 170, 70, 80, 70, 90, 100, 120]
+        anchors = ["center", "center", "center", "w", "center", "center", "center", "center", "center", "w"]
         
         for i, (col, header, width, min_width, anchor) in enumerate(zip(columns, headers, widths, min_widths, anchors)):
             self.tree.heading(col, text=header, command=lambda c=col: self._sort_by_column(c))
@@ -284,9 +284,13 @@ class CollectionPage:
         file_path = hack.get("file_path", "")
         folder_icon = get_file_icon_unicode() if file_path and os.path.exists(file_path) else ""
         
+        # Check if emulator is configured for play icon display
+        play_icon = self._get_play_icon(hack)
+        
         self.tree.insert("", "end", values=(
             completed_display,
-            folder_icon,  # NEW: Folder icon column
+            play_icon,  # NEW: Play icon column
+            folder_icon,  # Folder icon column
             hack["title"],
             type_display,  # Now shows multiple types if available
             hack.get("difficulty", "Unknown"),
@@ -355,16 +359,18 @@ class CollectionPage:
         # Handle different column clicks
         if column == "#1":  # Completed
             self._toggle_completed(hack_id)
-        elif column == "#2":  # Folder icon - NEW: Open file in explorer
+        elif column == "#2":  # Play icon - NEW: Launch emulator
+            self._launch_emulator(hack_id)
+        elif column == "#3":  # Folder icon - Open file in explorer
             self._open_hack_in_explorer(hack_id)
-        elif column == "#6":  # Rating (shifted due to new folder column)
+        elif column == "#7":  # Rating (shifted due to new play and folder columns)
             self._edit_rating(hack_id, item, event)
-        elif column == "#7":  # Completed date (shifted due to new folder column)
-            self.date_editor.start_edit(hack_id, item, event, "completed_date", "#7", DateValidator.validate)
-        elif column == "#8":  # Time to Beat (shifted due to new folder column)
-            self.time_editor.start_edit(hack_id, item, event, "time_to_beat", "#8", self._validate_time_input)
-        elif column == "#9":  # Notes (shifted due to new folder column)
-            self.notes_editor.start_edit(hack_id, item, event, "notes", "#9", NotesValidator.validate)
+        elif column == "#8":  # Completed date (shifted due to new play and folder columns)
+            self.date_editor.start_edit(hack_id, item, event, "completed_date", "#8", DateValidator.validate)
+        elif column == "#9":  # Time to Beat (shifted due to new play and folder columns)
+            self.time_editor.start_edit(hack_id, item, event, "time_to_beat", "#9", self._validate_time_input)
+        elif column == "#10":  # Notes (shifted due to new play and folder columns)
+            self.notes_editor.start_edit(hack_id, item, event, "notes", "#10", NotesValidator.validate)
     
     def _on_item_double_click(self, event):
         """Handle double click - show edit hack dialog"""
@@ -401,12 +407,12 @@ class CollectionPage:
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
-        # Updated column references for new folder column
-        if item and column in ["#1", "#2", "#6", "#7", "#8"]:  # Completed, Folder, Rating, Date, Time
+        # Updated column references for new play and folder columns
+        if item and column in ["#1", "#2", "#3", "#7", "#8", "#9"]:  # Completed, Play, Folder, Rating, Date, Time
             self.tree.config(cursor=HOVER_CURSOR)
             
             # ENHANCED: Show rating preview on hover
-            if column == "#6":  # Rating column (updated column number)
+            if column == "#7":  # Rating column (updated column number)
                 self._show_rating_preview(item, event)
         else:
             self.tree.config(cursor="")
@@ -423,7 +429,7 @@ class CollectionPage:
             return
             
         # Calculate which star would be selected (same logic as _edit_rating)
-        bbox = self.tree.bbox(item, "#5")
+        bbox = self.tree.bbox(item, "#7")  # Updated column number for play+folder columns
         if not bbox:
             return
             
@@ -496,8 +502,8 @@ class CollectionPage:
                     # Update completed checkbox
                     current_values[0] = "✓" if new_completed else ""
                     
-                    # Update completion date if it changed (shifted by folder column)
-                    current_values[6] = hack_data.get("completed_date", "")  # Was index 5, now 6
+                    # Update completion date if it changed (shifted by play+folder columns)
+                    current_values[8] = hack_data.get("completed_date", "")  # Index 8 for new layout
                     
                     # Update the tree item
                     self.tree.item(item, values=current_values)
@@ -512,8 +518,8 @@ class CollectionPage:
         if not hack_data:
             return
         
-        # Get cell position (updated column reference)
-        bbox = self.tree.bbox(item, "#6")  # Was "#5", now "#6" due to folder column
+        # Get cell position (updated column reference for play+folder columns)
+        bbox = self.tree.bbox(item, "#7")  # Updated from "#6" due to play column
         if not bbox:
             return
         
@@ -561,7 +567,8 @@ class CollectionPage:
                     current_values = list(self.tree.item(tree_item)["values"])
                     
                     # Update rating display (shifted by folder column)
-                    current_values[5] = self._get_rating_display(new_rating)  # Was index 4, now 5
+                    # Update rating in the correct column (shifted by play column)
+                    current_values[6] = self._get_rating_display(new_rating)  # Index 6 for new layout
                     
                     # Update the tree item
                     self.tree.item(tree_item, values=current_values)
@@ -613,6 +620,156 @@ class CollectionPage:
                 "Explorer Error",
                 f"Could not open file explorer for '{hack_title}'.\n\n"
                 f"File path: {file_path}"
+            )
+    
+    def _get_play_icon(self, hack):
+        """Get play icon if emulator is configured and file exists"""
+        from config_manager import ConfigManager
+        config = ConfigManager()
+        emulator_path = config.get("emulator_path", "")
+        
+        # Only show play icon if emulator is configured and file exists
+        file_path = hack.get("file_path", "")
+        if emulator_path and file_path and os.path.exists(file_path):
+            return "▶"
+        return ""
+    
+    def _convert_app_to_executable(self, app_path):
+        """Convert macOS .app bundle path to actual executable path"""
+        # Extract app name from path
+        app_name = os.path.basename(app_path).replace(".app", "")
+        
+        # Standard macOS app structure: AppName.app/Contents/MacOS/AppName
+        executable_path = os.path.join(app_path, "Contents", "MacOS", app_name)
+        
+        # Check if the standard executable exists
+        if os.path.exists(executable_path):
+            self._log(f"Converted .app bundle to executable: {executable_path}", "Debug")
+            return executable_path
+        
+        # Fallback: Try to find any executable in Contents/MacOS/
+        macos_dir = os.path.join(app_path, "Contents", "MacOS")
+        if os.path.exists(macos_dir):
+            for file in os.listdir(macos_dir):
+                file_path = os.path.join(macos_dir, file)
+                if os.path.isfile(file_path) and os.access(file_path, os.X_OK):
+                    self._log(f"Found executable in .app bundle: {file_path}", "Debug")
+                    return file_path
+        
+        # If no executable found, return original path with warning
+        self._log(f"Could not find executable in .app bundle, using bundle path", "Warning")
+        return app_path
+    
+    def _launch_emulator(self, hack_id):
+        """Launch the emulator with the ROM file"""
+        from config_manager import ConfigManager
+        import subprocess
+        import shlex
+        
+        hack_data = self._find_hack_data(hack_id)
+        if not hack_data:
+            return
+        
+        file_path = hack_data.get("file_path", "")
+        hack_title = hack_data.get("title", "Unknown")
+        
+        # Check if file exists
+        if not file_path or not os.path.exists(file_path):
+            self._log(f"⚠️ Cannot launch '{hack_title}' - file not found", "Warning")
+            messagebox.showwarning(
+                "File Not Found",
+                f"The ROM file for '{hack_title}' could not be found:\n\n"
+                f"{file_path}\n\n"
+                f"The file may have been moved or deleted."
+            )
+            return
+        
+        # Load emulator configuration
+        config = ConfigManager()
+        emulator_path = config.get("emulator_path", "")
+        emulator_args = config.get("emulator_args", "")
+        emulator_args_enabled = config.get("emulator_args_enabled", False)
+        
+        # macOS: Convert .app bundle to executable if needed
+        if platform.system() == "Darwin" and emulator_path.endswith(".app"):
+            emulator_path = self._convert_app_to_executable(emulator_path)
+        
+        if not emulator_path:
+            self._log("⚠️ No emulator configured", "Warning")
+            messagebox.showwarning(
+                "No Emulator Configured",
+                "Please configure an emulator in Settings before launching games."
+            )
+            return
+        
+        if not os.path.exists(emulator_path):
+            self._log(f"⚠️ Emulator not found: {emulator_path}", "Warning")
+            messagebox.showwarning(
+                "Emulator Not Found",
+                f"The configured emulator could not be found:\n\n"
+                f"{emulator_path}\n\n"
+                f"Please check your emulator settings."
+            )
+            return
+        
+        try:
+            # Build command
+            command = [emulator_path]
+            
+            # Check if arguments contain %1 placeholder
+            rom_added = False
+            
+            # Add arguments if specified and enabled
+            if emulator_args_enabled and emulator_args:
+                # Check if %1 placeholder is used
+                if "%1" in emulator_args:
+                    # Replace %1 with ROM path
+                    args_with_rom = emulator_args.replace("%1", file_path)
+                    
+                    # Parse arguments - use Windows-compatible method
+                    if platform.system() == "Windows":
+                        # Import subprocess which has proper Windows argument parsing
+                        import subprocess
+                        # Use list2cmdline and then parse back for proper handling
+                        # Actually, just use a simple regex-based parser that respects quotes
+                        import re
+                        # Split by spaces but keep quoted strings together
+                        parts = re.findall(r'(?:[^\s"]|"(?:\\.|[^"])*")+', args_with_rom)
+                        # Remove quotes from quoted parts
+                        command.extend([p.strip('"') for p in parts])
+                    else:
+                        # Unix: use shlex for proper quote handling
+                        command.extend(shlex.split(args_with_rom))
+                    
+                    rom_added = True
+                else:
+                    # No placeholder - just add arguments
+                    if platform.system() == "Windows":
+                        import re
+                        parts = re.findall(r'(?:[^\s"]|"(?:\\.|[^"])*")+', emulator_args)
+                        command.extend([p.strip('"') for p in parts])
+                    else:
+                        command.extend(shlex.split(emulator_args))
+            
+            # Add ROM file as last argument only if not already added via %1
+            if not rom_added:
+                command.append(file_path)
+            
+            # Launch emulator
+            if platform.system() == "Windows":
+                # Windows: use CREATE_NO_WINDOW to hide console
+                subprocess.Popen(command, creationflags=subprocess.CREATE_NO_WINDOW)
+            else:
+                # Unix: standard Popen
+                subprocess.Popen(command)
+            
+            self._log(f"🎮 Launched '{hack_title}' with emulator", "Information")
+            
+        except Exception as e:
+            self._log(f"❌ Failed to launch emulator: {str(e)}", "Error")
+            messagebox.showerror(
+                "Launch Failed",
+                f"Failed to launch emulator:\n\n{str(e)}"
             )
     
     def _find_hack_data(self, hack_id_str):
