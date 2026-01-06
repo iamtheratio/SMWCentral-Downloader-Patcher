@@ -223,6 +223,9 @@ class CollectionPage:
     
     def _refresh_table(self):
         """Refresh table data with pagination and sorting"""
+        # Refresh cached emulator path in case settings changed
+        self._emulator_path = self.config_manager.get("emulator_path", "")
+        
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
