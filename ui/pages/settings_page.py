@@ -282,7 +282,7 @@ class SettingsPage:
             text="SMWCentral occasionally renames difficulty categories (e.g., 'Skilled' → 'Intermediate'). "
                  "This tool automatically detects when your downloaded hacks have outdated difficulty names, "
                  "backfills missing difficulty IDs for old hacks, and helps you update your folders and files"
-                 "to match the current categories.",
+                 " to match the current categories.",
             style="Custom.TLabel",
             wraplength=428
         ).pack(anchor="w", pady=(0, 10))
