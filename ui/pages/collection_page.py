@@ -678,7 +678,8 @@ class CollectionPage:
         
         if platform.system() == "Windows":
             # Windows: Split by spaces but keep quoted strings together
-            parts = re.findall(r'(?:[^\s"]|"(?:\\.|[^"])*")+', args_string)
+            # Use a more efficient regex pattern to avoid ReDoS vulnerability
+            parts = re.findall(r'[^\s"]+|"[^"]*"', args_string)
             # Remove quotes from quoted parts
             return [p.strip('"') for p in parts]
         else:
