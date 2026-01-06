@@ -244,13 +244,6 @@ If clicking the play icon doesn't work:
 
 ### v4.7.0
 
-</details>
-
-<details>
-<summary><strong>Previous Versions</strong></summary>
-
-### v4.7.0
-
 ### 🔧 Improvements
 - **Enhanced Download Selection**: Click anywhere on a search result row to select/deselect hacks for download
 - **Improved Filter Layout**: Responsive filter sections work better when window is maximized
