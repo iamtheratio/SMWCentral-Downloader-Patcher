@@ -3,6 +3,9 @@ from tkinter import ttk, messagebox
 import sys
 import os
 import platform
+import subprocess
+import shlex
+import re
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from hack_data_manager import HackDataManager
@@ -673,9 +676,6 @@ class CollectionPage:
         Returns:
             List of parsed argument strings
         """
-        import shlex
-        import re
-        
         if platform.system() == "Windows":
             # Windows: Split by spaces but keep quoted strings together
             # Use a more efficient regex pattern to avoid ReDoS vulnerability
@@ -688,9 +688,6 @@ class CollectionPage:
     
     def _launch_emulator(self, hack_id):
         """Launch the emulator with the ROM file"""
-        import subprocess
-        import shlex
-        
         hack_data = self._find_hack_data(hack_id)
         if not hack_data:
             return
