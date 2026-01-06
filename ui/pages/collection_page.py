@@ -729,8 +729,6 @@ class CollectionPage:
                     # Parse arguments - use Windows-compatible method
                     if platform.system() == "Windows":
                         # Import subprocess which has proper Windows argument parsing
-                        # Use list2cmdline and then parse back for proper handling
-                        # Actually, just use a simple regex-based parser that respects quotes
                         import re
                         # Split by spaces but keep quoted strings together
                         parts = re.findall(r'(?:[^\s"]|"(?:\\.|[^"])*")+', args_with_rom)
