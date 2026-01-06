@@ -664,6 +664,27 @@ class CollectionPage:
         self._log(f"Could not find executable in .app bundle, using bundle path", "Warning")
         return app_path
     
+    def _parse_emulator_args(self, args_string):
+        """Parse emulator arguments string into a list, handling platform-specific quoting.
+        
+        Args:
+            args_string: String containing emulator arguments
+            
+        Returns:
+            List of parsed argument strings
+        """
+        import shlex
+        
+        if platform.system() == "Windows":
+            # Windows: Split by spaces but keep quoted strings together
+            import re
+            parts = re.findall(r'(?:[^\s"]|"(?:\\.|[^"])*")+', args_string)
+            # Remove quotes from quoted parts
+            return [p.strip('"') for p in parts]
+        else:
+            # Unix: use shlex for proper quote handling
+            return shlex.split(args_string)
+    
     def _launch_emulator(self, hack_id):
         """Launch the emulator with the ROM file"""
         import subprocess
@@ -727,28 +748,12 @@ class CollectionPage:
                 if "%1" in emulator_args:
                     # Replace %1 with ROM path
                     args_with_rom = emulator_args.replace("%1", file_path)
-                    
-                    # Parse arguments - use Windows-compatible method
-                    if platform.system() == "Windows":
-                        # Import subprocess which has proper Windows argument parsing
-                        import re
-                        # Split by spaces but keep quoted strings together
-                        parts = re.findall(r'(?:[^\s"]|"(?:\\.|[^"])*")+', args_with_rom)
-                        # Remove quotes from quoted parts
-                        command.extend([p.strip('"') for p in parts])
-                    else:
-                        # Unix: use shlex for proper quote handling
-                        command.extend(shlex.split(args_with_rom))
-                    
+                    # Parse arguments using helper method
+                    command.extend(self._parse_emulator_args(args_with_rom))
                     rom_added = True
                 else:
                     # No placeholder - just add arguments
-                    if platform.system() == "Windows":
-                        import re
-                        parts = re.findall(r'(?:[^\s"]|"(?:\\.|[^"])*")+', emulator_args)
-                        command.extend([p.strip('"') for p in parts])
-                    else:
-                        command.extend(shlex.split(emulator_args))
+                    command.extend(self._parse_emulator_args(emulator_args))
             
             # Add ROM file as last argument only if not already added via %1
             if not rom_added:
