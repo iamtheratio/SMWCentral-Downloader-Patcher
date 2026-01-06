@@ -725,6 +725,17 @@ class CollectionPage:
             )
             return
         
+        # Security: Normalize path first to prevent bypassing validation
+        emulator_path = os.path.normpath(emulator_path)
+        if not os.path.isabs(emulator_path):
+            self._log(f"⚠️ Emulator path must be absolute: {emulator_path}", "Warning")
+            messagebox.showwarning(
+                "Invalid Emulator Path",
+                f"The configured emulator path must be an absolute path.\n\n"
+                f"Please configure a valid emulator path in Settings."
+            )
+            return
+        
         # Security: Check if file is executable
         if platform.system() == "Windows":
             # Windows: Validate file has an executable extension
@@ -752,24 +763,15 @@ class CollectionPage:
         
         # Security: Validate emulator path doesn't contain dangerous shell metacharacters
         # This prevents paths like "/bin/sh;malicious" or "cmd.exe|evil"
-        # Note: We allow spaces and normal path characters, only blocking shell operators
-        dangerous_chars = [';', '|', '&', '`', '\n', '\r', '$']
+        # Note: We allow spaces and normal path characters like (), {}, [], *, ? which may appear
+        # in legitimate Windows paths (e.g., "Program Files (x86)"). Since we use shell=False,
+        # these won't be interpreted as shell metacharacters.
+        dangerous_chars = [';', '|', '&', '>', '<', '`', '\n', '\r', '$']
         if any(char in emulator_path for char in dangerous_chars):
             self._log(f"⚠️ Emulator path contains invalid characters: {emulator_path}", "Warning")
             messagebox.showwarning(
                 "Invalid Emulator Path",
                 f"The configured emulator path contains invalid characters.\n\n"
-                f"Please configure a valid emulator path in Settings."
-            )
-            return
-        
-        # Security: Normalize path and ensure it's an absolute path to prevent path traversal
-        emulator_path = os.path.normpath(emulator_path)
-        if not os.path.isabs(emulator_path):
-            self._log(f"⚠️ Emulator path must be absolute: {emulator_path}", "Warning")
-            messagebox.showwarning(
-                "Invalid Emulator Path",
-                f"The configured emulator path must be an absolute path.\n\n"
                 f"Please configure a valid emulator path in Settings."
             )
             return
