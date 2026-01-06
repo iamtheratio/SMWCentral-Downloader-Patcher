@@ -154,8 +154,8 @@ class CollectionPage:
         
         # Configure headers and columns - Added play icon column
         headers = ["✓", "▶", get_file_icon_unicode(), "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
-        widths = [45, 35, 35, 220, 90, 100, 90, 110, 120, 150]
-        min_widths = [35, 25, 25, 170, 70, 80, 70, 90, 100, 120]
+        widths = [45, 35, 35, 220, 90, 100, 90, 110, 120, 120]
+        min_widths = [35, 25, 25, 170, 70, 80, 70, 90, 100, 90]
         anchors = ["center", "center", "center", "w", "center", "center", "center", "center", "center", "w"]
         
         for i, (col, header, width, min_width, anchor) in enumerate(zip(columns, headers, widths, min_widths, anchors)):
