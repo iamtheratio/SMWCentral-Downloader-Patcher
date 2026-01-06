@@ -674,10 +674,10 @@ class CollectionPage:
             List of parsed argument strings
         """
         import shlex
+        import re
         
         if platform.system() == "Windows":
             # Windows: Split by spaces but keep quoted strings together
-            import re
             parts = re.findall(r'(?:[^\s"]|"(?:\\.|[^"])*")+', args_string)
             # Remove quotes from quoted parts
             return [p.strip('"') for p in parts]
