@@ -725,8 +725,21 @@ class CollectionPage:
             )
             return
         
-        # Security: Check if file is executable (Unix/macOS only - Windows uses file extensions)
-        if platform.system() != "Windows":
+        # Security: Check if file is executable
+        if platform.system() == "Windows":
+            # Windows: Validate file has an executable extension
+            valid_extensions = ('.exe', '.bat', '.cmd', '.com')
+            if not emulator_path.lower().endswith(valid_extensions):
+                self._log(f"⚠️ Emulator is not a valid executable: {emulator_path}", "Warning")
+                messagebox.showwarning(
+                    "Invalid Emulator",
+                    f"The configured emulator must be a valid executable file (.exe, .bat, .cmd, or .com):\n\n"
+                    f"{emulator_path}\n\n"
+                    f"Please configure a valid emulator in Settings."
+                )
+                return
+        else:
+            # Unix/macOS: Check if file is executable
             if not os.access(emulator_path, os.X_OK):
                 self._log(f"⚠️ Emulator is not executable: {emulator_path}", "Warning")
                 messagebox.showwarning(
@@ -737,14 +750,26 @@ class CollectionPage:
                 )
                 return
         
-        # Security: Validate emulator path doesn't contain shell metacharacters that could be used for injection
-        # This prevents paths like "/bin/sh -c malicious_command" or "cmd.exe /c evil"
-        dangerous_chars = [';', '|', '&', '>', '<', '`', '$', '\n', '\r']
+        # Security: Validate emulator path doesn't contain dangerous shell metacharacters
+        # This prevents paths like "/bin/sh;malicious" or "cmd.exe|evil"
+        # Note: We allow spaces and normal path characters, only blocking shell operators
+        dangerous_chars = [';', '|', '&', '`', '\n', '\r', '$']
         if any(char in emulator_path for char in dangerous_chars):
             self._log(f"⚠️ Emulator path contains invalid characters: {emulator_path}", "Warning")
             messagebox.showwarning(
                 "Invalid Emulator Path",
                 f"The configured emulator path contains invalid characters.\n\n"
+                f"Please configure a valid emulator path in Settings."
+            )
+            return
+        
+        # Security: Normalize path and ensure it's an absolute path to prevent path traversal
+        emulator_path = os.path.normpath(emulator_path)
+        if not os.path.isabs(emulator_path):
+            self._log(f"⚠️ Emulator path must be absolute: {emulator_path}", "Warning")
+            messagebox.showwarning(
+                "Invalid Emulator Path",
+                f"The configured emulator path must be an absolute path.\n\n"
                 f"Please configure a valid emulator path in Settings."
             )
             return
