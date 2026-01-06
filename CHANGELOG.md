@@ -59,7 +59,6 @@ All notable changes to SMWC Downloader & Patcher will be documented in this file
 - Collection page Type filter now correctly finds multi-type hacks (e.g., searching "Puzzle" finds "Standard, Puzzle")
 - Collection page difficulty filter now works correctly with new data model
 - Removed obsolete difficulty field sync that was causing false migration warnings
-- Removed obsolete difficulty field sync that was causing false migration warnings
 
 ### Technical
 - New `difficulty_lookup_manager.py` module for fetching difficulty mappings from SMWC API
