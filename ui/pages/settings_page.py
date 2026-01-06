@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import threading
 import sys
 import os
+import platform
 
 # Add path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
