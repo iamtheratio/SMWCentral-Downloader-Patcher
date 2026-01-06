@@ -257,7 +257,7 @@ class SettingsPage:
             emulator_frame,
             text="Use %1 as a placeholder for the ROM file path, or leave it out to append the ROM at the end.\n"
                  "Examples:\n"
-                 "  • RetroArch: -L cores\\snes9x_libretro.dll \"%1\"\n"
+                 "  • RetroArch: -L cores/snes9x_libretro.dll \"%1\"\n"
                  "  • Snes9x: --fullscreen (ROM will be added automatically)",
             style="Custom.TLabel",
             font=("Segoe UI", 8),
