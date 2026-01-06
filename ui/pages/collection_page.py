@@ -714,6 +714,41 @@ class CollectionPage:
             )
             return
         
+        # Security: Validate emulator path points to an actual file (not a directory)
+        if not os.path.isfile(emulator_path):
+            self._log(f"⚠️ Emulator path is not a file: {emulator_path}", "Warning")
+            messagebox.showwarning(
+                "Invalid Emulator",
+                f"The configured emulator path is not a valid file:\n\n"
+                f"{emulator_path}\n\n"
+                f"Please configure a valid emulator executable in Settings."
+            )
+            return
+        
+        # Security: Check if file is executable (Unix/macOS only - Windows uses file extensions)
+        if platform.system() != "Windows":
+            if not os.access(emulator_path, os.X_OK):
+                self._log(f"⚠️ Emulator is not executable: {emulator_path}", "Warning")
+                messagebox.showwarning(
+                    "Emulator Not Executable",
+                    f"The configured emulator is not executable:\n\n"
+                    f"{emulator_path}\n\n"
+                    f"Please check file permissions or configure a valid emulator."
+                )
+                return
+        
+        # Security: Validate emulator path doesn't contain shell metacharacters that could be used for injection
+        # This prevents paths like "/bin/sh -c malicious_command" or "cmd.exe /c evil"
+        dangerous_chars = [';', '|', '&', '>', '<', '`', '$', '\n', '\r']
+        if any(char in emulator_path for char in dangerous_chars):
+            self._log(f"⚠️ Emulator path contains invalid characters: {emulator_path}", "Warning")
+            messagebox.showwarning(
+                "Invalid Emulator Path",
+                f"The configured emulator path contains invalid characters.\n\n"
+                f"Please configure a valid emulator path in Settings."
+            )
+            return
+        
         try:
             # Build command
             command = [emulator_path]
@@ -755,12 +790,13 @@ class CollectionPage:
                 command.append(file_path)
             
             # Launch emulator
+            # Security: Explicitly use shell=False to prevent shell injection attacks
             if platform.system() == "Windows":
-                # Windows: use CREATE_NO_WINDOW to hide console
-                subprocess.Popen(command, creationflags=subprocess.CREATE_NO_WINDOW)
+                # Windows: use CREATE_NO_WINDOW to hide console and shell=False for security
+                subprocess.Popen(command, shell=False, creationflags=subprocess.CREATE_NO_WINDOW)
             else:
-                # Unix: standard Popen
-                subprocess.Popen(command)
+                # Unix: standard Popen with shell=False for security
+                subprocess.Popen(command, shell=False)
             
             self._log(f"🎮 Launched '{hack_title}' with emulator", "Information")
             
