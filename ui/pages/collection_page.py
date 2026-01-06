@@ -10,6 +10,7 @@ from ui.collection_components import InlineEditor, DateValidator, NotesValidator
 from ui.components.table_filters import TableFilters
 from ui_constants import get_page_padding, get_section_padding
 from file_explorer_utils import open_file_in_explorer, get_file_icon_unicode
+from config_manager import ConfigManager
 
 # Platform-specific cursor
 HOVER_CURSOR = "pointinghand" if platform.system() == "Darwin" else "hand2"
@@ -51,6 +52,10 @@ class CollectionPage:
         self.tree = None
         self.filtered_data = []
         self.status_label = None
+        
+        # Cache ConfigManager instance to avoid recreating it for every row
+        self.config_manager = ConfigManager()
+        self._emulator_path = self.config_manager.get("emulator_path", "")
     
     def _log(self, message, level="Information"):
         """Log a message if logger is available"""
@@ -218,6 +223,9 @@ class CollectionPage:
     
     def _refresh_table(self):
         """Refresh table data with pagination and sorting"""
+        # Refresh cached emulator path in case settings changed
+        self._emulator_path = self.config_manager.get("emulator_path", "")
+        
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -624,13 +632,9 @@ class CollectionPage:
     
     def _get_play_icon(self, hack):
         """Get play icon if emulator is configured and file exists"""
-        from config_manager import ConfigManager
-        config = ConfigManager()
-        emulator_path = config.get("emulator_path", "")
-        
         # Only show play icon if emulator is configured and file exists
         file_path = hack.get("file_path", "")
-        if emulator_path and file_path and os.path.exists(file_path):
+        if self._emulator_path and file_path and os.path.exists(file_path):
             return "▶"
         return ""
     
@@ -662,7 +666,6 @@ class CollectionPage:
     
     def _launch_emulator(self, hack_id):
         """Launch the emulator with the ROM file"""
-        from config_manager import ConfigManager
         import subprocess
         import shlex
         
@@ -684,11 +687,10 @@ class CollectionPage:
             )
             return
         
-        # Load emulator configuration
-        config = ConfigManager()
-        emulator_path = config.get("emulator_path", "")
-        emulator_args = config.get("emulator_args", "")
-        emulator_args_enabled = config.get("emulator_args_enabled", False)
+        # Load emulator configuration from cached instance
+        emulator_path = self.config_manager.get("emulator_path", "")
+        emulator_args = self.config_manager.get("emulator_args", "")
+        emulator_args_enabled = self.config_manager.get("emulator_args_enabled", False)
         
         # macOS: Convert .app bundle to executable if needed
         if platform.system() == "Darwin" and emulator_path.endswith(".app"):
