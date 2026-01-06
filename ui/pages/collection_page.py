@@ -729,7 +729,6 @@ class CollectionPage:
                     # Parse arguments - use Windows-compatible method
                     if platform.system() == "Windows":
                         # Import subprocess which has proper Windows argument parsing
-                        import subprocess
                         # Use list2cmdline and then parse back for proper handling
                         # Actually, just use a simple regex-based parser that respects quotes
                         import re
