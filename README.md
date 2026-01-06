@@ -200,9 +200,9 @@ If clicking the play icon doesn't work:
 ##  Changelog
 
 <details>
-<summary><strong>Version 4.9 - Latest Release</strong></summary>
+<summary><strong>Version 4.8 - Latest Release</strong></summary>
 
-### v4.9.0
+### v4.8.0
 
 ### 🆕 New Features
 - **Emulator Integration**: Launch ROMs directly from the Collection page with one click
@@ -213,20 +213,6 @@ If clicking the play icon doesn't work:
 - **macOS .app Bundle Support**: Automatic conversion of `.app` bundles to executable paths
   - Select `Snes9x.app` and the app automatically finds `Snes9x.app/Contents/MacOS/Snes9x`
   - Works with all standard macOS application bundles
-
-### 🔧 Improvements
-- Settings page layout optimized: Emulator and Difficulty Migration sections now side-by-side for better space utilization
-- Enhanced log section with more vertical space
-- Improved cross-platform emulator path handling
-
-</details>
-
-<details>
-<summary><strong>Previous Versions</strong></summary>
-
-### v4.8.0
-
-### 🆕 New Features
 - **Live Difficulty Mapping from SMWC API**: Automatically fetches current difficulty categories from SMWC on app startup
   - Difficulty mappings cached in config.json for offline use
   - Ensures app always uses latest SMWC difficulty names without code updates
@@ -239,6 +225,9 @@ If clicking the play icon doesn't work:
   - Silent migration - no user intervention needed
 
 ### 🔧 Improvements
+- Settings page layout optimized: Emulator and Difficulty Migration sections now side-by-side for better space utilization
+- Enhanced log section with more vertical space
+- Improved cross-platform emulator path handling
 - Updated difficulty category from "Skilled" to "Intermediate" to match SMWC
 - Collection page Type filter now correctly finds multi-type hacks
 - Difficulty data model consolidated for better performance
@@ -247,6 +236,13 @@ If clicking the play icon doesn't work:
 - Fixed Type filter not finding multi-type hacks (e.g., searching "Puzzle" now finds "Standard, Puzzle")
 - Fixed Collection page difficulty filter with new data model
 - Removed false migration warnings
+
+</details>
+
+<details>
+<summary><strong>Previous Versions</strong></summary>
+
+### v4.7.0
 
 </details>
 

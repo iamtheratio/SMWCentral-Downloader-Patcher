@@ -1,6 +1,6 @@
 {
-  "base_rom_path": "D:/Games/Kaizo/smwOrig.smc",
-  "output_dir": "D:/Games/Kaizo/Games/Kaizo/Kaizo",
+  "base_rom_path": "",
+  "output_dir": "",
   "api_delay": 0.8,
   "multi_type_enabled": true,
   "multi_type_download_mode": "primary_only",
@@ -23,7 +23,7 @@
   "qusb2snes_sync_progress": {},
   "qusb2snes_partial_sync": false,
   "qusb2snes_cleanup_deleted": false,
-  "emulator_path": "D:\\Games\\RetroArch\\retroarch.exe",
-  "emulator_args": "-L D:\\Games\\RetroArch\\cores\\snes9x_libretro.dll \"%1\"",
-  "emulator_args_enabled": true
+  "emulator_path": "",
+  "emulator_args": "",
+  "emulator_args_enabled": false
 }

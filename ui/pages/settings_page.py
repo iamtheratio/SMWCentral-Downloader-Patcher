@@ -279,12 +279,12 @@ class SettingsPage:
         
         ttk.Label(
             migration_frame,
-            text="SMWCentral occasionally renames difficulty categories (e.g., 'Skilled' → 'Intermediate').\n"
-                 "This tool automatically detects when your downloaded hacks have outdated difficulty names,\n"
-                 "backfills missing difficulty IDs for old hacks, and helps you update your folders and files\n"
+            text="SMWCentral occasionally renames difficulty categories (e.g., 'Skilled' → 'Intermediate'). "
+                 "This tool automatically detects when your downloaded hacks have outdated difficulty names, "
+                 "backfills missing difficulty IDs for old hacks, and helps you update your folders and files"
                  "to match the current categories.",
             style="Custom.TLabel",
-            wraplength=700
+            wraplength=428
         ).pack(anchor="w", pady=(0, 10))
         
         # Status label
