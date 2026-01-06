@@ -680,8 +680,8 @@ class CollectionPage:
             # Windows: Split by spaces but keep quoted strings together
             # Use a more efficient regex pattern to avoid ReDoS vulnerability
             parts = re.findall(r'[^\s"]+|"[^"]*"', args_string)
-            # Remove quotes from quoted parts
-            return [p.strip('"') for p in parts]
+            # Remove quotes only from fully-quoted strings
+            return [p[1:-1] if p.startswith('"') and p.endswith('"') else p for p in parts]
         else:
             # Unix: use shlex for proper quote handling
             return shlex.split(args_string)
