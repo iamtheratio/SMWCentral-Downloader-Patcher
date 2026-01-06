@@ -514,7 +514,7 @@ class CollectionPage:
                     current_values[0] = "✓" if new_completed else ""
                     
                     # Update completion date if it changed (shifted by play+folder columns)
-                    current_values[8] = hack_data.get("completed_date", "")  # Index 8 for new layout
+                    current_values[7] = hack_data.get("completed_date", "")  # Index 7 for completed_date
                     
                     # Update the tree item
                     self.tree.item(item, values=current_values)
