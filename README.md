@@ -130,7 +130,7 @@ The app supports launching ROMs directly in your favorite emulator with one clic
 
 **RetroArch:**
 ```
--L cores\snes9x_libretro.dll "%1"
+-L cores/snes9x_libretro.dll "%1"
 ```
 Or on Linux/Mac:
 ```
