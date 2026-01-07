@@ -809,8 +809,21 @@ class SettingsPage:
             # Notify callback if registered (e.g., collection page to refresh cache)
             if self.emulator_settings_callback:
                 if self.logger:
-                    self.logger.log(f"🔔 Calling emulator settings callback to refresh collection cache...", "Debug")
-                self.emulator_settings_callback()
+                    self.logger.log(
+                        "🔔 Calling emulator settings callback to refresh collection cache...",
+                        "Debug",
+                    )
+                try:
+                    self.emulator_settings_callback()
+                except Exception as callback_error:
+                    # Ensure that a failing callback does not break the save flow
+                    if self.logger:
+                        self.logger.log(
+                            f"Error while running emulator settings callback: {callback_error}",
+                            "Error",
+                        )
+                    else:
+                        print(f"Error while running emulator settings callback: {callback_error}")
             else:
                 if self.logger:
                     self.logger.log(f"⚠️ No emulator settings callback registered!", "Debug")
