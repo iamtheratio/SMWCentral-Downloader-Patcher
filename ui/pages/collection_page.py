@@ -56,9 +56,23 @@ class CollectionPage:
         self.filtered_data = []
         self.status_label = None
         
-        # Cache ConfigManager instance to avoid recreating it for every row
+        # Cache ConfigManager instance and emulator path for performance
         self.config_manager = ConfigManager()
         self._emulator_path = self.config_manager.get("emulator_path", "")
+    
+    def refresh_emulator_cache(self):
+        """Refresh cached emulator settings - called when settings change"""
+        old_path = self._emulator_path
+        # Create NEW ConfigManager instance to reload config from disk
+        self.config_manager = ConfigManager()
+        self._emulator_path = self.config_manager.get("emulator_path", "")
+        self._log(f"🔄 Emulator cache refreshed: '{old_path}' -> '{self._emulator_path}'", "Debug")
+        # Refresh table to update play icons
+        if self.tree:
+            self._log("🔄 Refreshing collection table to update play icons...", "Debug")
+            self._refresh_table()
+        else:
+            self._log("⚠️ Tree not initialized yet, skipping table refresh", "Debug")
     
     def _log(self, message, level="Information"):
         """Log a message if logger is available"""
@@ -226,9 +240,6 @@ class CollectionPage:
     
     def _refresh_table(self):
         """Refresh table data with pagination and sorting"""
-        # Refresh cached emulator path in case settings changed
-        self._emulator_path = self.config_manager.get("emulator_path", "")
-        
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -636,6 +647,7 @@ class CollectionPage:
     def _get_play_icon(self, hack):
         """Get play icon if emulator is configured and file exists"""
         # Only show play icon if emulator is configured and file exists
+        # Use cached emulator path for performance
         file_path = hack.get("file_path", "")
         if self._emulator_path and file_path and os.path.exists(file_path):
             return "▶"
