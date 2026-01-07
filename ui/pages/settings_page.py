@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import threading
 import sys
 import os
+import platform
 
 # Add path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -208,18 +209,84 @@ class SettingsPage:
         # Load auto-check setting
         self._load_auto_check_setting()
 
-        # Difficulty Migration Section
-        migration_frame = ttk.LabelFrame(self.frame, text="Difficulty Migration", padding=(15, 10))
-        migration_frame.pack(fill="x", pady=(5, 20))
+        # Second row: Emulator and Difficulty Migration side by side
+        second_row_frame = ttk.Frame(self.frame)
+        second_row_frame.pack(fill="x", pady=(5, 20))
+        
+        # Emulator Configuration Section (left side)
+        emulator_frame = ttk.LabelFrame(second_row_frame, text="Emulator Configuration", padding=(15, 10, 15, 15))
+        emulator_frame.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        
+        # Emulator path
+        emulator_path_frame = ttk.Frame(emulator_frame)
+        emulator_path_frame.pack(fill="x", pady=(0, 8))
+        
+        ttk.Label(emulator_path_frame, text="Emulator Path:", style="Custom.TLabel").pack(side="left", padx=(0, 10))
+        
+        self.emulator_path_entry = ttk.Entry(emulator_path_frame, width=50)
+        self.emulator_path_entry.pack(side="left", fill="x", expand=True, padx=(0, 10))
+        
+        ttk.Button(
+            emulator_path_frame,
+            text="Browse",
+            command=self._browse_emulator,
+            style="Custom.TButton"
+        ).pack(side="left")
+        
+        # Emulator arguments checkbox
+        self.emulator_args_enabled_var = tk.BooleanVar()
+        self.emulator_args_checkbox = ttk.Checkbutton(
+            emulator_frame,
+            text="Use Custom Command Line Arguments",
+            variable=self.emulator_args_enabled_var,
+            style="Custom.TCheckbutton",
+            command=self._on_emulator_args_toggle
+        )
+        self.emulator_args_checkbox.pack(anchor="w", pady=(0, 8))
+        
+        # Emulator arguments
+        emulator_args_frame = ttk.Frame(emulator_frame)
+        emulator_args_frame.pack(fill="x", pady=(0, 8))
+        
+        ttk.Label(emulator_args_frame, text="Command Line Arguments:", style="Custom.TLabel").pack(side="left", padx=(0, 10))
+        
+        self.emulator_args_entry = ttk.Entry(emulator_args_frame, width=50)
+        self.emulator_args_entry.pack(side="left", fill="x", expand=True)
+        
+        # Help text
+        help_text = ttk.Label(
+            emulator_frame,
+            text="Use %1 as a placeholder for the ROM file path, or leave it out to append the ROM at the end.\n"
+                 "Examples:\n"
+                     "  • RetroArch (Windows): -L cores/snes9x_libretro.dll \"%1\"\n"
+                     "  • RetroArch (macOS): -L ~/Library/Application Support/RetroArch/cores/snes9x_libretro.dylib \"%1\"\n"
+                 "  • Snes9x: --fullscreen (ROM will be added automatically)",
+            style="Custom.TLabel",
+            font=("Segoe UI", 8),
+            foreground="gray"
+        )
+        help_text.pack(anchor="w", pady=(0, 8))
+        
+        # Load emulator settings
+        self._load_emulator_settings()
+        
+        # Bind changes to save settings
+        self.emulator_path_entry.bind("<FocusOut>", self._save_emulator_settings)
+        self.emulator_args_entry.bind("<FocusOut>", self._save_emulator_settings)
+        self.emulator_args_entry.bind("<Return>", self._save_emulator_settings)
+
+        # Difficulty Migration Section (right side)
+        migration_frame = ttk.LabelFrame(second_row_frame, text="Difficulty Migration", padding=(15, 10))
+        migration_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
         
         ttk.Label(
             migration_frame,
-            text="SMWCentral occasionally renames difficulty categories (e.g., 'Skilled' → 'Intermediate').\n"
-                 "This tool automatically detects when your downloaded hacks have outdated difficulty names,\n"
-                 "backfills missing difficulty IDs for old hacks, and helps you update your folders and files\n"
-                 "to match the current categories.",
+            text="SMWCentral occasionally renames difficulty categories (e.g., 'Skilled' → 'Intermediate'). "
+                 "This tool automatically detects when your downloaded hacks have outdated difficulty names, "
+                 "backfills missing difficulty IDs for old hacks, and helps you update your folders and files"
+                 " to match the current categories.",
             style="Custom.TLabel",
-            wraplength=700
+            wraplength=428
         ).pack(anchor="w", pady=(0, 10))
         
         # Status label
@@ -617,3 +684,131 @@ class SettingsPage:
             
             if self.logger:
                 self.logger.log(f"Error applying difficulty migrations: {str(e)}", "Error")
+    def _browse_emulator(self):
+        """Browse for emulator executable"""
+        from tkinter import filedialog
+
+        try:
+            system = platform.system()
+
+            # Set up file types based on platform
+            if system == "Windows":
+                filetypes = [("Executable Files", "*.exe"), ("All Files", "*.*")]
+                initialdir = None
+            elif system == "Darwin":  # macOS
+                # Note: .app bundles are directories; depending on Tk/macOS version,
+                # they might not be selectable via askopenfilename. We'll fallback.
+                filetypes = [("Applications", "*.app"), ("All Files", "*")]
+                initialdir = "/Applications"
+            else:  # Linux
+                filetypes = [("All Files", "*")]
+                initialdir = None
+
+            filename = filedialog.askopenfilename(
+                title="Select Emulator",
+                filetypes=filetypes,
+                initialdir=initialdir,
+            )
+
+            # macOS fallback: allow selecting an .app bundle as a directory
+            if not filename and system == "Darwin":
+                bundle_dir = filedialog.askdirectory(
+                    title="Select Emulator (.app)",
+                    initialdir=initialdir,
+                    mustexist=True,
+                )
+                if bundle_dir and bundle_dir.endswith(".app"):
+                    filename = bundle_dir
+
+            if filename:
+                # macOS: Convert .app bundle to actual executable
+                if system == "Darwin" and filename.endswith(".app"):
+                    filename = self._convert_app_to_executable(filename)
+
+                self.emulator_path_entry.delete(0, tk.END)
+                self.emulator_path_entry.insert(0, filename)
+                self._save_emulator_settings()
+
+        except Exception as e:
+            if self.logger:
+                self.logger.log(f"Failed to browse for emulator: {e}", "Error")
+            messagebox.showerror("Browse Error", f"Failed to browse for emulator:\n\n{e}")
+    
+    def _convert_app_to_executable(self, app_path):
+        """Convert macOS .app bundle path to actual executable path"""
+        # Extract app name from path
+        app_name = os.path.basename(app_path).replace(".app", "")
+        
+        # Standard macOS app structure: AppName.app/Contents/MacOS/AppName
+        executable_path = os.path.join(app_path, "Contents", "MacOS", app_name)
+        
+        # Check if the standard executable exists
+        if os.path.exists(executable_path):
+            if self.logger:
+                self.logger.log(f"Converted .app bundle to executable: {executable_path}", "Information")
+            return executable_path
+        
+        # Fallback: Try to find any executable in Contents/MacOS/
+        macos_dir = os.path.join(app_path, "Contents", "MacOS")
+        if os.path.exists(macos_dir):
+            for file in os.listdir(macos_dir):
+                file_path = os.path.join(macos_dir, file)
+                if os.path.isfile(file_path) and os.access(file_path, os.X_OK):
+                    if self.logger:
+                        self.logger.log(f"Found executable in .app bundle: {file_path}", "Information")
+                    return file_path
+        
+        # If no executable found, return original path with warning
+        if self.logger:
+            self.logger.log(f"Could not find executable in .app bundle, using bundle path", "Warning")
+        return app_path
+    
+    def _load_emulator_settings(self):
+        """Load emulator settings from config"""
+        try:
+            config = self.setup_section.config
+            
+            emulator_path = config.get("emulator_path", "")
+            emulator_args = config.get("emulator_args", "")
+            emulator_args_enabled = config.get("emulator_args_enabled", False)
+            
+            self.emulator_path_entry.delete(0, tk.END)
+            self.emulator_path_entry.insert(0, emulator_path)
+            
+            self.emulator_args_entry.delete(0, tk.END)
+            self.emulator_args_entry.insert(0, emulator_args)
+            
+            self.emulator_args_enabled_var.set(emulator_args_enabled)
+            
+            # Update entry state based on checkbox
+            self._on_emulator_args_toggle()
+            
+        except Exception as e:
+            print(f"Error loading emulator settings: {e}")
+    
+    def _save_emulator_settings(self, event=None):
+        """Save emulator settings to config"""
+        try:
+            config = self.setup_section.config
+            
+            emulator_path = self.emulator_path_entry.get().strip()
+            emulator_args = self.emulator_args_entry.get().strip()
+            emulator_args_enabled = self.emulator_args_enabled_var.get()
+            
+            config.set("emulator_path", emulator_path)
+            config.set("emulator_args", emulator_args)
+            config.set("emulator_args_enabled", emulator_args_enabled)
+            config.save()
+            
+            if self.logger:
+                self.logger.log(f"Emulator settings saved", "Information")
+            
+        except Exception as e:
+            print(f"Error saving emulator settings: {e}")
+    
+    def _on_emulator_args_toggle(self):
+        """Handle toggle of emulator args checkbox"""
+        enabled = self.emulator_args_enabled_var.get()
+        state = "normal" if enabled else "disabled"
+        self.emulator_args_entry.config(state=state)
+        self._save_emulator_settings()

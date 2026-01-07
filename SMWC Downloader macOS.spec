@@ -1,5 +1,12 @@
 # -*- mode: python ; coding: utf-8 -*-
 # macOS-specific PyInstaller spec for SMWC Downloader
+
+import platform
+
+# Build a single-arch app matching the current machine (avoids universal2 issues when
+# the Python installation and/or extension modules are not fat/universal binaries).
+_machine = platform.machine()
+_target_arch = _machine if _machine in ("x86_64", "arm64") else None
 a = Analysis(
     ['main.py'],
     pathex=[],
@@ -30,7 +37,7 @@ exe = EXE(
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=True,
-    target_arch='universal2',
+    target_arch=_target_arch,
     codesign_identity=None,
     entitlements_file=None,
 )

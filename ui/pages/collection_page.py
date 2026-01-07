@@ -3,6 +3,9 @@ from tkinter import ttk, messagebox
 import sys
 import os
 import platform
+import subprocess
+import shlex
+import re
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from hack_data_manager import HackDataManager
@@ -10,6 +13,7 @@ from ui.collection_components import InlineEditor, DateValidator, NotesValidator
 from ui.components.table_filters import TableFilters
 from ui_constants import get_page_padding, get_section_padding
 from file_explorer_utils import open_file_in_explorer, get_file_icon_unicode
+from config_manager import ConfigManager
 
 # Platform-specific cursor
 HOVER_CURSOR = "pointinghand" if platform.system() == "Darwin" else "hand2"
@@ -51,6 +55,10 @@ class CollectionPage:
         self.tree = None
         self.filtered_data = []
         self.status_label = None
+        
+        # Cache ConfigManager instance to avoid recreating it for every row
+        self.config_manager = ConfigManager()
+        self._emulator_path = self.config_manager.get("emulator_path", "")
     
     def _log(self, message, level="Information"):
         """Log a message if logger is available"""
@@ -148,15 +156,15 @@ class CollectionPage:
         table_frame = ttk.Frame(self.frame)
         table_frame.pack(fill="both", expand=True)
         
-        # Create treeview with custom Collection style - Added folder column
-        columns = ("completed", "folder", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
+        # Create treeview with custom Collection style - Added play column
+        columns = ("completed", "play", "folder", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
         self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15, style="Collection.Treeview")
         
-        # Configure headers and columns - Added folder icon column
-        headers = ["✓", get_file_icon_unicode(), "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
-        widths = [45, 35, 220, 90, 100, 90, 110, 120, 150]
-        min_widths = [35, 25, 170, 70, 80, 70, 90, 100, 120]
-        anchors = ["center", "center", "w", "center", "center", "center", "center", "center", "w"]
+        # Configure headers and columns - Added play icon column
+        headers = ["✓", "▶", get_file_icon_unicode(), "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
+        widths = [45, 35, 35, 220, 90, 100, 90, 110, 120, 120]
+        min_widths = [35, 25, 25, 170, 70, 80, 70, 90, 100, 90]
+        anchors = ["center", "center", "center", "w", "center", "center", "center", "center", "center", "w"]
         
         for i, (col, header, width, min_width, anchor) in enumerate(zip(columns, headers, widths, min_widths, anchors)):
             self.tree.heading(col, text=header, command=lambda c=col: self._sort_by_column(c))
@@ -218,6 +226,9 @@ class CollectionPage:
     
     def _refresh_table(self):
         """Refresh table data with pagination and sorting"""
+        # Refresh cached emulator path in case settings changed
+        self._emulator_path = self.config_manager.get("emulator_path", "")
+        
         # Clear existing items
         for item in self.tree.get_children():
             self.tree.delete(item)
@@ -284,9 +295,13 @@ class CollectionPage:
         file_path = hack.get("file_path", "")
         folder_icon = get_file_icon_unicode() if file_path and os.path.exists(file_path) else ""
         
+        # Check if emulator is configured for play icon display
+        play_icon = self._get_play_icon(hack)
+        
         self.tree.insert("", "end", values=(
             completed_display,
-            folder_icon,  # NEW: Folder icon column
+            play_icon,  # NEW: Play icon column
+            folder_icon,  # Folder icon column
             hack["title"],
             type_display,  # Now shows multiple types if available
             hack.get("difficulty", "Unknown"),
@@ -355,16 +370,18 @@ class CollectionPage:
         # Handle different column clicks
         if column == "#1":  # Completed
             self._toggle_completed(hack_id)
-        elif column == "#2":  # Folder icon - NEW: Open file in explorer
+        elif column == "#2":  # Play icon - NEW: Launch emulator
+            self._launch_emulator(hack_id)
+        elif column == "#3":  # Folder icon - Open file in explorer
             self._open_hack_in_explorer(hack_id)
-        elif column == "#6":  # Rating (shifted due to new folder column)
+        elif column == "#7":  # Rating (shifted due to new play and folder columns)
             self._edit_rating(hack_id, item, event)
-        elif column == "#7":  # Completed date (shifted due to new folder column)
-            self.date_editor.start_edit(hack_id, item, event, "completed_date", "#7", DateValidator.validate)
-        elif column == "#8":  # Time to Beat (shifted due to new folder column)
-            self.time_editor.start_edit(hack_id, item, event, "time_to_beat", "#8", self._validate_time_input)
-        elif column == "#9":  # Notes (shifted due to new folder column)
-            self.notes_editor.start_edit(hack_id, item, event, "notes", "#9", NotesValidator.validate)
+        elif column == "#8":  # Completed date (shifted due to new play and folder columns)
+            self.date_editor.start_edit(hack_id, item, event, "completed_date", "#8", DateValidator.validate)
+        elif column == "#9":  # Time to Beat (shifted due to new play and folder columns)
+            self.time_editor.start_edit(hack_id, item, event, "time_to_beat", "#9", self._validate_time_input)
+        elif column == "#10":  # Notes (shifted due to new play and folder columns)
+            self.notes_editor.start_edit(hack_id, item, event, "notes", "#10", NotesValidator.validate)
     
     def _on_item_double_click(self, event):
         """Handle double click - show edit hack dialog"""
@@ -401,12 +418,12 @@ class CollectionPage:
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
-        # Updated column references for new folder column
-        if item and column in ["#1", "#2", "#6", "#7", "#8"]:  # Completed, Folder, Rating, Date, Time
+        # Updated column references for new play and folder columns
+        if item and column in ["#1", "#2", "#3", "#7", "#8", "#9"]:  # Completed, Play, Folder, Rating, Date, Time
             self.tree.config(cursor=HOVER_CURSOR)
             
             # ENHANCED: Show rating preview on hover
-            if column == "#6":  # Rating column (updated column number)
+            if column == "#7":  # Rating column (updated column number)
                 self._show_rating_preview(item, event)
         else:
             self.tree.config(cursor="")
@@ -423,7 +440,7 @@ class CollectionPage:
             return
             
         # Calculate which star would be selected (same logic as _edit_rating)
-        bbox = self.tree.bbox(item, "#5")
+        bbox = self.tree.bbox(item, "#7")  # Updated column number for play+folder columns
         if not bbox:
             return
             
@@ -496,8 +513,8 @@ class CollectionPage:
                     # Update completed checkbox
                     current_values[0] = "✓" if new_completed else ""
                     
-                    # Update completion date if it changed (shifted by folder column)
-                    current_values[6] = hack_data.get("completed_date", "")  # Was index 5, now 6
+                    # Update completion date if it changed (shifted by play+folder columns)
+                    current_values[7] = hack_data.get("completed_date", "")  # Index 7 for completed_date
                     
                     # Update the tree item
                     self.tree.item(item, values=current_values)
@@ -512,8 +529,8 @@ class CollectionPage:
         if not hack_data:
             return
         
-        # Get cell position (updated column reference)
-        bbox = self.tree.bbox(item, "#6")  # Was "#5", now "#6" due to folder column
+        # Get cell position (updated column reference for play+folder columns)
+        bbox = self.tree.bbox(item, "#7")  # Updated from "#6" due to play column
         if not bbox:
             return
         
@@ -561,7 +578,8 @@ class CollectionPage:
                     current_values = list(self.tree.item(tree_item)["values"])
                     
                     # Update rating display (shifted by folder column)
-                    current_values[5] = self._get_rating_display(new_rating)  # Was index 4, now 5
+                    # Update rating in the correct column (shifted by play column)
+                    current_values[6] = self._get_rating_display(new_rating)  # Index 6 for new layout
                     
                     # Update the tree item
                     self.tree.item(tree_item, values=current_values)
@@ -613,6 +631,289 @@ class CollectionPage:
                 "Explorer Error",
                 f"Could not open file explorer for '{hack_title}'.\n\n"
                 f"File path: {file_path}"
+            )
+    
+    def _get_play_icon(self, hack):
+        """Get play icon if emulator is configured and file exists"""
+        # Only show play icon if emulator is configured and file exists
+        file_path = hack.get("file_path", "")
+        if self._emulator_path and file_path and os.path.exists(file_path):
+            return "▶"
+        return ""
+    
+    def _convert_app_to_executable(self, app_path):
+        """Convert macOS .app bundle path to actual executable path"""
+        # Extract app name from path
+        app_name = os.path.basename(app_path).replace(".app", "")
+        
+        # Standard macOS app structure: AppName.app/Contents/MacOS/AppName
+        executable_path = os.path.join(app_path, "Contents", "MacOS", app_name)
+        
+        # Check if the standard executable exists
+        if os.path.exists(executable_path):
+            self._log(f"Converted .app bundle to executable: {executable_path}", "Debug")
+            return executable_path
+        
+        # Fallback: Try to find any executable in Contents/MacOS/
+        macos_dir = os.path.join(app_path, "Contents", "MacOS")
+        if os.path.exists(macos_dir):
+            for file in os.listdir(macos_dir):
+                file_path = os.path.join(macos_dir, file)
+                if os.path.isfile(file_path) and os.access(file_path, os.X_OK):
+                    self._log(f"Found executable in .app bundle: {file_path}", "Debug")
+                    return file_path
+        
+        # If no executable found, return original path with warning
+        self._log(f"Could not find executable in .app bundle, using bundle path", "Warning")
+        return app_path
+    
+    def _parse_emulator_args(self, args_string):
+        """Parse emulator arguments string into a list, handling platform-specific quoting.
+        
+        Args:
+            args_string: String containing emulator arguments
+            
+        Returns:
+            List of parsed argument strings
+        """
+        if platform.system() == "Windows":
+            # Windows: Split by spaces but keep quoted strings together
+            # Use a more efficient regex pattern to avoid ReDoS vulnerability
+            parts = re.findall(r'[^\s"]+|"[^"]*"', args_string)
+            # Remove quotes only from fully-quoted strings
+            return [p[1:-1] if p.startswith('"') and p.endswith('"') else p for p in parts]
+        else:
+            # Unix: use shlex for proper quote handling
+            return shlex.split(args_string)
+
+    def _normalize_emulator_arg(self, arg):
+        """Normalize a single emulator argument token (expand ~, env vars, and common macOS RetroArch mistakes)."""
+        if not arg:
+            return arg
+
+        expanded = os.path.expanduser(os.path.expandvars(arg))
+
+        # Common macOS path typo: "Application/Support" instead of "Application Support"
+        if platform.system() == "Darwin" and "/Library/Application/Support/" in expanded:
+            alt = expanded.replace("/Library/Application/Support/", "/Library/Application Support/")
+            # Prefer the correct path if it exists; otherwise fall back only if original exists.
+            if os.path.exists(alt) or not os.path.exists(expanded):
+                expanded = alt
+
+        # Common macOS RetroArch core extension mismatch: .dll -> .dylib
+        if platform.system() == "Darwin" and expanded.lower().endswith(".dll"):
+            alt = expanded[:-4] + ".dylib"
+            if os.path.exists(alt) and not os.path.exists(expanded):
+                expanded = alt
+
+        return expanded
+
+    def _build_emulator_command(self, emulator_path, emulator_args, emulator_args_enabled, rom_path):
+        """Build a safe subprocess command list for launching the emulator."""
+        command = [emulator_path]
+        rom_added = False
+
+        if emulator_args_enabled and emulator_args:
+            placeholders = ("%1", "$1", "{rom}", "{ROM}")
+            if any(ph in emulator_args for ph in placeholders):
+                args_with_rom = emulator_args
+                for ph in placeholders:
+                    args_with_rom = args_with_rom.replace(ph, rom_path)
+                parsed = self._parse_emulator_args(args_with_rom)
+                rom_added = True
+            else:
+                parsed = self._parse_emulator_args(emulator_args)
+
+            normalized = [self._normalize_emulator_arg(a) for a in parsed]
+
+            # Users sometimes paste a full command line including the emulator path.
+            # If the first token matches the emulator executable (or macOS .app bundle), drop it.
+            if normalized:
+                try:
+                    first = os.path.normpath(normalized[0])
+                    exe_norm = os.path.normpath(emulator_path)
+                    bundle_path = self._find_macos_app_bundle(emulator_path)
+                    bundle_norm = os.path.normpath(bundle_path) if bundle_path else None
+
+                    if first == exe_norm or (bundle_norm and first == bundle_norm):
+                        normalized = normalized[1:]
+                except Exception:
+                    pass
+
+            command.extend(normalized)
+
+        if not rom_added:
+            command.append(rom_path)
+
+        return command
+
+    def _find_macos_app_bundle(self, executable_path):
+        """If executable_path is inside a .app bundle, return the bundle path, else None."""
+        if platform.system() != "Darwin" or not executable_path:
+            return None
+
+        # Typical layout: <App>.app/Contents/MacOS/<binary>
+        marker = ".app/Contents/MacOS/"
+        idx = executable_path.find(marker)
+        if idx == -1:
+            return None
+
+        bundle_path = executable_path[: idx + len(".app")]
+        if os.path.isdir(bundle_path):
+            return bundle_path
+        return None
+    
+    def _launch_emulator(self, hack_id):
+        """Launch the emulator with the ROM file"""
+        hack_data = self._find_hack_data(hack_id)
+        if not hack_data:
+            return
+        
+        file_path = hack_data.get("file_path", "")
+        hack_title = hack_data.get("title", "Unknown")
+        
+        # Check if file exists
+        if not file_path or not os.path.exists(file_path):
+            self._log(f"⚠️ Cannot launch '{hack_title}' - file not found", "Warning")
+            messagebox.showwarning(
+                "File Not Found",
+                f"The ROM file for '{hack_title}' could not be found:\n\n"
+                f"{file_path}\n\n"
+                f"The file may have been moved or deleted."
+            )
+            return
+        
+        # Load emulator configuration from cached instance
+        emulator_path = (self.config_manager.get("emulator_path", "") or "").strip()
+        emulator_args = self.config_manager.get("emulator_args", "")
+        emulator_args_enabled = self.config_manager.get("emulator_args_enabled", False)
+
+        system = platform.system()
+
+        # macOS: Convert .app bundle to executable if needed
+        if system == "Darwin" and emulator_path:
+            # Normalize possible trailing slash and handle case-insensitive suffix
+            emulator_path_normalized = emulator_path.rstrip("/")
+            if emulator_path_normalized.lower().endswith(".app") and os.path.isdir(emulator_path_normalized):
+                emulator_path = self._convert_app_to_executable(emulator_path_normalized)
+        
+        if not emulator_path:
+            self._log("⚠️ No emulator configured", "Warning")
+            messagebox.showwarning(
+                "No Emulator Configured",
+                "Please configure an emulator in Settings before launching games."
+            )
+            return
+        
+        if not os.path.exists(emulator_path):
+            self._log(f"⚠️ Emulator not found: {emulator_path}", "Warning")
+            messagebox.showwarning(
+                "Emulator Not Found",
+                f"The configured emulator could not be found:\n\n"
+                f"{emulator_path}\n\n"
+                f"Please check your emulator settings."
+            )
+            return
+        
+        # Security: Validate emulator path points to an actual file (not a directory)
+        if not os.path.isfile(emulator_path):
+            self._log(f"⚠️ Emulator path is not a file: {emulator_path}", "Warning")
+            messagebox.showwarning(
+                "Invalid Emulator",
+                f"The configured emulator path is not a valid file:\n\n"
+                f"{emulator_path}\n\n"
+                f"Please configure a valid emulator executable in Settings."
+            )
+            return
+        
+        # Security: Normalize path first to prevent bypassing validation
+        emulator_path = os.path.normpath(emulator_path)
+        if not os.path.isabs(emulator_path):
+            self._log(f"⚠️ Emulator path must be absolute: {emulator_path}", "Warning")
+            messagebox.showwarning(
+                "Invalid Emulator Path",
+                f"The configured emulator path must be an absolute path.\n\n"
+                f"Please configure a valid emulator path in Settings."
+            )
+            return
+        
+        # Security: Check if file is executable
+        if platform.system() == "Windows":
+            # Windows: Validate file has an executable extension
+            valid_extensions = ('.exe', '.bat', '.cmd', '.com')
+            if not emulator_path.lower().endswith(valid_extensions):
+                self._log(f"⚠️ Emulator is not a valid executable: {emulator_path}", "Warning")
+                messagebox.showwarning(
+                    "Invalid Emulator",
+                    f"The configured emulator must be a valid executable file (.exe, .bat, .cmd, or .com):\n\n"
+                    f"{emulator_path}\n\n"
+                    f"Please configure a valid emulator in Settings."
+                )
+                return
+        else:
+            # Unix/macOS: Check if file is executable
+            if not os.access(emulator_path, os.X_OK):
+                self._log(f"⚠️ Emulator is not executable: {emulator_path}", "Warning")
+                messagebox.showwarning(
+                    "Emulator Not Executable",
+                    f"The configured emulator is not executable:\n\n"
+                    f"{emulator_path}\n\n"
+                    f"Please check file permissions or configure a valid emulator."
+                )
+                return
+        
+        # Security: Validate emulator path doesn't contain dangerous shell metacharacters
+        # This prevents paths like "/bin/sh;malicious" or "cmd.exe|evil"
+        # Note: We allow spaces and normal path characters like (), {}, [], *, ? which may appear
+        # in legitimate Windows paths (e.g., "Program Files (x86)"). Since we use shell=False,
+        # these won't be interpreted as shell metacharacters.
+        dangerous_chars = [';', '|', '&', '>', '<', '`', '\n', '\r', '$']
+        if any(char in emulator_path for char in dangerous_chars):
+            self._log(f"⚠️ Emulator path contains invalid characters: {emulator_path}", "Warning")
+            messagebox.showwarning(
+                "Invalid Emulator Path",
+                f"The configured emulator path contains invalid characters.\n\n"
+                f"Please configure a valid emulator path in Settings."
+            )
+            return
+        
+        try:
+            command = self._build_emulator_command(
+                emulator_path=emulator_path,
+                emulator_args=emulator_args,
+                emulator_args_enabled=emulator_args_enabled,
+                rom_path=file_path,
+            )
+
+            # Log the exact command for debugging
+            self._log(f"Launching emulator command: {command}", "Debug")
+
+            # macOS: Prefer launching GUI apps via `open -a` when using a .app bundle.
+            # This avoids cases where executing the internal Mach-O directly causes immediate exit.
+            bundle_path = self._find_macos_app_bundle(emulator_path)
+            if platform.system() == "Darwin" and bundle_path:
+                open_command = ["open", "-a", bundle_path, "--args"] + command[1:]
+                self._log(f"Launching macOS app bundle via open: {open_command}", "Debug")
+                subprocess.Popen(open_command, shell=False)
+                self._log(f"🎮 Launched '{hack_title}' with emulator", "Information")
+                return
+            
+            # Launch emulator
+            # Security: Explicitly use shell=False to prevent shell injection attacks
+            if platform.system() == "Windows":
+                # Windows: use CREATE_NO_WINDOW to hide console and shell=False for security
+                subprocess.Popen(command, shell=False, creationflags=subprocess.CREATE_NO_WINDOW)
+            else:
+                # Unix: standard Popen with shell=False for security
+                subprocess.Popen(command, shell=False)
+            
+            self._log(f"🎮 Launched '{hack_title}' with emulator", "Information")
+            
+        except Exception as e:
+            self._log(f"❌ Failed to launch emulator: {str(e)}", "Error")
+            messagebox.showerror(
+                "Launch Failed",
+                f"Failed to launch emulator:\n\n{str(e)}"
             )
     
     def _find_hack_data(self, hack_id_str):

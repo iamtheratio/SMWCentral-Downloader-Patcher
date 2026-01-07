@@ -28,7 +28,7 @@ class SetupSection:
     
     def create(self, font):
         """Create the setup section"""
-        self.frame = ttk.LabelFrame(self.parent, text="Setup", padding=get_labelframe_padding())
+        self.frame = ttk.LabelFrame(self.parent, text="Setup", padding=(15, 10, 15, 15))
         
         # Base ROM section
         ttk.Label(self.frame, text="Base ROM: *", font=font).grid(row=0, column=0, sticky="w", pady=(0, 5))

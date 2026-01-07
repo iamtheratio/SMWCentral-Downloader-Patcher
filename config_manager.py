@@ -71,16 +71,20 @@ class ConfigManager:
             "multi_type_enabled": True,
             "multi_type_download_mode": "primary_only",
             "auto_check_updates": True,  # Auto-check for updates on startup
-            # QUSB2SNES settings
-            "qusb2snes_enabled": False,
-            "qusb2snes_host": "localhost",
-            "qusb2snes_port": 23074,  # Default modern QUSB2SNES port
-            "qusb2snes_device": "",
-            "qusb2snes_remote_folder": "/ROMS",
-            "qusb2snes_last_sync": 0,  # Unix timestamp of last successful sync
-            "qusb2snes_sync_progress": {},  # Directory-level sync progress tracking
-            "qusb2snes_partial_sync": False,  # Flag indicating partial sync state
-            "qusb2snes_cleanup_deleted": False  # Remove files from SD card that were deleted locally
+            # Emulator settings
+            "emulator_path": "",
+            "emulator_args": "",
+            "emulator_args_enabled": False,
+            # Difficulty lookup cache (automatically populated from SMWC API)
+            "difficulty_lookup": {
+                "diff_1": "Newcomer",
+                "diff_2": "Casual", 
+                "diff_3": "Intermediate",
+                "diff_4": "Advanced",
+                "diff_5": "Expert",
+                "diff_6": "Master",
+                "diff_7": "Grandmaster"
+            }
         }
 
     def _clean_config(self, config):
@@ -90,7 +94,8 @@ class ConfigManager:
 
         # Only allow specific configuration keys
         allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path",
-                        "multi_type_enabled", "multi_type_download_mode", "difficulty_lookup"}
+                        "multi_type_enabled", "multi_type_download_mode", "difficulty_lookup",
+                        "emulator_path", "emulator_args", "emulator_args_enabled", "auto_check_updates"}
         cleaned = {}
 
         for key, value in config.items():

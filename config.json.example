@@ -1,0 +1,20 @@
+{
+  "base_rom_path": "",
+  "output_dir": "",
+  "api_delay": 0.8,
+  "multi_type_enabled": true,
+  "multi_type_download_mode": "primary_only",
+  "difficulty_lookup": {
+    "diff_1": "Newcomer",
+    "diff_2": "Casual",
+    "diff_3": "Intermediate",
+    "diff_4": "Advanced",
+    "diff_5": "Expert",
+    "diff_6": "Master",
+    "diff_7": "Grandmaster"
+  },
+  "auto_check_updates": true,
+  "emulator_path": "",
+  "emulator_args": "",
+  "emulator_args_enabled": false
+}
