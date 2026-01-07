@@ -109,6 +109,9 @@ class MainLayout:
         self.collection_page = CollectionPage(self.content_frame, self.logger)
         collection_frame = self.collection_page.create()
         self.page_manager.add_page("Collection", collection_frame)
+        
+        # Register emulator settings callback to refresh collection cache
+        self.settings_page.emulator_settings_callback = self.collection_page.refresh_emulator_cache
     
     def get_download_button(self):
         """Return the download button reference - deprecated for Settings page"""

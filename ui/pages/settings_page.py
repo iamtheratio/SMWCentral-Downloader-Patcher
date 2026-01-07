@@ -22,6 +22,9 @@ class SettingsPage:
         self.font = ("Segoe UI", 9)
         self.frame = None
         self.log_level_combo = None
+        
+        # Callback for emulator settings changes
+        self.emulator_settings_callback = None
     
     def update_theme_colors(self):
         """Update cancel button colors when theme changes"""
@@ -801,7 +804,29 @@ class SettingsPage:
             config.save()
             
             if self.logger:
-                self.logger.log(f"Emulator settings saved", "Information")
+                self.logger.log(f"Emulator settings saved - path: '{emulator_path}'", "Information")
+            
+            # Notify callback if registered (e.g., collection page to refresh cache)
+            if self.emulator_settings_callback:
+                if self.logger:
+                    self.logger.log(
+                        "🔔 Calling emulator settings callback to refresh collection cache...",
+                        "Debug",
+                    )
+                try:
+                    self.emulator_settings_callback()
+                except Exception as callback_error:
+                    # Ensure that a failing callback does not break the save flow
+                    if self.logger:
+                        self.logger.log(
+                            f"Error while running emulator settings callback: {callback_error}",
+                            "Error",
+                        )
+                    else:
+                        print(f"Error while running emulator settings callback: {callback_error}")
+            else:
+                if self.logger:
+                    self.logger.log(f"⚠️ No emulator settings callback registered!", "Debug")
             
         except Exception as e:
             print(f"Error saving emulator settings: {e}")
