@@ -50,25 +50,25 @@ def build_macos_executables():
     # Build main application
     print("📦 Building main application...")
     result = subprocess.run([
-        "python", "-m", "PyInstaller", 
-        "--clean", 
-        "SMWC Downloader macOS.spec"
-    ], capture_output=True, text=True)
+        "python", "-m", "PyInstaller",
+        "--clean",
+        "SMWC Downloader macOS.spec",
+    ])
     
     if result.returncode != 0:
-        print(f"[ERROR] Main app build failed: {result.stderr}")
+        print(f"[ERROR] Main app build failed (exit code {result.returncode})")
         return False
     
     # Build updater
     print("🔄 Building updater...")
     result = subprocess.run([
-        "python", "-m", "PyInstaller", 
-        "--clean", 
-        "SMWC Updater macOS.spec"
-    ], capture_output=True, text=True)
+        "python", "-m", "PyInstaller",
+        "--clean",
+        "SMWC Updater macOS.spec",
+    ])
     
     if result.returncode != 0:
-        print(f"[ERROR] Updater build failed: {result.stderr}")
+        print(f"[ERROR] Updater build failed (exit code {result.returncode})")
         return False
     
     # Verify applications exist
@@ -101,23 +101,23 @@ def build_macos_executables():
     # Fix macOS app bundle issues
     print("🔧 Fixing macOS app bundle...")
     import sys
-    result = subprocess.run([sys.executable, "fix_macos_app.py"], capture_output=True, text=True)
-    if result.returncode != 0:
-        print(f"⚠️ App fix completed with warnings: {result.stderr}")
-    else:
+    result = subprocess.run([sys.executable, "fix_macos_app.py"])
+    if result.returncode == 0:
         print("✅ App bundle fixed successfully")
+    else:
+        print("⚠️ App fix completed with warnings")
     
     # Code sign the apps to prevent Team ID mismatch errors
     print("🔑 Code signing app bundles...")
     for app_path in [main_app, updater_app]:
         result = subprocess.run([
             "codesign", "--force", "--deep", "--sign", "-", app_path
-        ], capture_output=True, text=True)
+        ])
         
         if result.returncode == 0:
             print(f"✅ Code signed: {os.path.basename(app_path)}")
         else:
-            print(f"⚠️ Code signing failed for {os.path.basename(app_path)}: {result.stderr}")
+            print(f"⚠️ Code signing failed for {os.path.basename(app_path)}")
     
     return True
 

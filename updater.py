@@ -1199,12 +1199,22 @@ class UpdateDialog:
     
     def _add_log_message(self, message):
         """Add a message to the log text widget"""
-        if self.log_text:
-            self.log_text.config(state="normal")
-            self.log_text.insert(tk.END, message + "\n")
-            self.log_text.config(state="disabled")
-            self.log_text.see(tk.END)
-            self.dialog.update_idletasks()
+        if not self.log_text or not self.dialog:
+            return
+
+        def append_to_widget():
+            try:
+                self.log_text.config(state="normal")
+                self.log_text.insert(tk.END, message + "\n")
+                self.log_text.config(state="disabled")
+                self.log_text.see(tk.END)
+            except tk.TclError:
+                pass
+
+        try:
+            self.dialog.after(0, append_to_widget)
+        except tk.TclError:
+            pass
     
     def _restart_app(self):
         """Restart the application with the update - optimized for fast exit"""

@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import sys
 import os
 import threading
+import queue
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from api_pipeline import fetch_hack_list
@@ -25,6 +26,10 @@ class DownloadPage:
         self.is_searching = False
         self.search_cancelled = False
         self.search_thread = None  # Track the search thread
+
+        # Thread-safe UI dispatch (no Tk calls from worker threads)
+        self._ui_queue = queue.Queue()
+        self._ui_drain_job = None
         
         # UI components
         self.filters = None
@@ -42,6 +47,41 @@ class DownloadPage:
             self.logger.log(message, level)
         else:
             print(f"[{level}] {message}")
+
+    def _enqueue_ui(self, func):
+        """Enqueue a callable to run on the Tk UI thread."""
+        try:
+            self._ui_queue.put(func)
+        except Exception:
+            return
+
+    def _drain_ui_queue(self):
+        """Run queued UI tasks on the UI thread."""
+        self._ui_drain_job = None
+
+        processed = 0
+        while processed < 200:
+            try:
+                func = self._ui_queue.get_nowait()
+            except queue.Empty:
+                break
+
+            try:
+                func()
+            except Exception as e:
+                try:
+                    self._log(f"UI queue task failed: {str(e)}", "Error")
+                except Exception:
+                    pass
+            processed += 1
+
+        # Keep draining while searching or while work remains
+        should_continue = self.is_searching or not self._ui_queue.empty()
+        if should_continue and self.frame is not None:
+            try:
+                self._ui_drain_job = self.frame.after(30, self._drain_ui_queue)
+            except Exception:
+                self._ui_drain_job = None
     
     def create(self):
         """Create the download page with fixed bottom button layout"""
@@ -173,6 +213,14 @@ class DownloadPage:
             self.is_searching = False
             self.filters.set_searching_state(False)
             self.results.set_status("❌ Search cancelled")
+            self.search_thread = None  # Clear thread reference
+
+            # Ensure UI queue draining is active to process any pending UI tasks
+            if self._ui_drain_job is None and self.frame is not None:
+                try:
+                    self._ui_drain_job = self.frame.after(0, self._drain_ui_queue)
+                except Exception:
+                    self._ui_drain_job = None
             
             # The background thread will see search_cancelled=True and exit gracefully
     
@@ -226,6 +274,17 @@ class DownloadPage:
         
         # Immediately update the download button to reflect cleared selection
         self._update_selection_display()
+
+        # Initialize progressive display on the UI thread BEFORE starting the worker.
+        # This avoids race conditions where page updates arrive before initialization.
+        self.results.initialize_progressive_display()
+
+        # Ensure UI queue draining is active while worker runs
+        if self._ui_drain_job is None and self.frame is not None:
+            try:
+                self._ui_drain_job = self.frame.after(30, self._drain_ui_queue)
+            except Exception:
+                self._ui_drain_job = None
         
         # Start search in background thread
         self.search_thread = threading.Thread(target=self._perform_search, args=(config, time_period))
@@ -234,6 +293,42 @@ class DownloadPage:
     
     def _perform_search(self, config, time_period):
         """Perform the actual search with progressive result display and efficient time period filtering"""
+        finalize_scheduled = False
+
+        def schedule_finalize(final_results=None, status_override=None):
+            nonlocal finalize_scheduled
+            if finalize_scheduled:
+                return
+            finalize_scheduled = True
+
+            def finalize_ui():
+                try:
+                    if self.search_cancelled:
+                        return
+
+                    if final_results is not None:
+                        self.results.complete_progressive_display(final_results, time_period)
+                    if status_override:
+                        self.results.set_status(status_override)
+                except Exception as e:
+                    # Don't let UI callback exceptions keep the UI in "searching" state
+                    try:
+                        self._log(f"UI finalize error: {str(e)}", "Error")
+                    except Exception:
+                        pass
+                finally:
+                    try:
+                        self._search_completed()
+                    except Exception as e:
+                        try:
+                            self._log(f"Search completion cleanup failed: {str(e)}", "Error")
+                        except Exception:
+                            pass
+
+            # NOTE: Do NOT call any Tk methods from this worker thread.
+            # Queue for execution on the UI thread.
+            self._enqueue_ui(finalize_ui)
+
         try:
             # Check for cancellation right at the start
             if self.search_cancelled:
@@ -263,9 +358,6 @@ class DownloadPage:
             
             if include_waiting:
                 search_modes.append(True)  # Also search waiting hacks if enabled
-            
-            # Initialize progressive display
-            self.frame.after(0, lambda: self.results.initialize_progressive_display())
             
             # Search the specified hack types
             for waiting_mode in search_modes:
@@ -374,7 +466,7 @@ class DownloadPage:
                             status_text = f"🔍 Found {len(all_results)} hacks so far..."
                         
                         # Progressive display: add new page results immediately
-                        self.frame.after(0, lambda pr=page_results.copy(), st=status_text: 
+                        self._enqueue_ui(lambda pr=page_results.copy(), st=status_text:
                                         self.results.add_progressive_results(pr, st))
                         
                         # OPTIMIZATION: Check if we've reached expected end of data
@@ -399,16 +491,19 @@ class DownloadPage:
             if self.search_cancelled:
                 self._log("Search was cancelled, not completing", "Information")
                 return
-            
-            # Complete the progressive display with final results
-            self.frame.after(0, lambda: self.results.complete_progressive_display(all_results, time_period))
-            self.frame.after(0, lambda: self._search_completed())
+
+            # Complete the progressive display and reset UI state
+            schedule_finalize(all_results)
             
         except Exception as e:
             # Don't log errors if the search was cancelled
             if not self.search_cancelled:
                 self._log(f"Search failed: {str(e)}", "Error")
-                self.frame.after(0, lambda: self._search_completed("❌ Search failed"))
+                schedule_finalize(None, status_override="❌ Search failed")
+        finally:
+            # If we returned early (e.g., exceptions/cancellation paths), ensure we don't leave the UI stuck.
+            if not finalize_scheduled and not self.search_cancelled:
+                schedule_finalize(None)
     
     def _calculate_cutoff_timestamp(self, time_period):
         """Calculate the cutoff timestamp for time period filtering"""

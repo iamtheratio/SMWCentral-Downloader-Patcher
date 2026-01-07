@@ -3,6 +3,7 @@ from tkinter import scrolledtext
 from tkinter import ttk
 import sv_ttk
 from colors import get_colors
+import threading
 
 class LoggingSystem:
     """Centralized logging system with theme support"""
@@ -13,6 +14,7 @@ class LoggingSystem:
         self.font = font
         self.history = []
         self._updating_display = False  # Flag to prevent recursive updates
+        self._ui_thread_id = threading.get_ident()
     
     def setup(self, parent):
         """Create and configure the log text widget"""
@@ -93,32 +95,42 @@ class LoggingSystem:
         # Check if we should display this message
         if not self.should_log(level):
             return
-        
-        # Add message with appropriate tag
-        try:
-            self.log_text.configure(state="normal")
-            
-            tag = None
-            if level.lower() == "error":
-                tag = "error"
-            elif level.lower() == "warning":
-                tag = "warning"
-            elif level.lower() == "debug":
-                tag = "debug"
-            elif level.lower() == "applying":
-                tag = "applying"
-            
-            if tag:
-                self.log_text.insert(tk.END, message + "\n", tag)
-            else:
-                self.log_text.insert(tk.END, message + "\n")
-            
-            self.log_text.configure(state="disabled")
-            self.log_text.see(tk.END)
-            self.log_text.update_idletasks()  # Use update_idletasks instead of update
-        except tk.TclError:
-            # Widget was destroyed or doesn't exist
-            pass
+
+        def append_to_widget():
+            # Add message with appropriate tag (must run on UI thread)
+            try:
+                self.log_text.configure(state="normal")
+
+                tag = None
+                if level.lower() == "error":
+                    tag = "error"
+                elif level.lower() == "warning":
+                    tag = "warning"
+                elif level.lower() == "debug":
+                    tag = "debug"
+                elif level.lower() == "applying":
+                    tag = "applying"
+
+                if tag:
+                    self.log_text.insert(tk.END, message + "\n", tag)
+                else:
+                    self.log_text.insert(tk.END, message + "\n")
+
+                self.log_text.configure(state="disabled")
+                self.log_text.see(tk.END)
+            except tk.TclError:
+                # Widget was destroyed or doesn't exist
+                pass
+
+        # Tk widgets are not thread-safe; marshal to UI thread if needed.
+        if threading.get_ident() != self._ui_thread_id:
+            try:
+                self.log_text.after(0, append_to_widget)
+            except tk.TclError:
+                pass
+            return
+
+        append_to_widget()
     
     def clear_log(self):
         """Clear the log text AND history"""

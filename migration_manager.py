@@ -147,16 +147,43 @@ class MigrationManager:
         
         # Helper function to add log messages
         def add_log(message):
-            log_text.config(state="normal")
-            log_text.insert(tk.END, f"{message}\n")
-            log_text.see(tk.END)  # Auto-scroll to bottom
-            log_text.config(state="disabled")
-            progress_window.update_idletasks()
+            def _append():
+                try:
+                    log_text.config(state="normal")
+                    log_text.insert(tk.END, f"{message}\n")
+                    log_text.see(tk.END)  # Auto-scroll to bottom
+                    log_text.config(state="disabled")
+                except tk.TclError:
+                    pass
+
+            try:
+                progress_window.after(0, _append)
+            except tk.TclError:
+                pass
+
+        # Thread-safe UI helpers (must marshal to Tk main thread)
+        def set_progress(text):
+            try:
+                progress_window.after(0, lambda t=text: progress_var.set(t))
+            except tk.TclError:
+                pass
+
+        def set_progress_max(value):
+            try:
+                progress_window.after(0, lambda v=value: progress_bar.configure(maximum=v))
+            except tk.TclError:
+                pass
+
+        def set_progress_value(value):
+            try:
+                progress_window.after(0, lambda v=value: progress_bar.configure(value=v))
+            except tk.TclError:
+                pass
         
         # Run migration in thread
         def migration_thread():
             try:
-                self.perform_migration(progress_var, progress_bar, progress_window, add_log)
+                self.perform_migration(set_progress, set_progress_max, set_progress_value, add_log)
                 
                 # Success
                 progress_window.after(0, lambda: [
@@ -186,20 +213,18 @@ class MigrationManager:
         thread = threading.Thread(target=migration_thread, daemon=True)
         thread.start()
     
-    def perform_migration(self, progress_var, progress_bar, progress_window, add_log):
+    def perform_migration(self, set_progress, set_progress_max, set_progress_value, add_log):
         """Perform the actual migration"""
         # Load existing data
-        progress_var.set("Loading existing hack database...")
+        set_progress("Loading existing hack database...")
         add_log("📂 Loading existing hack database...")
-        progress_window.update()
         
         with open(self.json_path, "r", encoding="utf-8") as f:
             data = json.load(f)
         
         # Create backup
-        progress_var.set("Creating backup...")
+        set_progress("Creating backup...")
         add_log("💾 Creating backup of current database...")
-        progress_window.update()
         
         import shutil
         shutil.copy2(self.json_path, self.backup_path)
@@ -212,13 +237,12 @@ class MigrationManager:
                 hacks_to_migrate.append((hack_id, hack_data))
         
         total_hacks = len(hacks_to_migrate)
-        progress_bar['maximum'] = total_hacks + 50  # Add some for API pages
+        set_progress_max(total_hacks + 50)  # Add some for API pages
         add_log(f"📊 Found {total_hacks} hacks to migrate")
         
         # First, fetch all hack metadata from SMWC API in bulk
-        progress_var.set("Fetching hack metadata from SMWC API...")
+        set_progress("Fetching hack metadata from SMWC API...")
         add_log("🌐 Fetching hack metadata from SMWC API...")
-        progress_window.update()
         
         from api_pipeline import fetch_hack_list
         api_metadata = {}
@@ -256,9 +280,8 @@ class MigrationManager:
                     page_matches += 1
             
             # Update progress and log
-            progress_bar['value'] = min(page, 50)
+                    set_progress_value(min(page, 50))
             add_log(f"📄 Page {page}: Found {page_matches} matching hacks")
-            progress_window.update()
             
             # Check if we're on the last page
             if page >= response.get("last_page", 1):
@@ -274,12 +297,11 @@ class MigrationManager:
         add_log(f"✨ Enhanced all {total_fetched} hacks with complete metadata from page data")
         
         # Now migrate each hack with API data
-        progress_bar['maximum'] = total_hacks + 50  # Reset for hack migration
+        set_progress_max(total_hacks + 50)  # Reset for hack migration
         for i, (hack_id, hack_data) in enumerate(hacks_to_migrate):
             title = hack_data.get('title', 'Unknown')[:30]
-            progress_var.set(f"Upgrading hack {i+1} of {total_hacks}: {title}...")
-            progress_bar['value'] = 50 + i  # Start after API pages
-            progress_window.update()
+            set_progress(f"Upgrading hack {i+1} of {total_hacks}: {title}...")
+            set_progress_value(50 + i)  # Start after API pages
             
             # Log every 50th hack to avoid spam
             if i % 50 == 0 or i < 5:
@@ -289,9 +311,8 @@ class MigrationManager:
             self.migrate_single_hack_with_api_data(hack_data, hack_id, api_metadata.get(hack_id, {}))
         
         # Save updated data
-        progress_var.set("Saving upgraded database...")
+        set_progress("Saving upgraded database...")
         add_log("💾 Saving upgraded database...")
-        progress_window.update()
         
         with open(self.json_path, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=2)
@@ -303,13 +324,12 @@ class MigrationManager:
         exits_count = len([h for h in data.values() if isinstance(h, dict) and h.get('exits', 0) > 0])
         authors_count = len([h for h in data.values() if isinstance(h, dict) and h.get('authors', [])])
         
-        progress_bar['value'] = total_hacks + 50
+        set_progress_value(total_hacks + 50)
         add_log(f"✅ Migration completed!")
         add_log(f"📊 {total_hacks} hacks migrated, {api_hits} with API data")
         add_log(f"🚀 Found {sa1_count} SA-1 hacks, {hof_count} Hall of Fame")
         add_log(f"📈 Enhanced with {exits_count} exit counts, {authors_count} author lists")
-        progress_var.set("Upgrade completed successfully!")
-        progress_window.update()
+        set_progress("Upgrade completed successfully!")
     
     def migrate_single_hack(self, hack_data, hack_id, progress_var=None, progress_window=None):
         """Migrate a single hack entry to v3.1 format with API metadata lookup"""
@@ -510,15 +530,27 @@ class MigrationManager:
 
     def fetch_hack_metadata_with_retry(self, hack_id, progress_var=None, progress_window=None, max_retries=3):
         """Fetch hack metadata from SMWC API with rate limiting and retry logic"""
+
+        def _set_progress(text):
+            if not progress_var:
+                return
+            if progress_window:
+                try:
+                    progress_window.after(0, lambda t=text: progress_var.set(t))
+                except tk.TclError:
+                    return
+            else:
+                # Assume caller is already on the UI thread
+                try:
+                    progress_var.set(text)
+                except Exception:
+                    return
         
         delay = 1.5  # Start with 1.5 second delay
         
         for attempt in range(max_retries):
             try:
-                if progress_var:
-                    progress_var.set(f"Fetching metadata for hack {hack_id} (attempt {attempt + 1}/{max_retries})...")
-                if progress_window:
-                    progress_window.update()
+                _set_progress(f"Fetching metadata for hack {hack_id} (attempt {attempt + 1}/{max_retries})...")
                 
                 # Rate limiting delay
                 time.sleep(delay)
@@ -548,18 +580,12 @@ class MigrationManager:
                 if "rate limit" in str(e).lower() or "429" in str(e):
                     # Rate limited - increase delay and retry
                     delay = min(delay * 1.5, 3.0)  # Increase delay, max 3 seconds
-                    if progress_var:
-                        progress_var.set(f"Rate limited for hack {hack_id}, retrying in {delay:.1f}s...")
-                    if progress_window:
-                        progress_window.update()
+                    _set_progress(f"Rate limited for hack {hack_id}, retrying in {delay:.1f}s...")
                     time.sleep(delay)
                     continue
                 else:
                     # Other error - log and continue with next attempt
-                    if progress_var:
-                        progress_var.set(f"Error fetching metadata for hack {hack_id}: {str(e)[:50]}...")
-                    if progress_window:
-                        progress_window.update()
+                    _set_progress(f"Error fetching metadata for hack {hack_id}: {str(e)[:50]}...")
                     time.sleep(delay)
                     continue
         

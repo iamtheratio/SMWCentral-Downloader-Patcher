@@ -3,6 +3,7 @@ from tkinter import ttk, messagebox
 import threading
 import sys
 import os
+import platform
 
 # Add path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
@@ -257,7 +258,8 @@ class SettingsPage:
             emulator_frame,
             text="Use %1 as a placeholder for the ROM file path, or leave it out to append the ROM at the end.\n"
                  "Examples:\n"
-                 "  • RetroArch: -L cores/snes9x_libretro.dll \"%1\"\n"
+                     "  • RetroArch (Windows): -L cores/snes9x_libretro.dll \"%1\"\n"
+                     "  • RetroArch (macOS): -L ~/Library/Application Support/RetroArch/cores/snes9x_libretro.dylib \"%1\"\n"
                  "  • Snes9x: --fullscreen (ROM will be added automatically)",
             style="Custom.TLabel",
             font=("Segoe UI", 8),
@@ -685,28 +687,52 @@ class SettingsPage:
     def _browse_emulator(self):
         """Browse for emulator executable"""
         from tkinter import filedialog
-        
-        # Set up file types based on platform
-        if platform.system() == "Windows":
-            filetypes = [("Executable Files", "*.exe"), ("All Files", "*.*")]
-        elif platform.system() == "Darwin":  # macOS
-            filetypes = [("Applications", "*.app"), ("All Files", "*")]
-        else:  # Linux
-            filetypes = [("All Files", "*")]
-        
-        filename = filedialog.askopenfilename(
-            title="Select Emulator",
-            filetypes=filetypes
-        )
-        
-        if filename:
-            # macOS: Convert .app bundle to actual executable
-            if platform.system() == "Darwin" and filename.endswith(".app"):
-                filename = self._convert_app_to_executable(filename)
-            
-            self.emulator_path_entry.delete(0, tk.END)
-            self.emulator_path_entry.insert(0, filename)
-            self._save_emulator_settings()
+
+        try:
+            system = platform.system()
+
+            # Set up file types based on platform
+            if system == "Windows":
+                filetypes = [("Executable Files", "*.exe"), ("All Files", "*.*")]
+                initialdir = None
+            elif system == "Darwin":  # macOS
+                # Note: .app bundles are directories; depending on Tk/macOS version,
+                # they might not be selectable via askopenfilename. We'll fallback.
+                filetypes = [("Applications", "*.app"), ("All Files", "*")]
+                initialdir = "/Applications"
+            else:  # Linux
+                filetypes = [("All Files", "*")]
+                initialdir = None
+
+            filename = filedialog.askopenfilename(
+                title="Select Emulator",
+                filetypes=filetypes,
+                initialdir=initialdir,
+            )
+
+            # macOS fallback: allow selecting an .app bundle as a directory
+            if not filename and system == "Darwin":
+                bundle_dir = filedialog.askdirectory(
+                    title="Select Emulator (.app)",
+                    initialdir=initialdir,
+                    mustexist=True,
+                )
+                if bundle_dir and bundle_dir.endswith(".app"):
+                    filename = bundle_dir
+
+            if filename:
+                # macOS: Convert .app bundle to actual executable
+                if system == "Darwin" and filename.endswith(".app"):
+                    filename = self._convert_app_to_executable(filename)
+
+                self.emulator_path_entry.delete(0, tk.END)
+                self.emulator_path_entry.insert(0, filename)
+                self._save_emulator_settings()
+
+        except Exception as e:
+            if self.logger:
+                self.logger.log(f"Failed to browse for emulator: {e}", "Error")
+            messagebox.showerror("Browse Error", f"Failed to browse for emulator:\n\n{e}")
     
     def _convert_app_to_executable(self, app_path):
         """Convert macOS .app bundle path to actual executable path"""

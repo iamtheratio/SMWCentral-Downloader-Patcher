@@ -685,6 +685,83 @@ class CollectionPage:
         else:
             # Unix: use shlex for proper quote handling
             return shlex.split(args_string)
+
+    def _normalize_emulator_arg(self, arg):
+        """Normalize a single emulator argument token (expand ~, env vars, and common macOS RetroArch mistakes)."""
+        if not arg:
+            return arg
+
+        expanded = os.path.expanduser(os.path.expandvars(arg))
+
+        # Common macOS path typo: "Application/Support" instead of "Application Support"
+        if platform.system() == "Darwin" and "/Library/Application/Support/" in expanded:
+            alt = expanded.replace("/Library/Application/Support/", "/Library/Application Support/")
+            # Prefer the correct path if it exists; otherwise fall back only if original exists.
+            if os.path.exists(alt) or not os.path.exists(expanded):
+                expanded = alt
+
+        # Common macOS RetroArch core extension mismatch: .dll -> .dylib
+        if platform.system() == "Darwin" and expanded.lower().endswith(".dll"):
+            alt = expanded[:-4] + ".dylib"
+            if os.path.exists(alt) and not os.path.exists(expanded):
+                expanded = alt
+
+        return expanded
+
+    def _build_emulator_command(self, emulator_path, emulator_args, emulator_args_enabled, rom_path):
+        """Build a safe subprocess command list for launching the emulator."""
+        command = [emulator_path]
+        rom_added = False
+
+        if emulator_args_enabled and emulator_args:
+            placeholders = ("%1", "$1", "{rom}", "{ROM}")
+            if any(ph in emulator_args for ph in placeholders):
+                args_with_rom = emulator_args
+                for ph in placeholders:
+                    args_with_rom = args_with_rom.replace(ph, rom_path)
+                parsed = self._parse_emulator_args(args_with_rom)
+                rom_added = True
+            else:
+                parsed = self._parse_emulator_args(emulator_args)
+
+            normalized = [self._normalize_emulator_arg(a) for a in parsed]
+
+            # Users sometimes paste a full command line including the emulator path.
+            # If the first token matches the emulator executable (or macOS .app bundle), drop it.
+            if normalized:
+                try:
+                    first = os.path.normpath(normalized[0])
+                    exe_norm = os.path.normpath(emulator_path)
+                    bundle_path = self._find_macos_app_bundle(emulator_path)
+                    bundle_norm = os.path.normpath(bundle_path) if bundle_path else None
+
+                    if first == exe_norm or (bundle_norm and first == bundle_norm):
+                        normalized = normalized[1:]
+                except Exception:
+                    pass
+
+            command.extend(normalized)
+
+        if not rom_added:
+            command.append(rom_path)
+
+        return command
+
+    def _find_macos_app_bundle(self, executable_path):
+        """If executable_path is inside a .app bundle, return the bundle path, else None."""
+        if platform.system() != "Darwin" or not executable_path:
+            return None
+
+        # Typical layout: <App>.app/Contents/MacOS/<binary>
+        marker = ".app/Contents/MacOS/"
+        idx = executable_path.find(marker)
+        if idx == -1:
+            return None
+
+        bundle_path = executable_path[: idx + len(".app")]
+        if os.path.isdir(bundle_path):
+            return bundle_path
+        return None
     
     def _launch_emulator(self, hack_id):
         """Launch the emulator with the ROM file"""
@@ -707,13 +784,18 @@ class CollectionPage:
             return
         
         # Load emulator configuration from cached instance
-        emulator_path = self.config_manager.get("emulator_path", "")
+        emulator_path = (self.config_manager.get("emulator_path", "") or "").strip()
         emulator_args = self.config_manager.get("emulator_args", "")
         emulator_args_enabled = self.config_manager.get("emulator_args_enabled", False)
-        
+
+        system = platform.system()
+
         # macOS: Convert .app bundle to executable if needed
-        if platform.system() == "Darwin" and emulator_path.endswith(".app"):
-            emulator_path = self._convert_app_to_executable(emulator_path)
+        if system == "Darwin" and emulator_path:
+            # Normalize possible trailing slash and handle case-insensitive suffix
+            emulator_path_normalized = emulator_path.rstrip("/")
+            if emulator_path_normalized.lower().endswith(".app") and os.path.isdir(emulator_path_normalized):
+                emulator_path = self._convert_app_to_executable(emulator_path_normalized)
         
         if not emulator_path:
             self._log("⚠️ No emulator configured", "Warning")
@@ -796,28 +878,25 @@ class CollectionPage:
             return
         
         try:
-            # Build command
-            command = [emulator_path]
-            
-            # Check if arguments contain %1 placeholder
-            rom_added = False
-            
-            # Add arguments if specified and enabled
-            if emulator_args_enabled and emulator_args:
-                # Check if %1 placeholder is used
-                if "%1" in emulator_args:
-                    # Replace %1 with ROM path
-                    args_with_rom = emulator_args.replace("%1", file_path)
-                    # Parse arguments using helper method
-                    command.extend(self._parse_emulator_args(args_with_rom))
-                    rom_added = True
-                else:
-                    # No placeholder - just add arguments
-                    command.extend(self._parse_emulator_args(emulator_args))
-            
-            # Add ROM file as last argument only if not already added via %1
-            if not rom_added:
-                command.append(file_path)
+            command = self._build_emulator_command(
+                emulator_path=emulator_path,
+                emulator_args=emulator_args,
+                emulator_args_enabled=emulator_args_enabled,
+                rom_path=file_path,
+            )
+
+            # Log the exact command for debugging
+            self._log(f"Launching emulator command: {command}", "Debug")
+
+            # macOS: Prefer launching GUI apps via `open -a` when using a .app bundle.
+            # This avoids cases where executing the internal Mach-O directly causes immediate exit.
+            bundle_path = self._find_macos_app_bundle(emulator_path)
+            if platform.system() == "Darwin" and bundle_path:
+                open_command = ["open", "-a", bundle_path, "--args"] + command[1:]
+                self._log(f"Launching macOS app bundle via open: {open_command}", "Debug")
+                subprocess.Popen(open_command, shell=False)
+                self._log(f"🎮 Launched '{hack_title}' with emulator", "Information")
+                return
             
             # Launch emulator
             # Security: Explicitly use shell=False to prevent shell injection attacks
