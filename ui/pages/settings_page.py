@@ -813,7 +813,7 @@ class SettingsPage:
                 self.emulator_settings_callback()
             else:
                 if self.logger:
-                    self.logger.log(f"⚠️ No emulator settings callback registered!", "Warning")
+                    self.logger.log(f"⚠️ No emulator settings callback registered!", "Debug")
             
         except Exception as e:
             print(f"Error saving emulator settings: {e}")
