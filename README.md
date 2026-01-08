@@ -4,7 +4,7 @@
 
 A simple desktop app that automatically downloads, patches, and organizes ROM hacks from SMWCentral. Works on Windows, Mac, and Linux.
 
-![App Screenshot](images/ss_app_dashboard_v4.3.png)
+![Dashboard](images/application-4.8-dashboard.png)
 
 ## 📋 Table of Contents
 
@@ -63,13 +63,17 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 7. **Wait for completion**: The app will automatically download each hack and apply it to your base ROM
 8. **Play**: Your patched ROMs will be saved to your chosen folder, ready to play in any emulator
 
+![Download Page](images/application-4.8-download.png)
+
 ### Managing Your Collection
 1. **View your collection**: Click the "Collection" tab to see all your downloaded ROMs
 2. **Add hacks manually**: Use the "Add Hack" button to track hacks you've played from other sources
 3. **Track progress**: Mark hacks as completed, rate them (1-5 stars), and add personal notes
 4. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
 5. **Advanced editing**: Double-click any hack to open the full edit dialog
-6. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open its file location in your system's file manager
+6. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open 
+
+![Collection Page](images/application-4.8-collection.png)its file location in your system's file manager
 7. **🎮 Quick launch**: Click the play icon (▶) next to any hack to launch it directly in your configured emulator
 8. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
@@ -105,6 +109,8 @@ When editing **Completed Date** and **Time to Beat** fields, the app supports fl
 - **Emulator integration**: Configure your favorite emulator to launch games directly from the Collection page
   - Supports RetroArch, Snes9x, and any other emulator
   - Custom command-line arguments with `%1` placeholder support
+
+![Settings Page](images/application-4.8-settings.png)
   - Cross-platform: Windows, macOS (.app bundles), and Linux
 - **Auto-updates**: Choose if you want automatic app updates
 - **Theme**: Switch between light and dark modes with instant, smooth transitions and optimized performance
