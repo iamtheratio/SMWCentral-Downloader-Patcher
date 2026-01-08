@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
+import subprocess
 import sys
 import os
 import platform
@@ -707,12 +708,18 @@ class SettingsPage:
                 filetypes = [("All Files", "*")]
                 initialdir = None
 
+            # Helper function to avoid duplicating the Tk dialog call
+            def _tk_file_picker():
+                return filedialog.askopenfilename(
+                    title="Select Emulator",
+                    filetypes=filetypes,
+                    initialdir=initialdir,
+                )
+
             filename = ""
 
             if system == "Darwin":
                 try:
-                    import subprocess
-
                     result = subprocess.run(
                         [
                             "osascript",
@@ -732,41 +739,33 @@ class SettingsPage:
                         return
 
                     # Unexpected AppleScript failure -> fallback to Tk dialog
-                    filename = filedialog.askopenfilename(
-                        title="Select Emulator",
-                        filetypes=filetypes,
-                        initialdir=initialdir,
-                    )
-                except Exception:
+                    filename = _tk_file_picker()
+                except Exception as ex:
                     # osascript not available/other error -> fallback to Tk dialog
-                    filename = filedialog.askopenfilename(
-                        title="Select Emulator",
-                        filetypes=filetypes,
-                        initialdir=initialdir,
-                    )
+                    if self.logger:
+                        self.logger.log(f"AppleScript picker failed: {ex}. Using Tk fallback.", "Debug")
+                    filename = _tk_file_picker()
             else:
-                filename = filedialog.askopenfilename(
-                    title="Select Emulator",
-                    filetypes=filetypes,
-                    initialdir=initialdir,
-                )
+                filename = _tk_file_picker()
 
             # macOS: if the user clicked inside a .app bundle, normalize to the bundle root
             if filename and system == "Darwin" and ".app/" in filename:
-                filename = filename.split(".app/")[0] + ".app"
+                # Find the first .app bundle in the path (handles nested .app cases)
+                app_index = filename.find(".app/")
+                if app_index != -1:
+                    filename = filename[:app_index + 4]  # +4 to include ".app"
 
             # If user cancels, stop cleanly (avoid chaining dialogs)
             if not filename:
                 return
 
-            if filename:
-                # macOS: Convert .app bundle to actual executable
-                if system == "Darwin" and filename.endswith(".app"):
-                    filename = self._convert_app_to_executable(filename)
+            # macOS: Convert .app bundle to actual executable
+            if system == "Darwin" and filename.endswith(".app"):
+                filename = self._convert_app_to_executable(filename)
 
-                self.emulator_path_entry.delete(0, tk.END)
-                self.emulator_path_entry.insert(0, filename)
-                self._save_emulator_settings()
+            self.emulator_path_entry.delete(0, tk.END)
+            self.emulator_path_entry.insert(0, filename)
+            self._save_emulator_settings()
 
         except Exception as e:
             if self.logger:
