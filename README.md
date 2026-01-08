@@ -132,7 +132,11 @@ The app supports launching ROMs directly in your favorite emulator with one clic
 ```
 -L cores/snes9x_libretro.dll "%1"
 ```
-Or on Linux/Mac:
+Or on macOS:
+```
+-L ~/Library/Application/Support/RetroArch/cores/snes9x_libretro.dylib "%1"
+```
+Or on Linux:
 ```
 -L ~/.config/retroarch/cores/snes9x_libretro.so "%1"
 ```
