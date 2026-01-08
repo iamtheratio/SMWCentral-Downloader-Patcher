@@ -1,6 +1,7 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import threading
+import subprocess
 import sys
 import os
 import platform
@@ -699,38 +700,72 @@ class SettingsPage:
                 filetypes = [("Executable Files", "*.exe"), ("All Files", "*.*")]
                 initialdir = None
             elif system == "Darwin":  # macOS
-                # Note: .app bundles are directories; depending on Tk/macOS version,
-                # they might not be selectable via askopenfilename. We'll fallback.
-                filetypes = [("Applications", "*.app"), ("All Files", "*")]
+                # Tk file dialogs can show .app bundles as grayed out on some macOS/Tk
+                # builds. Prefer the native “choose application” picker via AppleScript.
+                filetypes = [("All Files", "*"), ("Applications", "*.app")]
                 initialdir = "/Applications"
             else:  # Linux
                 filetypes = [("All Files", "*")]
                 initialdir = None
 
-            filename = filedialog.askopenfilename(
-                title="Select Emulator",
-                filetypes=filetypes,
-                initialdir=initialdir,
-            )
-
-            # macOS fallback: allow selecting an .app bundle as a directory
-            if not filename and system == "Darwin":
-                bundle_dir = filedialog.askdirectory(
-                    title="Select Emulator (.app)",
+            # Helper function to avoid duplicating the Tk dialog call
+            def _tk_file_picker():
+                return filedialog.askopenfilename(
+                    title="Select Emulator",
+                    filetypes=filetypes,
                     initialdir=initialdir,
-                    mustexist=True,
                 )
-                if bundle_dir and bundle_dir.endswith(".app"):
-                    filename = bundle_dir
 
-            if filename:
-                # macOS: Convert .app bundle to actual executable
-                if system == "Darwin" and filename.endswith(".app"):
-                    filename = self._convert_app_to_executable(filename)
+            filename = ""
 
-                self.emulator_path_entry.delete(0, tk.END)
-                self.emulator_path_entry.insert(0, filename)
-                self._save_emulator_settings()
+            if system == "Darwin":
+                try:
+                    result = subprocess.run(
+                        [
+                            "osascript",
+                            "-e",
+                            'POSIX path of (choose file of type {"app"} with prompt "Select Emulator" default location (POSIX file "/Applications"))',
+                        ],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    )
+                    filename = (result.stdout or "").strip()
+                    if filename.endswith("/"):
+                        filename = filename[:-1]
+                except subprocess.CalledProcessError as e:
+                    # User canceled AppleScript picker -> stop (no further dialogs)
+                    if e.returncode == 1:
+                        return
+
+                    # Unexpected AppleScript failure -> fallback to Tk dialog
+                    filename = _tk_file_picker()
+                except Exception as ex:
+                    # osascript not available/other error -> fallback to Tk dialog
+                    if self.logger:
+                        self.logger.log(f"AppleScript picker failed: {ex}. Using Tk fallback.", "Debug")
+                    filename = _tk_file_picker()
+            else:
+                filename = _tk_file_picker()
+
+            # macOS: if the user clicked inside a .app bundle, normalize to the bundle root
+            if filename and system == "Darwin" and ".app/" in filename:
+                # Find the first .app bundle in the path (handles nested .app cases)
+                app_index = filename.find(".app/")
+                if app_index != -1:
+                    filename = filename[:app_index + 4]  # +4 to include ".app"
+
+            # If user cancels, stop cleanly (avoid chaining dialogs)
+            if not filename:
+                return
+
+            # macOS: Convert .app bundle to actual executable
+            if system == "Darwin" and filename.endswith(".app"):
+                filename = self._convert_app_to_executable(filename)
+
+            self.emulator_path_entry.delete(0, tk.END)
+            self.emulator_path_entry.insert(0, filename)
+            self._save_emulator_settings()
 
         except Exception as e:
             if self.logger:
