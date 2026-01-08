@@ -699,29 +699,65 @@ class SettingsPage:
                 filetypes = [("Executable Files", "*.exe"), ("All Files", "*.*")]
                 initialdir = None
             elif system == "Darwin":  # macOS
-                # Note: .app bundles are directories; depending on Tk/macOS version,
-                # they might not be selectable via askopenfilename. We'll fallback.
-                filetypes = [("Applications", "*.app"), ("All Files", "*")]
+                # Tk file dialogs can show .app bundles as grayed out on some macOS/Tk
+                # builds. Prefer the native “choose application” picker via AppleScript.
+                filetypes = [("All Files", "*"), ("Applications", "*.app")]
                 initialdir = "/Applications"
             else:  # Linux
                 filetypes = [("All Files", "*")]
                 initialdir = None
 
-            filename = filedialog.askopenfilename(
-                title="Select Emulator",
-                filetypes=filetypes,
-                initialdir=initialdir,
-            )
+            filename = ""
 
-            # macOS fallback: allow selecting an .app bundle as a directory
-            if not filename and system == "Darwin":
-                bundle_dir = filedialog.askdirectory(
-                    title="Select Emulator (.app)",
+            if system == "Darwin":
+                try:
+                    import subprocess
+
+                    result = subprocess.run(
+                        [
+                            "osascript",
+                            "-e",
+                            'POSIX path of (choose file of type {"app"} with prompt "Select Emulator" default location (POSIX file "/Applications"))',
+                        ],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                    )
+                    filename = (result.stdout or "").strip()
+                    if filename.endswith("/"):
+                        filename = filename[:-1]
+                except subprocess.CalledProcessError as e:
+                    # User canceled AppleScript picker -> stop (no further dialogs)
+                    if e.returncode == 1:
+                        return
+
+                    # Unexpected AppleScript failure -> fallback to Tk dialog
+                    filename = filedialog.askopenfilename(
+                        title="Select Emulator",
+                        filetypes=filetypes,
+                        initialdir=initialdir,
+                    )
+                except Exception:
+                    # osascript not available/other error -> fallback to Tk dialog
+                    filename = filedialog.askopenfilename(
+                        title="Select Emulator",
+                        filetypes=filetypes,
+                        initialdir=initialdir,
+                    )
+            else:
+                filename = filedialog.askopenfilename(
+                    title="Select Emulator",
+                    filetypes=filetypes,
                     initialdir=initialdir,
-                    mustexist=True,
                 )
-                if bundle_dir and bundle_dir.endswith(".app"):
-                    filename = bundle_dir
+
+            # macOS: if the user clicked inside a .app bundle, normalize to the bundle root
+            if filename and system == "Darwin" and ".app/" in filename:
+                filename = filename.split(".app/")[0] + ".app"
+
+            # If user cancels, stop cleanly (avoid chaining dialogs)
+            if not filename:
+                return
 
             if filename:
                 # macOS: Convert .app bundle to actual executable
