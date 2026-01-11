@@ -279,16 +279,14 @@ class SettingsPage:
         self.emulator_args_entry.bind("<FocusOut>", self._save_emulator_settings)
         self.emulator_args_entry.bind("<Return>", self._save_emulator_settings)
 
-        # Difficulty Migration Section (right side)
-        migration_frame = ttk.LabelFrame(second_row_frame, text="Difficulty Migration", padding=(15, 10))
+        # Data Migration Section (right side)
+        migration_frame = ttk.LabelFrame(second_row_frame, text="Data Migration", padding=(15, 10))
         migration_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
         
         ttk.Label(
             migration_frame,
-            text="SMWCentral occasionally renames difficulty categories (e.g., 'Skilled' → 'Intermediate'). "
-                 "This tool automatically detects when your downloaded hacks have outdated difficulty names, "
-                 "backfills missing difficulty IDs for old hacks, and helps you update your folders and files"
-                 " to match the current categories.",
+            text="Manage your collection data. Fetch missing details (like release dates) from SMWCentral, "
+                 "and update outdated difficulty categories to match the latest site standards.",
             style="Custom.TLabel",
             wraplength=428
         ).pack(anchor="w", pady=(0, 10))
@@ -296,7 +294,7 @@ class SettingsPage:
         # Status label
         self.migration_status_label = ttk.Label(
             migration_frame,
-            text="Click 'Check for Migrations' to scan your collection",
+            text="Select an action below",
             style="Custom.TLabel"
         )
         self.migration_status_label.pack(anchor="w", pady=(0, 10))
@@ -307,7 +305,7 @@ class SettingsPage:
         
         self.check_migration_button = ttk.Button(
             migration_buttons,
-            text="Check for Migrations",
+            text="Check Difficulties",
             command=self._check_difficulty_migration,
             style="Custom.TButton"
         )
@@ -315,12 +313,21 @@ class SettingsPage:
         
         self.apply_migration_button = ttk.Button(
             migration_buttons,
-            text="Apply Migrations",
+            text="Apply Fixes",
             command=self._apply_difficulty_migration,
             style="Accent.TButton",
             state="disabled"
         )
-        self.apply_migration_button.pack(side="left")
+        self.apply_migration_button.pack(side="left", padx=(0, 10))
+        
+        # NEW: Fetch Metadata Button
+        self.fetch_metadata_button = ttk.Button(
+            migration_buttons,
+            text="Fetch Metadata",
+            command=self._fetch_missing_metadata,
+            style="Custom.TButton"
+        )
+        self.fetch_metadata_button.pack(side="left")
 
         # Log section with level dropdown and clear button
         log_header_frame = ttk.Frame(self.frame)
@@ -688,6 +695,67 @@ class SettingsPage:
             
             if self.logger:
                 self.logger.log(f"Error applying difficulty migrations: {str(e)}", "Error")
+    def _fetch_missing_metadata(self):
+        """Fetch missing metadata (release dates, etc.) for existing hacks"""
+        if not messagebox.askyesno(
+            "Fetch Metadata", 
+            "This will verify all hacks in your collection and fetch missing data (like Release Dates) from SMWCentral.\n\n"
+            "This process is rate-limited (1 request/sec) to respect the API.\n"
+            "It may take several minutes depending on your collection size.\n\n"
+            "Do you want to continue?"
+        ):
+            return
+
+        self.fetch_metadata_button.config(state="disabled", text="Fetching...")
+        self.migration_status_label.config(text="⏳ Fetching metadata...", foreground="blue")
+        
+        def run_backfill():
+            try:
+                import api_pipeline
+                from config_manager import ConfigManager
+                
+                # Setup logging callback
+                def log_cb(msg, level="Information"):
+                    if self.logger:
+                        self.logger.log(msg, level)
+                        
+                log_cb("Starting metadata backfill...", "Information")
+                
+                # Run the pipeline function
+                count = api_pipeline.backfill_metadata(log_callback=log_cb)
+                
+                # Update UI on main thread
+                def update_ui_success():
+                    self.fetch_metadata_button.config(state="normal", text="Fetch Metadata")
+                    self.migration_status_label.config(
+                        text=f"✅ Metadata updated for {count} hacks", 
+                        foreground="green"
+                    )
+                    messagebox.showinfo("Complete", f"Successfully updated metadata for {count} hacks.")
+                    
+                    # Trigger Collection Page Reload via injected callback
+                    if hasattr(self, 'reload_collection_callback') and self.reload_collection_callback:
+                        try:
+                            print("DEBUG: Triggering Collection Page refresh via callback...")
+                            self.reload_collection_callback()
+                        except Exception as e:
+                            print(f"DEBUG: Failed to reload collection callback: {e}")
+                    
+                self.frame.after(0, update_ui_success)
+                
+            except Exception as e:
+                def update_ui_error():
+                    self.fetch_metadata_button.config(state="normal", text="Fetch Metadata")
+                    self.migration_status_label.config(text="❌ Fetch failed", foreground="red")
+                    messagebox.showerror("Error", f"Failed to fetch metadata: {str(e)}")
+                    if self.logger:
+                        self.logger.log(f"Metadata backfill error: {str(e)}", "Error")
+                
+                self.frame.after(0, update_ui_error)
+
+        import threading
+        threading.Thread(target=run_backfill, daemon=True).start()
+
     def _browse_emulator(self):
         """Browse for emulator executable"""
         from tkinter import filedialog

@@ -621,8 +621,19 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     "demo": bool(raw_fields.get("demo", False)),
                     "authors": hack.get("authors", []),
                     "exits": raw_fields.get("length", hack.get("length", 0)) or 0,
+                    "time": hack.get("time", 0),  # Raw timestamp
+                    "date": "",  # Will be populated below
                     "obsolete": is_obsolete_version  # Use the duplicate detection result
                 }
+                
+                # Populate date from time if available
+                if processed[hack_id]["time"]:
+                    try:
+                        from datetime import datetime
+                        timestamp = int(processed[hack_id]["time"])
+                        processed[hack_id]["date"] = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+                    except:
+                        pass
 
                 if is_obsolete_version:
                     if log:

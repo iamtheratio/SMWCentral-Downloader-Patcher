@@ -492,6 +492,8 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 "demo": new_metadata.get("demo", False),
                 "exits": new_metadata.get("exits", 0),
                 "authors": new_metadata.get("authors", []),
+                "time": new_metadata.get("time", 0),  # Raw timestamp
+                "date": "",  # Will be populated below
                 "obsolete": new_metadata.get("obsolete", False),  # NEW: Track obsolete status
                 # Collection tracking fields - preserve existing values
                 "completed": existing_hack.get("completed", False),
@@ -500,6 +502,16 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 "notes": existing_hack.get("notes", ""),
                 "time_to_beat": existing_hack.get("time_to_beat", 0)  # v3.1 NEW: preserve existing time
             }
+            
+            # Populate date from time if available
+            if processed[hack_id]["time"]:
+                try:
+                    from datetime import datetime
+                    timestamp = int(processed[hack_id]["time"])
+                    processed[hack_id]["date"] = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+                except:
+                    pass
+            
             save_processed(processed)
 
         except Exception as e:
@@ -533,6 +545,8 @@ def save_hack_to_processed_json(hack_data, file_path, hack_type):
         # v3.1 NEW: Additional metadata fields
         "exits": hack_data.get("length", 0),  # API length becomes exits
         "authors": hack_data.get("authors", []),  # Authors array
+        "time": hack_data.get("time", 0),  # Raw timestamp
+        "date": "",  # Will be populated below
         
         # Collection tracking fields
         "completed": False,
@@ -541,6 +555,15 @@ def save_hack_to_processed_json(hack_data, file_path, hack_type):
         "notes": "",
         "time_to_beat": 0  # v3.1 NEW: Time to beat in seconds
     }
+    
+    # Populate date from time if available
+    if processed_data["time"]:
+        try:
+             from datetime import datetime
+             timestamp = int(processed_data["time"])
+             processed_data["date"] = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+        except:
+             pass
     
     # Save to processed.json
     # ... existing save logic
@@ -664,8 +687,18 @@ def download_and_patch_hack(hack_data, patch_handler, processed, log=None):
                     "type": type_name,
                     "difficulty": difficulty_name,
                     "authors": authors,
+                    "time": hack_data.get("time", 0),  # Raw timestamp
+                    "date": "",  # Will be populated below
                     "obsolete": False  # NEW: Default new hacks to not obsolete
                 }
+                
+                # Populate date from time if available
+                if processed[hack_id]["time"]:
+                    try:
+                        timestamp = int(processed[hack_id]["time"])
+                        processed[hack_id]["date"] = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+                    except:
+                        pass
                 
                 if log: log(f"✅ Successfully processed {hack_name}")
                 return True
@@ -683,3 +716,94 @@ def download_and_patch_hack(hack_data, patch_handler, processed, log=None):
     except Exception as e:
         if log: log(f"❌ Error downloading {hack_name}: {str(e)}")
         return False
+def backfill_metadata(log_callback=None):
+    """
+    Backfill missing metadata for existing hacks (release date, description, etc.)
+    Returns the number of updated hacks.
+    """
+    processed = load_processed()
+    if not processed:
+        if log_callback:
+            log_callback("No processed hacks found.", "Warning")
+        return 0
+        
+    updated_count = 0
+    total_hacks = len(processed)
+    
+    if log_callback:
+        log_callback(f"Checking {total_hacks} hacks for missing metadata...", "Information")
+    
+    # Identify hacks needing update
+    ids_to_update = []
+    for hack_id, data in processed.items():
+        if isinstance(data, dict):
+            # Check for missing critical metadata (specifically release date which user requested)
+            # Also check for 'time' field which might be missing from previous partial backfills
+            if not data.get("date") or not data.get("time"):
+                ids_to_update.append(hack_id)
+    
+    if not ids_to_update:
+        if log_callback:
+            log_callback("All hacks already have metadata.", "Information")
+        return 0
+        
+    if log_callback:
+        log_callback(f"Found {len(ids_to_update)} hacks missing metadata. Fetching from SMWCentral...", "Information")
+        
+    # Process updates
+    for i, hack_id in enumerate(ids_to_update):
+        try:
+            # Rate limiting
+            if i > 0:
+                time.sleep(1.0) # 1 request per second
+                
+            hack_title = processed[hack_id].get("title", "Unknown")
+            if log_callback:
+                progress = f"[{i+1}/{len(ids_to_update)}]"
+                log_callback(f"{progress} Fetching metadata for '{hack_title}' (ID: {hack_id})...", "Information")
+            
+            # Fetch details
+            result = fetch_file_metadata(hack_id, log=lambda msg, level: None) # Suppress internal logs
+            
+            if result and "data" in result:
+                # API 'getfile' returns the file object directly (as verified in fetch_file_metadata)
+                # But fetch_file_metadata wraps it in {"data": ...}
+                api_data = result["data"]
+                
+                # Update fields
+                # Update fields
+                if "time" in api_data:
+                    try:
+                        timestamp = int(api_data["time"])
+                        date_str = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+                        processed[hack_id]["time"] = timestamp  # NEW: Save raw timestamp
+                        processed[hack_id]["date"] = date_str
+                        updated_count += 1
+                    except (ValueError, TypeError, OSError):
+                        if log_callback:
+                            log_callback(f"⚠️ Invalid timestamp for '{hack_title}'", "Warning")
+                    
+                    # Store other useful metadata if available
+                    if "downloads" in api_data:
+                        processed[hack_id]["downloads"] = api_data["downloads"]
+                    if "rating" in api_data:
+                        processed[hack_id]["rating"] = api_data["rating"]
+                else:
+                    if log_callback:
+                        log_callback(f"⚠️ No time/date found in API response for '{hack_title}'", "Warning")
+            else:
+                if log_callback:
+                    log_callback(f"❌ Failed to fetch data for '{hack_title}'", "Error")
+                    
+        except Exception as e:
+            if log_callback:
+                log_callback(f"❌ Error updating hack {hack_id}: {str(e)}", "Error")
+            # Continue to next hack even if one fails
+            
+        # Save periodically (every 10 or at end)
+        if (i + 1) % 10 == 0 or (i + 1) == len(ids_to_update):
+            if save_processed(processed):
+                if log_callback:
+                    log_callback(f"💾 Saved progress ({updated_count} updated so far)", "Information")
+            
+    return updated_count

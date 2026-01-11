@@ -53,6 +53,12 @@ class HackDataManager:
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
 
+    def reload_data(self):
+        """Reload data from processed.json (useful when external processes modify the file)"""
+        self.data = self._load_data()
+        self._log(f"🔄 Reloaded {len(self.data)} hacks from disk", "Information")
+        return True
+
     def save_data(self):
         """Save data back to processed.json with validation"""
         try:
@@ -113,7 +119,9 @@ class HackDataManager:
                     "personal_rating": hack_data.get("personal_rating", 0),
                     "notes": hack_data.get("notes", ""),
                     "time_to_beat": hack_data.get("time_to_beat", 0),  # v3.1 NEW: Add time_to_beat field
-                    "exits": hack_data.get("exits", 0)  # v3.1 NEW: Add exits field for analytics
+                    "exits": hack_data.get("exits", 0),  # v3.1 NEW: Add exits field for analytics
+                    "time": hack_data.get("time", 0),  # v4.8 NEW: Raw timestamp for release date
+                    "date": hack_data.get("date", "")  # v4.8 NEW: Formatted release date
                 }
                 hacks.append(hack_info)
         return hacks

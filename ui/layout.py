@@ -112,6 +112,10 @@ class MainLayout:
         
         # Register emulator settings callback to refresh collection cache
         self.settings_page.emulator_settings_callback = self.collection_page.refresh_emulator_cache
+        
+        # Register reload callback for metadata migration
+        self.settings_page.reload_collection_callback = self.collection_page._refresh_data_and_table
+
     
     def get_download_button(self):
         """Return the download button reference - deprecated for Settings page"""
