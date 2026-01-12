@@ -28,6 +28,10 @@ class ConfigManager:
     def __init__(self):
         self.config = self._load_config()
 
+    def reload(self):
+        """Reload configuration from file"""
+        self.config = self._load_config()
+
     def _load_config(self):
         """Load configuration from file or return defaults"""
         try:

@@ -939,8 +939,11 @@ class SettingsPage:
             config.set("emulator_path", emulator_path)
             config.set("emulator_args", emulator_args)
             config.set("emulator_args_enabled", emulator_args_enabled)
+            
+            # Save the config
             config.save()
             
+            # Show success message briefly or via log
             if self.logger:
                 self.logger.log(f"Emulator settings saved - path: '{emulator_path}'", "Information")
             
@@ -965,9 +968,16 @@ class SettingsPage:
             else:
                 if self.logger:
                     self.logger.log(f"⚠️ No emulator settings callback registered!", "Debug")
+
+            # Trigger collection page reload if callback exists (from feature branch)
+            if hasattr(self, 'reload_collection_callback') and self.reload_collection_callback:
+                try:
+                    self.reload_collection_callback()
+                except Exception as e:
+                    print(f"Error triggering collection reload: {e}")
             
         except Exception as e:
-            print(f"Error saving emulator settings: {e}")
+            messagebox.showerror("Error", f"Failed to save emulator settings: {e}")
     
     def _on_emulator_args_toggle(self):
         """Handle toggle of emulator args checkbox"""

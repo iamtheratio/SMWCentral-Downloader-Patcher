@@ -241,7 +241,8 @@ class CollectionPage:
         self.status_label.pack(anchor="center")
     
     def _refresh_data_and_table(self):
-        """Refresh data from file and update table"""
+        """Reload all data and refresh the table"""
+        self.config_manager.reload()  # Reload config to get latest emulator settings
         # CRITICAL: Force save any pending changes before refreshing to prevent data loss
         if hasattr(self.data_manager, 'unsaved_changes') and self.data_manager.unsaved_changes:
             self._log("💾 Saving pending changes before refresh to prevent data loss...", "Information")
@@ -1061,12 +1062,15 @@ class CollectionPage:
             
             # Launch emulator
             # Security: Explicitly use shell=False to prevent shell injection attacks
+            # Set cwd to emulator directory so relative paths (like 'cores/snes9x.dll') work correctly
+            emulator_dir = os.path.dirname(emulator_path)
+            
             if platform.system() == "Windows":
                 # Windows: use CREATE_NO_WINDOW to hide console and shell=False for security
-                subprocess.Popen(command, shell=False, creationflags=subprocess.CREATE_NO_WINDOW)
+                subprocess.Popen(command, shell=False, cwd=emulator_dir, creationflags=subprocess.CREATE_NO_WINDOW)
             else:
                 # Unix: standard Popen with shell=False for security
-                subprocess.Popen(command, shell=False)
+                subprocess.Popen(command, shell=False, cwd=emulator_dir)
             
             self._log(f"🎮 Launched '{hack_title}' with emulator", "Information")
             
