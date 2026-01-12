@@ -621,7 +621,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     "demo": bool(raw_fields.get("demo", False)),
                     "authors": hack.get("authors", []),
                     "exits": raw_fields.get("length", hack.get("length", 0)) or 0,
-                    "time": hack.get("time", 0),  # Raw timestamp
+                    "time": raw_fields.get("time", 0),  # Raw timestamp from raw_fields
                     "date": "",  # Will be populated below
                     "obsolete": is_obsolete_version  # Use the duplicate detection result
                 }
