@@ -430,7 +430,7 @@ class DownloadResults:
         self.tree = ttk.Treeview(results_frame, columns=columns, show="headings")
         
         # Configure headers and columns
-        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Downloads", "Exit(s)", "Author(s)", "Date"]
+        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Downloads", "Exit(s)", "Author(s)", "Released"]
         widths = [40, 220, 90, 100, 70, 100, 60, 150, 90]
         min_widths = [35, 180, 70, 80, 60, 80, 50, 120, 80]
         anchors = ["center", "w", "center", "center", "center", "center", "center", "w", "center"]
@@ -533,7 +533,7 @@ class DownloadResults:
     def _update_sort_headers(self):
         """Update column headers to show sort direction"""
         headers = {"title": "Title", "type": "Type", "difficulty": "Difficulty", 
-                  "rating": "Rating", "downloads": "Downloads", "exits": "Exit(s)", "authors": "Author(s)", "date": "Date"}
+                  "rating": "Rating", "downloads": "Downloads", "exits": "Exit(s)", "authors": "Author(s)", "date": "Released"}
         
         for col, base_text in headers.items():
             if col == self.sort_column:
