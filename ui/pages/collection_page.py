@@ -49,7 +49,8 @@ class CollectionPage:
         self.sort_reverse = False
         
         # Column Configuration (ID, Header, Width, MinWidth, Anchor)
-        self.COLUMNS = [
+        # DEFAULT_COLUMNS stores the original default order - never modified
+        self.DEFAULT_COLUMNS = [
             {"id": "completed", "header": "✓", "width": 45, "min_width": 35, "anchor": "center"},
             {"id": "play", "header": "▶", "width": 35, "min_width": 25, "anchor": "center"},
             {"id": "folder", "header": get_file_icon_unicode(), "width": 35, "min_width": 25, "anchor": "center"},
@@ -63,19 +64,45 @@ class CollectionPage:
             {"id": "notes", "header": "Notes", "width": 120, "min_width": 90, "anchor": "w"}
         ]
         
-        # Load column visibility from config
+        # COLUMNS is the working copy that can be reordered based on user config
+        self.COLUMNS = [col.copy() for col in self.DEFAULT_COLUMNS]
+        
+        # Load column visibility and order from config
         from config_manager import ConfigManager
         self.config_manager = ConfigManager()
-        self.visible_columns = self.config_manager.get("visible_columns", [c["id"] for c in self.COLUMNS])
         
-        # Ensure new columns are visible by default if config is old
-        # (This logic can be refined, e.g. check if "release_date" is missing but config exists)
+        # Load visible columns and column order from config
+        self.visible_columns = self.config_manager.get("visible_columns", [c["id"] for c in self.COLUMNS])
+        column_order = self.config_manager.get("column_order", None)
+        
+        # If we have a saved column order, use it; otherwise use default order
+        if column_order:
+            ordered_columns = []
+            # Add columns in saved order
+            for col_id in column_order:
+                col_def = next((c for c in self.COLUMNS if c["id"] == col_id), None)
+                if col_def:
+                    ordered_columns.append(col_def)
+            
+            # Add any new columns that might not be in saved order (for backward compatibility)
+            existing_ids = [col["id"] for col in ordered_columns]
+            for col in self.COLUMNS:
+                if col["id"] not in existing_ids:
+                    ordered_columns.append(col)
+            
+            self.COLUMNS = ordered_columns
         
         # Initialize components - USE HackCollectionInlineEditor instead of InlineEditor
         self.filters = TableFilters(self._apply_filters, self._select_random_hack)
         self.date_editor = HackCollectionInlineEditor(None, self.data_manager, self, logger)
         self.notes_editor = HackCollectionInlineEditor(None, self.data_manager, self, logger)
         self.time_editor = HackCollectionInlineEditor(None, self.data_manager, self, logger)  # v3.1 NEW
+        
+        # Track open dialogs to prevent duplicates
+        self.column_config_dialog = None
+        
+        # Debounce timer for scrollbar toggle
+        self.scrollbar_toggle_timer = None
         
         # Table and data
         self.tree = None
@@ -211,13 +238,13 @@ class CollectionPage:
         
         # Scrollbars
         v_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
-        h_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        self.h_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=self.h_scrollbar.set)
         
         # Grid layout
         self.tree.grid(row=0, column=0, sticky="nsew")
         v_scrollbar.grid(row=0, column=1, sticky="ns")
-        h_scrollbar.grid_remove()
+        self.h_scrollbar.grid_remove()
         
         table_frame.grid_rowconfigure(0, weight=1)
         table_frame.grid_columnconfigure(0, weight=1)
@@ -231,7 +258,7 @@ class CollectionPage:
         self.tree.bind("<Button-1>", self._on_item_click)
         self.tree.bind("<Double-1>", self._on_item_double_click)
         self.tree.bind("<Motion>", self._on_mouse_motion)
-        self.tree.bind("<Configure>", lambda e: self._toggle_h_scrollbar(h_scrollbar))
+        self.tree.bind("<Configure>", lambda e: self._toggle_h_scrollbar(self.h_scrollbar))
         
         # Status label - positioned in a footer frame after pagination
         footer_frame = ttk.Frame(self.frame)
@@ -560,26 +587,69 @@ class CollectionPage:
             
     def _show_column_config(self):
         """Show column configuration dialog"""
+        # Prevent multiple dialogs from opening
+        if self.column_config_dialog is not None:
+            try:
+                # If dialog still exists, focus it instead of opening a new one
+                self.column_config_dialog.dialog.lift()
+                self.column_config_dialog.dialog.focus_force()
+                return
+            except:
+                # Dialog was closed, reset the reference
+                self.column_config_dialog = None
+        
         from ui.components.column_config_dialog import ColumnConfigDialog
         
-        dialog = ColumnConfigDialog(
+        self.column_config_dialog = ColumnConfigDialog(
             self.parent,
             self.COLUMNS,
             self.visible_columns,
-            self._apply_column_config
+            self._apply_column_config,
+            self.config_manager,
+            self.DEFAULT_COLUMNS  # Pass original default order
         )
-        dialog.show()
+        
+        # Clear reference when dialog is closed
+        def on_dialog_close():
+            self.column_config_dialog = None
+        
+        self.column_config_dialog.show()
+        
+        # Bind to dialog destruction to clear reference
+        if self.column_config_dialog.dialog:
+            self.column_config_dialog.dialog.bind("<Destroy>", lambda e: on_dialog_close())
         
     def _apply_column_config(self, new_visible_cols):
         """Apply new column configuration"""
         self.visible_columns = new_visible_cols
         
-        # Save to config
-        self.config_manager.set("visible_columns", new_visible_cols)
-        self.config_manager.save()
+        # Reload config to get updated column_order and visible_columns
+        self.config_manager.reload()
+        column_order = self.config_manager.get("column_order", None)
+        updated_visible = self.config_manager.get("visible_columns", new_visible_cols)
+        
+        # Reorder COLUMNS based on column_order (if available)
+        if column_order:
+            ordered_columns = []
+            for col_id in column_order:
+                col_def = next((c for c in self.COLUMNS if c["id"] == col_id), None)
+                if col_def:
+                    ordered_columns.append(col_def)
+            
+            # Add any new columns not in saved order
+            existing_ids = [col["id"] for col in ordered_columns]
+            for col in self.COLUMNS:
+                if col["id"] not in existing_ids:
+                    ordered_columns.append(col)
+            
+            self.COLUMNS = ordered_columns
         
         # Update table visibility
-        self.tree["displaycolumns"] = new_visible_cols
+        self.tree["displaycolumns"] = updated_visible
+        
+        # Force scrollbar update after column change
+        self.tree.update_idletasks()
+        self._toggle_h_scrollbar(self.h_scrollbar)
             
     def _show_rating_preview(self, item, event, col_idx_str):
         """Show preview of which star would be selected"""
@@ -1298,9 +1368,26 @@ class CollectionPage:
             return None
     
     def _toggle_h_scrollbar(self, scrollbar):
-        """Show/hide horizontal scrollbar based on content"""
+        """Show/hide horizontal scrollbar based on content (debounced)"""
+        # Cancel pending timer if exists
+        if self.scrollbar_toggle_timer:
+            self.frame.after_cancel(self.scrollbar_toggle_timer)
+        
+        # Schedule scrollbar update with small delay
+        self.scrollbar_toggle_timer = self.frame.after(100, lambda: self._do_toggle_h_scrollbar(scrollbar))
+    
+    def _do_toggle_h_scrollbar(self, scrollbar):
+        """Actually toggle the scrollbar"""
+        self.scrollbar_toggle_timer = None
+        
         tree_width = self.tree.winfo_width()
-        content_width = sum(self.tree.column(col)["width"] for col in self.tree["columns"])
+        
+        # Only sum widths of VISIBLE columns
+        visible_cols = self.tree["displaycolumns"]
+        if visible_cols:  # displaycolumns can be empty or a list
+            content_width = sum(self.tree.column(col)["width"] for col in visible_cols)
+        else:
+            content_width = 0
         
         if content_width > tree_width:
             scrollbar.grid(row=1, column=0, sticky="ew")
