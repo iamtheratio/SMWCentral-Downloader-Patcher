@@ -213,8 +213,40 @@ If clicking the play icon doesn't work:
 
 ##  Changelog
 
+</details>
+
+<details open>
+<summary><strong>Version 4.9 - Latest Release</strong></summary>
+
+### v4.9.0
+
+### 🆕 New Features
+- **Release Date Support**:
+  - Automatically fetches release dates for downloaded hacks
+  - New "Released" column in Collection view (sortable)
+  - Manually entered dates (e.g., "2010" or "Feb 2021") are automatically converted to full timestamps
+- **Customizable Columns**:
+  - Show/Hide columns in Collection view to de-clutter your interface
+  - Click the "⚙ Columns" button above the table to configure
+  - Settings are saved and remembered
+- **Random Hack Button**:
+  - New "Random Hack" button to pick a random hack from your collection for when you can't decide what to play
+- **Data Migration Tool**:
+  - New "Fetch Metadata" feature in Settings -> Data Migration
+  - Retroactively fetches release dates for your existing collection from SMWCentral
+- **Enhanced Emulator Integration**:
+  - Fixed relative paths for RetroArch cores (launching games now works reliably for all configurations)
+  - Emulator settings changes are applied instantly (no restart required)
+
+### 🔧 Improvements
+- Updated "Difficulty Migration" section in Settings to "Data Migration" to reflect broader capabilities
+- "Date" column header in Download page renamed to "Released" for consistency
+- Improved info modal with more detailed metadata
+
+</details>
+
 <details>
-<summary><strong>Version 4.8 - Latest Release</strong></summary>
+<summary><strong>Previous Versions</strong></summary>
 
 ### v4.8.0
 
