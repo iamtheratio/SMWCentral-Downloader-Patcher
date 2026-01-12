@@ -636,7 +636,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                         from datetime import datetime
                         timestamp = int(processed[hack_id]["time"])
                         processed[hack_id]["date"] = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
-                    except:
+                    except Exception:
                         pass
 
                 if is_obsolete_version:

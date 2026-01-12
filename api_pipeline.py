@@ -514,7 +514,7 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                     from datetime import datetime
                     timestamp = int(processed[hack_id]["time"])
                     processed[hack_id]["date"] = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
-                except:
+                except Exception:
                     pass
             
             save_processed(processed)
@@ -567,7 +567,7 @@ def save_hack_to_processed_json(hack_data, file_path, hack_type):
              from datetime import datetime
              timestamp = int(processed_data["time"])
              processed_data["date"] = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
-        except:
+        except Exception:
              pass
     
     # Save to processed.json
@@ -702,7 +702,8 @@ def download_and_patch_hack(hack_data, patch_handler, processed, log=None):
                     try:
                         timestamp = int(processed[hack_id]["time"])
                         processed[hack_id]["date"] = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
-                    except:
+                    except (ValueError, TypeError, OSError, OverflowError):
+                        # Ignore invalid or out-of-range timestamps; leave date as default ""
                         pass
                 
                 if log: log(f"✅ Successfully processed {hack_name}")
@@ -776,7 +777,6 @@ def backfill_metadata(log_callback=None):
                 api_data = result["data"]
                 
                 # Update fields
-                # Update fields
                 if "time" in api_data:
                     try:
                         timestamp = int(api_data["time"])
@@ -807,8 +807,8 @@ def backfill_metadata(log_callback=None):
             
         # Save periodically (every 10 or at end)
         if (i + 1) % 10 == 0 or (i + 1) == len(ids_to_update):
-            if save_processed(processed):
-                if log_callback:
-                    log_callback(f"💾 Saved progress ({updated_count} updated so far)", "Information")
+            save_processed(processed)
+            if log_callback:
+                log_callback(f"💾 Saved progress ({updated_count} updated so far)", "Information")
             
     return updated_count
