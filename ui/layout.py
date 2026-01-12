@@ -110,9 +110,6 @@ class MainLayout:
         collection_frame = self.collection_page.create()
         self.page_manager.add_page("Collection", collection_frame)
         
-        # Register emulator settings callback to refresh collection cache
-        self.settings_page.emulator_settings_callback = self.collection_page.refresh_emulator_cache
-        
         # Register reload callback for metadata migration
         self.settings_page.reload_collection_callback = self.collection_page._refresh_data_and_table
 
