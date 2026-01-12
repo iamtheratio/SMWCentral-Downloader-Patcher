@@ -263,7 +263,7 @@ class SettingsPage:
             text="Use %1 as a placeholder for the ROM file path, or leave it out to append the ROM at the end.\n"
                  "Examples:\n"
                      "  • RetroArch (Windows): -L cores/snes9x_libretro.dll \"%1\"\n"
-                     "  • RetroArch (macOS): -L ~/Library/Application/Support/RetroArch/cores/snes9x_libretro.dylib \"%1\"\n"
+                     "  • RetroArch (macOS): -L \"~/Library/Application Support/RetroArch/cores/snes9x_libretro.dylib\" \"%1\"\n"
                  "  • Snes9x: --fullscreen (ROM will be added automatically)",
             style="Custom.TLabel",
             font=("Segoe UI", 8),
@@ -833,12 +833,47 @@ class SettingsPage:
 
             self.emulator_path_entry.delete(0, tk.END)
             self.emulator_path_entry.insert(0, filename)
+            
+            # Auto-fill command line arguments for known emulators
+            if hasattr(self, '_auto_fill_emulator_args'):
+                self._auto_fill_emulator_args(filename)
+                
             self._save_emulator_settings()
 
         except Exception as e:
             if self.logger:
                 self.logger.log(f"Failed to browse for emulator: {e}", "Error")
             messagebox.showerror("Browse Error", f"Failed to browse for emulator:\n\n{e}")
+    
+    def _auto_fill_emulator_args(self, emulator_path):
+        """Auto-fill command line arguments for known emulators if args field is empty"""
+        # Only auto-fill if the args field is currently empty
+        current_args = self.emulator_args_entry.get().strip()
+        if current_args:
+            return  # Don't overwrite existing arguments
+        
+        emulator_lower = emulator_path.lower()
+        system = platform.system()
+        suggested_args = None
+        
+        # RetroArch detection
+        if "retroarch" in emulator_lower:
+            if system == "Darwin":  # macOS
+                suggested_args = '-L "~/Library/Application Support/RetroArch/cores/snes9x_libretro.dylib" "%1"'
+            elif system == "Windows":
+                suggested_args = '-L cores/snes9x_libretro.dll "%1"'
+            else:  # Linux
+                suggested_args = '-L ~/.config/retroarch/cores/snes9x_libretro.so "%1"'
+        
+        # Apply suggested arguments if found
+        if suggested_args:
+            self.emulator_args_entry.delete(0, tk.END)
+            self.emulator_args_entry.insert(0, suggested_args)
+            self.emulator_args_enabled_var.set(True)
+            self._on_emulator_args_toggle()  # Update UI state
+            
+            if self.logger:
+                self.logger.log(f"Auto-filled RetroArch command line arguments", "Information")
     
     def _convert_app_to_executable(self, app_path):
         """Convert macOS .app bundle path to actual executable path"""

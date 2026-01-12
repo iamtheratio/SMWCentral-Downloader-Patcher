@@ -134,15 +134,19 @@ The app supports launching ROMs directly in your favorite emulator with one clic
 
 #### Command-Line Arguments Examples
 
-**RetroArch:**
+**RetroArch (Windows):**
 ```
 -L cores/snes9x_libretro.dll "%1"
 ```
-Or on macOS:
+
+**RetroArch (macOS):**
+- Emulator Path: `/Applications/RetroArch.app/Contents/MacOS/RetroArch`
+- Command Line Arguments:
 ```
--L ~/Library/Application/Support/RetroArch/cores/snes9x_libretro.dylib "%1"
+-L "~/Library/Application Support/RetroArch/cores/snes9x_libretro.dylib" "%1"
 ```
-Or on Linux:
+
+**RetroArch (Linux):**
 ```
 -L ~/.config/retroarch/cores/snes9x_libretro.so "%1"
 ```
