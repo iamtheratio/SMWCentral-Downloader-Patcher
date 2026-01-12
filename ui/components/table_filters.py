@@ -1098,6 +1098,18 @@ class AddHackDialog:
                 difficulty_storage = self.difficulty_var.get()  # Keep original capitalization
                 type_storage = self.type_var.get().lower().replace("-", "")  # Remove hyphens for consistency
                 
+                # Calculate timestamp from date if provided
+                release_date_str = self.release_date_var.get().strip()
+                release_timestamp = 0
+                if release_date_str:
+                    try:
+                        from datetime import datetime
+                        # Parse YYYY-MM-DD format
+                        date_obj = datetime.strptime(release_date_str, '%Y-%m-%d')
+                        release_timestamp = int(date_obj.timestamp())
+                    except:
+                        pass  # If parsing fails, keep timestamp as 0
+                
                 # Update each field individually
                 updates = {
                     "title": self.title_var.get().strip(),
@@ -1116,7 +1128,8 @@ class AddHackDialog:
                     "personal_rating": self.rating_var.get(),
                     "time_to_beat": time_seconds,
                     "notes": self.notes_var.get().strip(),
-                    "date": self.release_date_var.get().strip(),
+                    "date": release_date_str,
+                    "time": release_timestamp,  # Store calculated timestamp
                     "file_path": self.file_path_var.get().strip()
                 }
                 
@@ -1162,6 +1175,18 @@ class AddHackDialog:
             difficulty_storage = self.difficulty_var.get()  # Keep original capitalization
             type_storage = self.type_var.get().lower().replace("-", "")  # Remove hyphens for consistency
             
+            # Calculate timestamp from date if provided
+            release_date_str = self.release_date_var.get().strip()
+            release_timestamp = 0
+            if release_date_str:
+                try:
+                    from datetime import datetime
+                    # Parse YYYY-MM-DD format
+                    date_obj = datetime.strptime(release_date_str, '%Y-%m-%d')
+                    release_timestamp = int(date_obj.timestamp())
+                except:
+                    pass  # If parsing fails, keep timestamp as 0
+            
             # Create hack data
             hack_data = {
                 "title": new_title,
@@ -1180,8 +1205,8 @@ class AddHackDialog:
                 "personal_rating": self.rating_var.get(),  # Now using IntVar directly
                 "time_to_beat": time_seconds,  # Store as seconds like collection page
                 "notes": self.notes_var.get().strip(),
-                "date": self.release_date_var.get().strip(),
-                "time": 0,  # User hacks don't have timestamps
+                "date": release_date_str,
+                "time": release_timestamp,  # Store calculated timestamp from date
                 "obsolete": False,
                 "file_path": self.file_path_var.get().strip(),  # Store file path for user hacks
                 "additional_paths": []
