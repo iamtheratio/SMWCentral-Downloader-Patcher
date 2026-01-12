@@ -42,7 +42,12 @@ def is_cancelled():
 
 def fetch_hack_list(config, page=1, waiting_mode=False, log=None):
     """Fetch hack list - separated for moderated vs waiting hacks"""
-    params = {"a": "getsectionlist", "s": "smwhacks", "n": page, "u": "1" if waiting_mode else "0"}
+    params = {
+        "a": "getsectionlist", 
+        "s": "smwhacks", 
+        "n": page, 
+        "u": "1" if waiting_mode else "0"
+    }
     
     # Add order parameter if specified
     if "order" in config:

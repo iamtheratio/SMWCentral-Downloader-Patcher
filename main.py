@@ -283,6 +283,16 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
 
         # Get difficulty info
         raw_fields = hack.get("raw_fields", {})
+        
+        # Get time from hack object (should be available from API)
+        metadata_time = hack.get("time", 0)
+        
+        # DEBUG: Output complete hack JSON
+        import json
+        print(f"\n=== DEBUG: Complete hack JSON for {hack.get('name', 'unknown')} ===")
+        print(json.dumps(hack, indent=2, default=str))
+        print(f"=== END DEBUG ===\n")
+        
         raw_diff = raw_fields.get("difficulty", "")
         if not raw_diff or raw_diff in [None, "N/A"]:
             raw_diff = ""
@@ -621,7 +631,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     "demo": bool(raw_fields.get("demo", False)),
                     "authors": hack.get("authors", []),
                     "exits": raw_fields.get("length", hack.get("length", 0)) or 0,
-                    "time": raw_fields.get("time", 0),  # Raw timestamp from raw_fields
+                    "time": metadata_time,  # Use fetched metadata time
                     "date": "",  # Will be populated below
                     "obsolete": is_obsolete_version  # Use the duplicate detection result
                 }

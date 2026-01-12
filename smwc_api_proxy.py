@@ -10,6 +10,12 @@ def get_api_delay():
 def smwc_api_get(url, params=None, log=None):
     delay = get_api_delay()
     
+    # DEBUG: Always print API URL to console
+    if params:
+        import urllib.parse
+        full_url = url + "?" + urllib.parse.urlencode(params, doseq=True)
+        print(f"\n=== API REQUEST URL ===\n{full_url}\n======================\n")
+    
     # Log the full API request URL for debugging
     if log and params:
         import urllib.parse
