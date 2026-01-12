@@ -11,7 +11,6 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 from hack_data_manager import HackDataManager
 from ui.collection_components import InlineEditor, DateValidator, NotesValidator, HackCollectionInlineEditor
 from ui.components.table_filters import TableFilters
-from ui.components.hack_info_dialog import HackInfoDialog
 from ui_constants import get_page_padding, get_section_padding
 from file_explorer_utils import open_file_in_explorer, get_file_icon_unicode
 
