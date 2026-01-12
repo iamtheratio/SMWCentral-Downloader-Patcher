@@ -287,12 +287,6 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
         # Get time from hack object (should be available from API)
         metadata_time = hack.get("time", 0)
         
-        # DEBUG: Output complete hack JSON
-        import json
-        print(f"\n=== DEBUG: Complete hack JSON for {hack.get('name', 'unknown')} ===")
-        print(json.dumps(hack, indent=2, default=str))
-        print(f"=== END DEBUG ===\n")
-        
         raw_diff = raw_fields.get("difficulty", "")
         if not raw_diff or raw_diff in [None, "N/A"]:
             raw_diff = ""
