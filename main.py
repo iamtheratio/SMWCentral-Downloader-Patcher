@@ -51,7 +51,7 @@ try:
 except ImportError:
     pywinstyles = None
 
-VERSION = "v4.8"
+VERSION = "v4.9"
 
 
 def apply_theme_to_titlebar(root):
@@ -852,6 +852,8 @@ def main():
         # Quick multi-type migration check (silent, fast)
         try:
             from api_pipeline import load_processed, save_processed
+            from download_state_manager import set_download_active
+            
             processed = load_processed()
             needs_multi_type_update = False
             needs_obsolete_update = False
@@ -871,7 +873,12 @@ def main():
                         needs_obsolete_update = True
 
             if needs_multi_type_update or needs_obsolete_update:
-                save_processed(processed)
+                # Lock collection during migration
+                set_download_active(True)
+                try:
+                    save_processed(processed)
+                finally:
+                    set_download_active(False)
         except Exception:
             pass  # Ignore migration errors
 

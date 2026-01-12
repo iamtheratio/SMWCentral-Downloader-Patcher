@@ -184,7 +184,8 @@ class CollectionPage:
     def show(self):
         """Called when the page becomes visible"""
         if self.frame:
-            self._refresh_data_and_table()
+            # Only refresh when showing - don't duplicate if user just clicked refresh
+            # Check if we need to refresh (e.g., returning from another page)
             total_hacks = len(self.data_manager.get_all_hacks())
             completed_hacks = sum(1 for hack in self.data_manager.get_all_hacks() if hack.get("completed", False))
             self._log(f"📊 Hack Collection page loaded - {total_hacks} total hacks, {completed_hacks} completed", "Information")
@@ -269,24 +270,39 @@ class CollectionPage:
     
     def _refresh_data_and_table(self):
         """Reload all data and refresh the table"""
-        self.config_manager.reload()  # Reload config to get latest emulator settings
-        # CRITICAL: Force save any pending changes before refreshing to prevent data loss
-        if hasattr(self.data_manager, 'unsaved_changes') and self.data_manager.unsaved_changes:
-            self._log("💾 Saving pending changes before refresh to prevent data loss...", "Information")
-            if self.data_manager.force_save():
-                pass # Saved successfully
-            else:
-                self._log("❌ Failed to save changes before refresh", "Error")
+        # Guard against duplicate calls
+        if hasattr(self, '_is_refreshing') and self._is_refreshing:
+            self._log("DEBUG: Skipping duplicate refresh call", "Debug")
+            return
         
-        # Reload data from disk to pick up external changes (e.g. metadata fetch)
-        self.data_manager.reload_data()
-        self.filters.refresh_dropdown_values(self.data_manager)
+        self._is_refreshing = True
         
-        # Apply filters and sorting
-        self._apply_filters()
-        self._refresh_table()
-        
-        self._log(f"🔄 Refreshed hack data from file", "Debug")
+        try:
+            # Debug: Add stack trace to find duplicate calls
+            import traceback
+            stack_summary = traceback.extract_stack()
+            self._log(f"DEBUG: _refresh_data_and_table called from {stack_summary[-2].filename.split('/')[-1].split(chr(92))[-1]}:{stack_summary[-2].lineno}", "Debug")
+            
+            self.config_manager.reload()  # Reload config to get latest emulator settings
+            # CRITICAL: Force save any pending changes before refreshing to prevent data loss
+            if hasattr(self.data_manager, 'unsaved_changes') and self.data_manager.unsaved_changes:
+                self._log("💾 Saving pending changes before refresh to prevent data loss...", "Information")
+                if self.data_manager.force_save():
+                    pass # Saved successfully
+                else:
+                    self._log("❌ Failed to save changes before refresh", "Error")
+            
+            # Reload data from disk to pick up external changes (e.g. metadata fetch)
+            self.data_manager.reload_data()
+            self.filters.refresh_dropdown_values(self.data_manager)
+            
+            # Apply filters and sorting
+            self._apply_filters()
+            self._refresh_table()
+            
+            self._log(f"🔄 Refreshed hack data from file", "Debug")
+        finally:
+            self._is_refreshing = False
     
     def _refresh_table(self):
         """Refresh table data with pagination and sorting"""
