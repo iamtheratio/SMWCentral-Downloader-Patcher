@@ -1054,7 +1054,8 @@ class SettingsPage:
                 try:
                     self.reload_collection_callback()
                 except Exception as e:
-                    print(f"Error triggering collection reload: {e}")
+                    if self.logger:
+                        self.logger.log(f"Error triggering collection reload: {e}", "Error")
             
         except Exception as e:
             messagebox.showerror("Error", f"Failed to save emulator settings: {e}")
