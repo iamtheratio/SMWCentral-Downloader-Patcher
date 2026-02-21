@@ -1184,7 +1184,7 @@ class AddHackDialog:
                     # Parse YYYY-MM-DD format
                     date_obj = datetime.strptime(release_date_str, '%Y-%m-%d')
                     release_timestamp = int(date_obj.timestamp())
-                except:
+                except Exception:
                     pass  # If parsing fails, keep timestamp as 0
             
             # Create hack data
