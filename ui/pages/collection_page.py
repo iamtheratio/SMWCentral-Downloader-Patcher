@@ -750,8 +750,13 @@ class CollectionPage:
                     # Get current values
                     current_values = list(self.tree.item(item)["values"])
                     
-                    # Update completed checkbox
-                    current_values[0] = "✓" if new_completed else ""
+                    # Update completed checkbox (respect current column ordering)
+                    try:
+                        completed_col_idx = next(i for i, c in enumerate(self.COLUMNS) if c["id"] == "completed")
+                        current_values[completed_col_idx] = "✓" if new_completed else ""
+                    except StopIteration:
+                        # "completed" column might be hidden or missing
+                        pass
                     
                     # Update completion date if it changed dynamically
                     try:
