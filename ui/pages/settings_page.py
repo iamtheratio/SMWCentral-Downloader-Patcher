@@ -10,7 +10,7 @@ import platform
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
 
 from utils import TYPE_KEYMAP
-from ui_constants import get_page_padding, get_section_padding
+from ui_constants import get_page_padding, get_section_padding, STATUS_COLOR_INFO, STATUS_COLOR_SUCCESS, STATUS_COLOR_WARNING, STATUS_COLOR_ERROR
 
 class SettingsPage:
     """Settings page implementation"""
@@ -263,7 +263,7 @@ class SettingsPage:
             text="Use %1 as a placeholder for the ROM file path, or leave it out to append the ROM at the end.\n"
                  "Examples:\n"
                      "  • RetroArch (Windows): -L cores/snes9x_libretro.dll \"%1\"\n"
-                     "  • RetroArch (macOS): -L ~/Library/Application/Support/RetroArch/cores/snes9x_libretro.dylib \"%1\"\n"
+                     "  • RetroArch (macOS): -L \"~/Library/Application Support/RetroArch/cores/snes9x_libretro.dylib\" \"%1\"\n"
                  "  • Snes9x: --fullscreen (ROM will be added automatically)",
             style="Custom.TLabel",
             font=("Segoe UI", 8),
@@ -279,24 +279,22 @@ class SettingsPage:
         self.emulator_args_entry.bind("<FocusOut>", self._save_emulator_settings)
         self.emulator_args_entry.bind("<Return>", self._save_emulator_settings)
 
-        # Difficulty Migration Section (right side)
-        migration_frame = ttk.LabelFrame(second_row_frame, text="Difficulty Migration", padding=(15, 10))
+        # Data Migration Section (right side)
+        migration_frame = ttk.LabelFrame(second_row_frame, text="Data Migration", padding=(15, 10))
         migration_frame.pack(side="right", fill="both", expand=True, padx=(10, 0))
         
         ttk.Label(
             migration_frame,
-            text="SMWCentral occasionally renames difficulty categories (e.g., 'Skilled' → 'Intermediate'). "
-                 "This tool automatically detects when your downloaded hacks have outdated difficulty names, "
-                 "backfills missing difficulty IDs for old hacks, and helps you update your folders and files"
-                 " to match the current categories.",
+            text="Manage your collection data. Fetch missing details (like release dates) from SMWCentral, "
+                 "and update outdated difficulty categories to match the latest site standards.",
             style="Custom.TLabel",
-            wraplength=428
+            wraplength=380
         ).pack(anchor="w", pady=(0, 10))
         
         # Status label
         self.migration_status_label = ttk.Label(
             migration_frame,
-            text="Click 'Check for Migrations' to scan your collection",
+            text="Select an action below",
             style="Custom.TLabel"
         )
         self.migration_status_label.pack(anchor="w", pady=(0, 10))
@@ -307,7 +305,7 @@ class SettingsPage:
         
         self.check_migration_button = ttk.Button(
             migration_buttons,
-            text="Check for Migrations",
+            text="Check Difficulties",
             command=self._check_difficulty_migration,
             style="Custom.TButton"
         )
@@ -315,12 +313,21 @@ class SettingsPage:
         
         self.apply_migration_button = ttk.Button(
             migration_buttons,
-            text="Apply Migrations",
+            text="Apply Fixes",
             command=self._apply_difficulty_migration,
             style="Accent.TButton",
             state="disabled"
         )
-        self.apply_migration_button.pack(side="left")
+        self.apply_migration_button.pack(side="left", padx=(0, 10))
+        
+        # NEW: Fetch Metadata Button
+        self.fetch_metadata_button = ttk.Button(
+            migration_buttons,
+            text="Fetch Metadata",
+            command=self._fetch_missing_metadata,
+            style="Custom.TButton"
+        )
+        self.fetch_metadata_button.pack(side="left")
 
         # Log section with level dropdown and clear button
         log_header_frame = ttk.Frame(self.frame)
@@ -510,8 +517,8 @@ class SettingsPage:
             
             if not output_dir or not os.path.exists(output_dir):
                 self.migration_status_label.config(
-                    text="⚠️ Please configure your output directory in Setup section first",
-                    foreground="orange"
+                    text="⚠️ Configure output directory first",
+                    foreground=STATUS_COLOR_WARNING
                 )
                 self.apply_migration_button.config(state="disabled")
                 self.check_migration_button.config(state="normal", text="Check for Migrations")
@@ -527,8 +534,8 @@ class SettingsPage:
             
             if not detected and backfill_count == 0:
                 self.migration_status_label.config(
-                    text="✅ Everything is up to date! Your hacks are using the latest difficulty categories.",
-                    foreground="green"
+                    text="✅ Everything is up to date!",
+                    foreground=STATUS_COLOR_SUCCESS
                 )
                 self.apply_migration_button.config(state="disabled")
                 self.check_migration_button.config(state="normal", text="Check for Migrations")
@@ -561,7 +568,7 @@ class SettingsPage:
                 
         except Exception as e:
             self.migration_status_label.config(
-                text=f"❌ Error checking for updates: {str(e)}",
+                text=f"❌ Check failed: {str(e)}",
                 foreground="red"
             )
             self.apply_migration_button.config(state="disabled")
@@ -621,73 +628,214 @@ class SettingsPage:
             self.migration_status_label.config(text="⏳ Applying migrations...", foreground="blue")
             self.frame.update_idletasks()
             
-            # Apply migrations
-            results = migrator.perform_migrations(dry_run=False)
+            # Lock collection page during migration
+            from download_state_manager import set_download_active
+            set_download_active(True)
             
-            if results.get("success"):
-                summary = results.get("summary", {})
-                folders = summary.get("folders_renamed", 0)
-                json_entries = summary.get("json_entries_updated", 0)
-                backfilled = summary.get("difficulty_ids_backfilled", 0)
-                synced = summary.get("difficulty_fields_synced", 0)
+            try:
+                # Apply migrations
+                results = migrator.perform_migrations(dry_run=False)
                 
-                success_msg = f"✅ Update Complete!\n\n"
-                if backfilled > 0:
-                    success_msg += f"• Backfilled {backfilled} difficulty_id field(s)\n"
-                if synced > 0:
-                    success_msg += f"• Synced {synced} difficulty field(s)\n"
-                success_msg += f"• Renamed {folders} folder(s)\n"
-                success_msg += f"• Updated {json_entries} hack records\n\n"
-                success_msg += "Your collection now uses the latest difficulty categories from SMWCentral!\n"
-                if folders > 0:
-                    success_msg += "(A backup was created in case you need to undo this change)"
-                
-                messagebox.showinfo("Update Complete", success_msg)
-                
-                self.migration_status_label.config(
-                    text="✅ All migrations applied successfully",
-                    foreground="green"
-                )
-                self.apply_migration_button.config(state="disabled", text="Apply Migrations")
-                
-                if self.logger:
-                    if backfilled > 0:
-                        self.logger.log(f"Backfilled {backfilled} difficulty_id fields", "Information")
-                    if synced > 0:
-                        self.logger.log(f"Synced {synced} difficulty fields", "Information")
-                    for old_name, (new_name, count) in detected.items():
-                        self.logger.log(f"Migrated '{old_name}' → '{new_name}' ({count:,} hacks)", "Information")
+                if results.get("success"):
+                    summary = results.get("summary", {})
+                    folders = summary.get("folders_renamed", 0)
+                    json_entries = summary.get("json_entries_updated", 0)
+                    backfilled = summary.get("difficulty_ids_backfilled", 0)
+                    synced = summary.get("difficulty_fields_synced", 0)
                     
-                    # Build comprehensive summary message
-                    summary_parts = []
+                    success_msg = f"✅ Update Complete!\n\n"
                     if backfilled > 0:
-                        summary_parts.append(f"{backfilled} IDs backfilled")
+                        success_msg += f"• Backfilled {backfilled} difficulty_id field(s)\n"
                     if synced > 0:
-                        summary_parts.append(f"{synced} fields synced")
+                        success_msg += f"• Synced {synced} difficulty field(s)\n"
+                    success_msg += f"• Renamed {folders} folder(s)\n"
+                    success_msg += f"• Updated {json_entries} hack records\n\n"
+                    success_msg += "Your collection now uses the latest difficulty categories from SMWCentral!\n"
                     if folders > 0:
-                        summary_parts.append(f"{folders} folders renamed")
-                    if json_entries > 0:
-                        summary_parts.append(f"{json_entries} entries updated")
+                        success_msg += "(A backup was created in case you need to undo this change)"
                     
-                    if summary_parts:
-                        self.logger.log(f"Difficulty migration completed: {', '.join(summary_parts)}", "Information")
-                    else:
-                        self.logger.log("Difficulty migration completed: no changes needed", "Information")
-            else:
-                errors = results.get("errors", [])
-                error_msg = "Migration failed:\n\n" + "\n".join(errors) if errors else "Unknown error occurred"
-                messagebox.showerror("Migration Failed", error_msg)
-                
-                self.migration_status_label.config(text="❌ Migration failed", foreground="red")
-                self.apply_migration_button.config(state="normal", text="Apply Migrations")
+                    messagebox.showinfo("Update Complete", success_msg)
+                    
+                    self.migration_status_label.config(
+                        text="✅ Migrations applied successfully",
+                        foreground=STATUS_COLOR_SUCCESS
+                    )
+                    self.apply_migration_button.config(state="disabled", text="Apply Migrations")
+                    
+                    if self.logger:
+                        if backfilled > 0:
+                            self.logger.log(f"Backfilled {backfilled} difficulty_id fields", "Information")
+                        if synced > 0:
+                            self.logger.log(f"Synced {synced} difficulty fields", "Information")
+                        for old_name, (new_name, count) in detected.items():
+                            self.logger.log(f"Migrated '{old_name}' → '{new_name}' ({count:,} hacks)", "Information")
+                        
+                        # Build comprehensive summary message
+                        summary_parts = []
+                        if backfilled > 0:
+                            summary_parts.append(f"{backfilled} IDs backfilled")
+                        if synced > 0:
+                            summary_parts.append(f"{synced} fields synced")
+                        if folders > 0:
+                            summary_parts.append(f"{folders} folders renamed")
+                        if json_entries > 0:
+                            summary_parts.append(f"{json_entries} entries updated")
+                        
+                        if summary_parts:
+                            self.logger.log(f"Difficulty migration completed: {', '.join(summary_parts)}", "Information")
+                        else:
+                            self.logger.log("Difficulty migration completed: no changes needed", "Information")
+                else:
+                    errors = results.get("errors", [])
+                    error_msg = "Migration failed:\n\n" + "\n".join(errors) if errors else "Unknown error occurred"
+                    messagebox.showerror("Migration Failed", error_msg)
+                    
+                    self.migration_status_label.config(text="❌ Migration failed", foreground=STATUS_COLOR_ERROR)
+                    self.apply_migration_button.config(state="normal", text="Apply Migrations")
+            finally:
+                # Always unlock collection page when migration finishes
+                set_download_active(False)
                 
         except Exception as e:
             messagebox.showerror("Migration Error", f"Failed to apply migrations: {str(e)}")
-            self.migration_status_label.config(text=f"❌ Error: {str(e)}", foreground="red")
+            self.migration_status_label.config(text=f"❌ Error: {str(e)}", foreground=STATUS_COLOR_ERROR)
             self.apply_migration_button.config(state="normal", text="Apply Migrations")
             
             if self.logger:
                 self.logger.log(f"Error applying difficulty migrations: {str(e)}", "Error")
+    def _fetch_missing_metadata(self):
+        """Fetch missing metadata (release dates, etc.) for existing hacks"""
+        if not messagebox.askyesno(
+            "Fetch Metadata", 
+            "This will verify all hacks in your collection and fetch missing data (like Release Dates) from SMWCentral.\n\n"
+            "This uses efficient bulk API requests to quickly update your collection.\n"
+            "Typically completes in under a minute for most collections.\n\n"
+            "You can cancel during the fetch phase, but not during the final save.\n\n"
+            "Do you want to continue?"
+        ):
+            return
+
+        # Setup cancellation flag
+        self._cancel_fetch = False
+        
+        def cancel_fetch():
+            """Called when user clicks Cancel button"""
+            if messagebox.askyesno("Cancel Fetch", "Are you sure you want to cancel the metadata fetch?"):
+                self._cancel_fetch = True
+                self.fetch_metadata_button.config(state="disabled", text="Cancelling...")
+                self.migration_status_label.config(text="⏳ Cancelling fetch...", foreground=STATUS_COLOR_WARNING)
+        
+        # Change button to Cancel mode
+        self.fetch_metadata_button.config(
+            state="normal", 
+            text="Cancel Fetch",
+            command=cancel_fetch
+        )
+        self.migration_status_label.config(text="⏳ Fetching metadata...", foreground=STATUS_COLOR_INFO)
+        
+        # Lock collection page during metadata fetch
+        from download_state_manager import set_download_active
+        set_download_active(True)
+        
+        def run_backfill():
+            try:
+                import api_pipeline
+                from config_manager import ConfigManager
+                
+                # Setup logging callback
+                def log_cb(msg, level="Information"):
+                    if self.logger:
+                        self.logger.log(msg, level)
+                        
+                log_cb("Starting metadata backfill...", "Information")
+                
+                # Setup cancellation check
+                def check_cancel():
+                    return self._cancel_fetch
+                
+                # Run the pipeline function with cancellation support
+                count = api_pipeline.backfill_metadata(log_callback=log_cb, cancel_check=check_cancel)
+                
+                # Check if cancelled
+                if count == -1:
+                    log_cb("Metadata fetch cancelled by user", "Warning")
+                    
+                    def update_ui_cancelled():
+                        self.fetch_metadata_button.config(
+                            state="normal", 
+                            text="Fetch Metadata",
+                            command=self._fetch_missing_metadata
+                        )
+                        self.migration_status_label.config(
+                            text="⚠️ Fetch cancelled", 
+                            foreground=STATUS_COLOR_WARNING
+                        )
+                        
+                        # Unlock collection page
+                        set_download_active(False)
+                        
+                        messagebox.showinfo("Cancelled", "Metadata fetch was cancelled. No changes were made.")
+                    
+                    self.frame.after(0, update_ui_cancelled)
+                    return
+                
+                log_cb(f"Backfill completed: {count} hacks updated", "Information")
+                
+                # Update UI on main thread
+                def update_ui_success():
+                    self.fetch_metadata_button.config(
+                        state="normal", 
+                        text="Fetch Metadata",
+                        command=self._fetch_missing_metadata
+                    )
+                    self.migration_status_label.config(
+                        text=f"✅ Metadata updated for {count} hacks", 
+                        foreground=STATUS_COLOR_SUCCESS
+                    )
+                    
+                    # Unlock collection page
+                    set_download_active(False)
+                    
+                    if count > 0:
+                        messagebox.showinfo("Complete", f"Successfully updated metadata for {count} hacks.")
+                    else:
+                        messagebox.showinfo("Complete", "All hacks already have metadata - nothing to update.")
+                    
+                    # Trigger Collection Page Reload via injected callback
+                    if hasattr(self, 'reload_collection_callback') and self.reload_collection_callback:
+                        try:
+                            print("DEBUG: Triggering Collection Page refresh via callback...")
+                            self.reload_collection_callback()
+                        except Exception as e:
+                            print(f"DEBUG: Failed to reload collection callback: {e}")
+                    
+                self.frame.after(0, update_ui_success)
+                
+            except Exception as e:
+                import traceback
+                error_details = traceback.format_exc()
+                print(f"ERROR in backfill: {error_details}")
+                
+                def update_ui_error():
+                    self.fetch_metadata_button.config(
+                        state="normal", 
+                        text="Fetch Metadata",
+                        command=self._fetch_missing_metadata
+                    )
+                    self.migration_status_label.config(text="❌ Fetch failed", foreground=STATUS_COLOR_ERROR)
+                    
+                    # Unlock collection page
+                    set_download_active(False)
+                    
+                    messagebox.showerror("Error", f"Failed to fetch metadata: {str(e)}")
+                    if self.logger:
+                        self.logger.log(f"Metadata backfill error: {str(e)}", "Error")
+                
+                self.frame.after(0, update_ui_error)
+
+        import threading
+        threading.Thread(target=run_backfill, daemon=True).start()
+
     def _browse_emulator(self):
         """Browse for emulator executable"""
         from tkinter import filedialog
@@ -765,12 +913,47 @@ class SettingsPage:
 
             self.emulator_path_entry.delete(0, tk.END)
             self.emulator_path_entry.insert(0, filename)
+            
+            # Auto-fill command line arguments for known emulators
+            if hasattr(self, '_auto_fill_emulator_args'):
+                self._auto_fill_emulator_args(filename)
+                
             self._save_emulator_settings()
 
         except Exception as e:
             if self.logger:
                 self.logger.log(f"Failed to browse for emulator: {e}", "Error")
             messagebox.showerror("Browse Error", f"Failed to browse for emulator:\n\n{e}")
+    
+    def _auto_fill_emulator_args(self, emulator_path):
+        """Auto-fill command line arguments for known emulators if args field is empty"""
+        # Only auto-fill if the args field is currently empty
+        current_args = self.emulator_args_entry.get().strip()
+        if current_args:
+            return  # Don't overwrite existing arguments
+        
+        emulator_lower = emulator_path.lower()
+        system = platform.system()
+        suggested_args = None
+        
+        # RetroArch detection
+        if "retroarch" in emulator_lower:
+            if system == "Darwin":  # macOS
+                suggested_args = '-L "~/Library/Application Support/RetroArch/cores/snes9x_libretro.dylib" "%1"'
+            elif system == "Windows":
+                suggested_args = '-L cores/snes9x_libretro.dll "%1"'
+            else:  # Linux
+                suggested_args = '-L ~/.config/retroarch/cores/snes9x_libretro.so "%1"'
+        
+        # Apply suggested arguments if found
+        if suggested_args:
+            self.emulator_args_entry.delete(0, tk.END)
+            self.emulator_args_entry.insert(0, suggested_args)
+            self.emulator_args_enabled_var.set(True)
+            self._on_emulator_args_toggle()  # Update UI state
+            
+            if self.logger:
+                self.logger.log(f"Auto-filled RetroArch command line arguments", "Information")
     
     def _convert_app_to_executable(self, app_path):
         """Convert macOS .app bundle path to actual executable path"""
@@ -836,8 +1019,11 @@ class SettingsPage:
             config.set("emulator_path", emulator_path)
             config.set("emulator_args", emulator_args)
             config.set("emulator_args_enabled", emulator_args_enabled)
+            
+            # Save the config
             config.save()
             
+            # Show success message briefly or via log
             if self.logger:
                 self.logger.log(f"Emulator settings saved - path: '{emulator_path}'", "Information")
             
@@ -862,9 +1048,17 @@ class SettingsPage:
             else:
                 if self.logger:
                     self.logger.log(f"⚠️ No emulator settings callback registered!", "Debug")
+
+            # Trigger collection page reload if callback exists (from feature branch)
+            if hasattr(self, 'reload_collection_callback') and self.reload_collection_callback:
+                try:
+                    self.reload_collection_callback()
+                except Exception as e:
+                    if self.logger:
+                        self.logger.log(f"Error triggering collection reload: {e}", "Error")
             
         except Exception as e:
-            print(f"Error saving emulator settings: {e}")
+            messagebox.showerror("Error", f"Failed to save emulator settings: {e}")
     
     def _on_emulator_args_toggle(self):
         """Handle toggle of emulator args checkbox"""

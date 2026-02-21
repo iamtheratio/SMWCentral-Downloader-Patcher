@@ -67,15 +67,20 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 
 ### Managing Your Collection
 1. **View your collection**: Click the "Collection" tab to see all your downloaded ROMs
-2. **Add hacks manually**: Use the "Add Hack" button to track hacks you've played from other sources
-3. **Track progress**: Mark hacks as completed, rate them (1-5 stars), and add personal notes
-4. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
-5. **Advanced editing**: Double-click any hack to open the full edit dialog
-6. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open 
+2. **Customize columns**: Click the "⚙ Columns" button to show/hide columns and reorder them via drag-and-drop
+   - Drag column names to reorder (visual feedback shows what you're moving)
+   - Check/uncheck boxes to show/hide specific columns
+   - Click "Reset to Default" to restore original layout
+   - Your preferences are saved automatically
+3. **Add hacks manually**: Use the "Add Hack" button to track hacks you've played from other sources
+4. **Track progress**: Mark hacks as completed, rate them (1-5 stars), and add personal notes
+5. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
+6. **Advanced editing**: Double-click any hack to open the full edit dialog
+7. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open its file location in your system's file manager
+8. **🎮 Quick launch**: Click the play icon (▶) next to any hack to launch it directly in your configured emulator
+9. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
-![Collection Page](images/application-4.8-collection.png)its file location in your system's file manager
-7. **🎮 Quick launch**: Click the play icon (▶) next to any hack to launch it directly in your configured emulator
-8. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
+![Collection Page](images/application-4.8-collection.png)
 
 #### Input Format Guide
 
@@ -109,12 +114,19 @@ When editing **Completed Date** and **Time to Beat** fields, the app supports fl
 - **Emulator integration**: Configure your favorite emulator to launch games directly from the Collection page
   - Supports RetroArch, Snes9x, and any other emulator
   - Custom command-line arguments with `%1` placeholder support
-
-![Settings Page](images/application-4.8-settings.png)
   - Cross-platform: Windows, macOS (.app bundles), and Linux
+- **Data Migration**: Keep your collection metadata up-to-date
+  - **Check Difficulties**: Detect outdated difficulty categories from SMWC renames
+  - **Apply Fixes**: Automatically migrate folders and update metadata
+  - **Fetch Metadata**: Bulk update missing release dates for your entire collection
+    - Optimized bulk API (completes in under 1 minute for most collections)
+    - Finds metadata for obsolete/unlisted hacks via fallback lookups
+    - Cancellable operation (safe to cancel during fetch phase)
 - **Auto-updates**: Choose if you want automatic app updates
 - **Theme**: Switch between light and dark modes with instant, smooth transitions and optimized performance
 - **API Delay Slider**: Set delay from 0.0 to 3.0 seconds between API requests to avoid rate limiting issues
+
+![Settings Page](images/application-4.8-settings.png)
 
 ### Emulator Configuration
 
@@ -134,15 +146,19 @@ The app supports launching ROMs directly in your favorite emulator with one clic
 
 #### Command-Line Arguments Examples
 
-**RetroArch:**
+**RetroArch (Windows):**
 ```
 -L cores/snes9x_libretro.dll "%1"
 ```
-Or on macOS:
+
+**RetroArch (macOS):**
+- Emulator Path: `/Applications/RetroArch.app/Contents/MacOS/RetroArch`
+- Command Line Arguments:
 ```
--L ~/Library/Application/Support/RetroArch/cores/snes9x_libretro.dylib "%1"
+-L "~/Library/Application Support/RetroArch/cores/snes9x_libretro.dylib" "%1"
 ```
-Or on Linux:
+
+**RetroArch (Linux):**
 ```
 -L ~/.config/retroarch/cores/snes9x_libretro.so "%1"
 ```
@@ -209,10 +225,65 @@ If clicking the play icon doesn't work:
 
 ##  Changelog
 
-<details>
-<summary><strong>Version 4.8 - Latest Release</strong></summary>
+</details>
 
-### v4.8.0
+<details open>
+<summary><strong>Version 4.9 - Latest Release (January 2026)</strong></summary>
+
+### 🆕 New Features
+
+**Column Configuration**
+- **Customizable Collection View**: Show/hide columns and reorder them via intuitive drag-and-drop
+  - Click "⚙ Columns" button above the Collection table to configure
+  - Visual feedback shows column name while dragging
+  - Check/uncheck boxes to control column visibility
+  - "Reset to Default" restores original layout
+  - Preferences persist across app sessions
+
+**Fetch Metadata - Supercharged**
+- **Bulk Metadata Updates**: Update missing release dates for your entire collection from SMWCentral
+  - **60-100x faster** than previous versions (under 1 minute vs 30+ minutes)
+  - Uses optimized bulk API fetching for active hacks
+  - Fallback individual lookups for obsolete/unlisted hacks
+  - Checks both moderated AND waiting sections
+  - **Cancellable operation** - safe to cancel during API fetch phase
+  - Access via Settings → Data Migration → "Fetch Metadata"
+
+**UI Consistency & Polish**
+- **Themed Status Colors**: Consistent, readable colors across all status messages
+  - Info/In-Progress: Light cyan (`#4FC3F7`) - much more visible than previous blue
+  - Success: Green (`#66BB6A`)
+  - Warning: Orange (`#FFA726`)
+  - Error: Red (`#EF5350`)
+  - Centralized theme constants in `ui_constants.py`
+
+**Data Protection**
+- **Collection Page Locking**: Prevents editing during background operations
+  - Locks during: Fetch Metadata, Difficulty Migrations, Silent Updates
+  - Shows "⏸️ Collection locked" message with operation reason
+  - Auto-unlocks when operation completes, fails, or is cancelled
+
+### 🔧 Improvements
+- **Cleaner Logging**: Simplified messages prevent UI clutter
+  - "🔄 Reloaded X hacks from disk" (removed debug paths)
+  - Shortened migration messages to prevent layout overflow
+- **Layout Optimizations**: Data Migration text wrapping adjusted to prevent cutoff
+- **Metadata Dialog**: Updated to reflect bulk optimization and cancellation features
+
+### 🐛 Bug Fixes
+- **Column Configuration**: Fixed TclError crashes during drag-and-drop
+  - Added widget existence checks before updates
+  - Robust error handling prevents UI freezes
+- **Reset to Default**: Fixed button not working (config validation issue)
+- **Duplicate Logging**: Fixed "Reloaded X hacks" appearing twice on Refresh
+- **Obsolete Hacks**: Fixed metadata fetch not updating old/replaced hack versions
+  - Now uses individual API lookups as fallback
+  - Warns about hacks that couldn't be updated
+
+</details>
+
+<details>
+<summary><strong>Version 4.8 - Previous Release</strong></summary>
 
 ### 🆕 New Features
 - **Emulator Integration**: Launch ROMs directly from the Collection page with one click

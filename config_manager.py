@@ -28,6 +28,10 @@ class ConfigManager:
     def __init__(self):
         self.config = self._load_config()
 
+    def reload(self):
+        """Reload configuration from file"""
+        self.config = self._load_config()
+
     def _load_config(self):
         """Load configuration from file or return defaults"""
         try:
@@ -95,10 +99,14 @@ class ConfigManager:
         # Only allow specific configuration keys
         allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path",
                         "multi_type_enabled", "multi_type_download_mode", "difficulty_lookup",
-                        "emulator_path", "emulator_args", "emulator_args_enabled", "auto_check_updates"}
+                        "emulator_path", "emulator_args", "emulator_args_enabled", "auto_check_updates",
+                        "column_order", "visible_columns"}
         cleaned = {}
 
         for key, value in config.items():
+            # Skip None values (except for explicitly optional keys)
+            if value is None and key in {"column_order"}:
+                continue  # Don't include None values for these optional keys
             if key in allowed_keys and self._is_serializable(value):
                 cleaned[key] = value
 

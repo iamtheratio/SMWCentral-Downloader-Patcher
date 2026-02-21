@@ -4,12 +4,16 @@ from datetime import datetime
 from utils import resource_path, get_hack_types
 
 class TableFilters:
-    """Manages table filtering logic"""
+    """Handles filter UI and state for the collection table"""
     
-    def __init__(self, apply_callback):
+    def __init__(self, apply_callback, random_callback=None, config_callback=None):
         self.apply_callback = apply_callback
+        self.random_callback = random_callback
+        self.config_callback = config_callback # Callback for column config
         self.data_manager = None  # Will be set when create_filter_ui is called
-        
+        self.filters = {}
+        self.entries = {}
+        self.vars = {}
         # Filter variables
         self.name_filter = tk.StringVar()
         self.type_filter = tk.StringVar(value="All")
@@ -199,21 +203,33 @@ class TableFilters:
                            value=value, command=self.apply_callback).pack(side="left", padx=(0, 5))
                            
     def _create_clear_button(self, parent):
-        """Create clear filters button"""
+        """Create button to clear all filters"""
         clear_button_frame = ttk.Frame(parent)
-        clear_button_frame.pack(fill="x", pady=(15, 0))
+        clear_button_frame.pack(fill="x", pady=(10, 0))
         
+        # Match count label (left side)
+        self.count_label = ttk.Label(clear_button_frame, text="", style="Small.TLabel")
+        self.count_label.pack(side="left", anchor="center")
+        
+        # Buttons (right side)
         button_container = ttk.Frame(clear_button_frame)
         button_container.pack(side="right")
-        
-        ttk.Button(button_container, text="Refresh List", 
-                  command=lambda: None).pack(side="left", padx=(0, 10))  # Will be connected later
-        
-        ttk.Button(button_container, text="Clear All Filters", 
+    
+
+        ttk.Button(button_container, text="Refresh List",
+                  command=lambda: None).pack(side="left", padx=(0, 10))  # Callback set in CollectionPage
+
+        ttk.Button(button_container, text="Clear All Filters",
                   command=self.clear_filters).pack(side="left", padx=(0, 10))
-        
-        ttk.Button(button_container, text="Add Hack", 
-                  command=self.show_add_hack_dialog).pack(side="left")
+
+        ttk.Button(button_container, text="Add Hack",
+                  command=self.show_add_hack_dialog).pack(side="left", padx=(0, 10))
+
+                   # Add random button if callback provided
+        if self.random_callback:
+            ttk.Button(button_container, text="Random Hack",
+                      command=self.random_callback).pack(side="left")
+
                   
     def clear_filters(self):
         """Reset all filters to default values"""
@@ -489,10 +505,32 @@ class AddHackDialog:
         self.authors_var = tk.StringVar()
         ttk.Entry(authors_frame, textvariable=self.authors_var, font=("Segoe UI", 10)).pack(fill="x", pady=(5, 0))
         
-        # Row 2: Hall of Fame, SA-1, Collaboration, Demo (all 4 boolean fields)
+        # Row 2: Release Date (spans 2 columns)
+        release_date_frame = ttk.Frame(info_frame)
+        release_date_frame.grid(row=2, column=0, columnspan=2, sticky="ew", padx=(0, 5), pady=(0, 15))
+        ttk.Label(release_date_frame, text="Release Date (YYYY-MM-DD):", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        self.release_date_var = tk.StringVar()
+        ttk.Entry(release_date_frame, textvariable=self.release_date_var, font=("Segoe UI", 10)).pack(fill="x", pady=(5, 0))
+        
+        # File Path (spans 2 columns on right side) - only for user hacks
+        self.file_path_frame = ttk.Frame(info_frame)
+        self.file_path_frame.grid(row=2, column=2, columnspan=2, sticky="ew", padx=(5, 0), pady=(0, 15))
+        ttk.Label(self.file_path_frame, text="ROM File (.smc/.sfc):", font=("Segoe UI", 10, "bold")).pack(anchor="w")
+        
+        # File path entry with browse button
+        path_entry_frame = ttk.Frame(self.file_path_frame)
+        path_entry_frame.pack(fill="x", pady=(5, 0))
+        
+        self.file_path_var = tk.StringVar()
+        file_entry = ttk.Entry(path_entry_frame, textvariable=self.file_path_var, font=("Segoe UI", 10))
+        file_entry.pack(side="left", fill="x", expand=True, padx=(0, 5))
+        
+        ttk.Button(path_entry_frame, text="Browse...", command=self._browse_file, width=10).pack(side="right")
+        
+        # Row 3: Hall of Fame, SA-1, Collaboration, Demo (all 4 boolean fields)
         # Hall of Fame (column 0)
         hof_frame = ttk.Frame(info_frame)
-        hof_frame.grid(row=2, column=0, sticky="ew", padx=(0, 5), pady=(0, 15))
+        hof_frame.grid(row=3, column=0, sticky="ew", padx=(0, 5), pady=(0, 15))
         ttk.Label(hof_frame, text="Hall of Fame:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
         self.hof_var = tk.StringVar(value="No")
         hof_radio_frame = ttk.Frame(hof_frame)
@@ -502,7 +540,7 @@ class AddHackDialog:
         
         # SA-1 (column 1)
         sa1_frame = ttk.Frame(info_frame)
-        sa1_frame.grid(row=2, column=1, sticky="ew", padx=5, pady=(0, 15))
+        sa1_frame.grid(row=3, column=1, sticky="ew", padx=5, pady=(0, 15))
         ttk.Label(sa1_frame, text="SA-1:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
         self.sa1_var = tk.StringVar(value="No")
         sa1_radio_frame = ttk.Frame(sa1_frame)
@@ -512,7 +550,7 @@ class AddHackDialog:
         
         # Collaboration (column 2)
         collab_frame = ttk.Frame(info_frame)
-        collab_frame.grid(row=2, column=2, sticky="ew", padx=5, pady=(0, 15))
+        collab_frame.grid(row=3, column=2, sticky="ew", padx=5, pady=(0, 15))
         ttk.Label(collab_frame, text="Collaboration:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
         self.collab_var = tk.StringVar(value="No")
         collab_radio_frame = ttk.Frame(collab_frame)
@@ -522,7 +560,7 @@ class AddHackDialog:
         
         # Demo (column 3)
         demo_frame = ttk.Frame(info_frame)
-        demo_frame.grid(row=2, column=3, sticky="ew", padx=(5, 0), pady=(0, 15))
+        demo_frame.grid(row=3, column=3, sticky="ew", padx=(5, 0), pady=(0, 15))
         ttk.Label(demo_frame, text="Demo:", font=("Segoe UI", 10, "bold")).pack(anchor="w")
         self.demo_var = tk.StringVar(value="No")
         demo_radio_frame = ttk.Frame(demo_frame)
@@ -634,6 +672,14 @@ class AddHackDialog:
                 self.authors_entry = widget
                 break
         
+        # Store release date entry widget
+        release_date_widgets = release_date_frame.winfo_children()
+        self.release_date_entry = None
+        for widget in release_date_widgets:
+            if isinstance(widget, ttk.Entry):
+                self.release_date_entry = widget
+                break
+        
         # Store radio button widgets for hack info
         self.hack_info_radio_widgets = []
         for frame in [hof_radio_frame, sa1_radio_frame, collab_radio_frame, demo_radio_frame]:
@@ -720,14 +766,25 @@ class AddHackDialog:
             self.time_to_beat_var.set("")
             
         self.notes_var.set(self.hack_data.get("notes", ""))
+        
+        # Release date - show formatted date if available
+        self.release_date_var.set(self.hack_data.get("date", ""))
+        
+        # File path - show file path if available
+        self.file_path_var.set(self.hack_data.get("file_path", ""))
     
     def _apply_field_restrictions(self):
         """Apply field restrictions based on hack type (user vs downloaded)"""
         if self.is_user_hack:
             # User hack - all fields editable (already default state)
+            # File path frame is visible
             return
             
         # Downloaded hack - disable hack information fields, keep personal stats editable
+        
+        # Hide file path frame for downloaded hacks
+        if hasattr(self, 'file_path_frame') and self.file_path_frame:
+            self.file_path_frame.grid_remove()
         
         # Disable hack information entry widgets
         if self.title_entry:
@@ -736,6 +793,8 @@ class AddHackDialog:
             self.exits_entry.configure(state="disabled")  
         if self.authors_entry:
             self.authors_entry.configure(state="disabled")
+        if self.release_date_entry:
+            self.release_date_entry.configure(state="disabled")
         
         # Disable comboboxes
         self.type_combo.configure(state="disabled")
@@ -744,6 +803,30 @@ class AddHackDialog:
         # Disable radio buttons for hack info
         for widget in self.hack_info_radio_widgets:
             widget.configure(state="disabled")
+    
+    def _browse_file(self):
+        """Open file picker to select ROM file (.smc or .sfc)"""
+        from tkinter import filedialog
+        import os
+        
+        # Get initial directory from current file path if set
+        initial_dir = ""
+        current_path = self.file_path_var.get()
+        if current_path and os.path.exists(current_path):
+            initial_dir = os.path.dirname(current_path)
+        
+        # Open file dialog
+        file_path = filedialog.askopenfilename(
+            title="Select ROM File",
+            initialdir=initial_dir,
+            filetypes=[
+                ("SNES ROM files", "*.smc *.sfc"),
+                ("All files", "*.*")
+            ]
+        )
+        
+        if file_path:
+            self.file_path_var.set(file_path)
     
     def _set_rating(self, rating):
         """Set the rating and update star display"""
@@ -1015,6 +1098,18 @@ class AddHackDialog:
                 difficulty_storage = self.difficulty_var.get()  # Keep original capitalization
                 type_storage = self.type_var.get().lower().replace("-", "")  # Remove hyphens for consistency
                 
+                # Calculate timestamp from date if provided
+                release_date_str = self.release_date_var.get().strip()
+                release_timestamp = 0
+                if release_date_str:
+                    try:
+                        from datetime import datetime
+                        # Parse YYYY-MM-DD format
+                        date_obj = datetime.strptime(release_date_str, '%Y-%m-%d')
+                        release_timestamp = int(date_obj.timestamp())
+                    except Exception:
+                        pass  # If parsing fails, keep timestamp as 0
+                
                 # Update each field individually
                 updates = {
                     "title": self.title_var.get().strip(),
@@ -1032,7 +1127,10 @@ class AddHackDialog:
                     "completed_date": self.completed_date_var.get().strip(),
                     "personal_rating": self.rating_var.get(),
                     "time_to_beat": time_seconds,
-                    "notes": self.notes_var.get().strip()
+                    "notes": self.notes_var.get().strip(),
+                    "date": release_date_str,
+                    "time": release_timestamp,  # Store calculated timestamp
+                    "file_path": self.file_path_var.get().strip()
                 }
                 
                 success = True
@@ -1077,6 +1175,18 @@ class AddHackDialog:
             difficulty_storage = self.difficulty_var.get()  # Keep original capitalization
             type_storage = self.type_var.get().lower().replace("-", "")  # Remove hyphens for consistency
             
+            # Calculate timestamp from date if provided
+            release_date_str = self.release_date_var.get().strip()
+            release_timestamp = 0
+            if release_date_str:
+                try:
+                    from datetime import datetime
+                    # Parse YYYY-MM-DD format
+                    date_obj = datetime.strptime(release_date_str, '%Y-%m-%d')
+                    release_timestamp = int(date_obj.timestamp())
+                except Exception:
+                    pass  # If parsing fails, keep timestamp as 0
+            
             # Create hack data
             hack_data = {
                 "title": new_title,
@@ -1095,8 +1205,10 @@ class AddHackDialog:
                 "personal_rating": self.rating_var.get(),  # Now using IntVar directly
                 "time_to_beat": time_seconds,  # Store as seconds like collection page
                 "notes": self.notes_var.get().strip(),
+                "date": release_date_str,
+                "time": release_timestamp,  # Store calculated timestamp from date
                 "obsolete": False,
-                "file_path": "",  # No file path for user-added hacks
+                "file_path": self.file_path_var.get().strip(),  # Store file path for user hacks
                 "additional_paths": []
             }
             

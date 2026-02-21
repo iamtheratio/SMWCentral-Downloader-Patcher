@@ -664,6 +664,7 @@ class DownloadPage:
                 "rating": hack.get("rating"),
                 "exit": raw_fields.get("length") or hack.get("length", 0),
                 "date": hack.get("date"),
+                "time": hack.get("time", 0),  # Include time field from API
                 "raw_fields": raw_fields  # Include raw_fields for compatibility
             })
         

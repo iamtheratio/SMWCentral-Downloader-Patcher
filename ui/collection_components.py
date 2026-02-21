@@ -363,26 +363,31 @@ class HackCollectionInlineEditor(InlineEditor):
                     # Get current values
                     current_values = list(self.parent_page.tree.item(item)["values"])
                     
-                    # Update the specific column
-                    if self.field_name == "completed_date":
-                        current_values[7] = new_value  # Column index 7 for completed_date (shifted by play+folder columns)
-                        # Update completed checkbox based on whether we have a date and completed status
-                        if hack_data:
-                            current_values[0] = "✓" if hack_data.get("completed", False) else ""  # Column index 0 for completed
-                    elif self.field_name == "time_to_beat":  # v3.1 NEW
-                        # Format time for display (convert seconds back to readable format)
-                        if hasattr(self.parent_page, '_format_time_display'):
-                            display_time = self.parent_page._format_time_display(new_value)
-                        else:
-                            display_time = str(new_value) if new_value else ""
-                        current_values[8] = display_time  # Column index 8 for time_to_beat (shifted by play+folder columns)
-                    elif self.field_name == "notes":
-                        # Truncate notes for display
-                        display_notes = new_value[:30] + "..." if len(new_value) > 30 else new_value
-                        current_values[9] = display_notes  # Column index 9 for notes (shifted by play+folder columns)
-                    
-                    # Update the tree item
-                    self.parent_page.tree.item(item, values=current_values)
+                    # Update the specific column dynamically
+                    try:
+                        col_index = next(i for i, c in enumerate(self.parent_page.COLUMNS) if c["id"] == self.field_name)
+                        
+                        if self.field_name == "completed_date":
+                            current_values[col_index] = new_value 
+                            # Update completed checkbox based on whether we have a date and completed status
+                            if hack_data:
+                                current_values[0] = "✓" if hack_data.get("completed", False) else ""
+                        elif self.field_name == "time_to_beat":  # v3.1 NEW
+                            # Format time for display (convert seconds back to readable format)
+                            if hasattr(self.parent_page, '_format_time_display'):
+                                display_time = self.parent_page._format_time_display(new_value)
+                            else:
+                                display_time = str(new_value) if new_value else ""
+                            current_values[col_index] = display_time
+                        elif self.field_name == "notes":
+                            # Truncate notes for display
+                            display_notes = new_value[:30] + "..." if len(new_value) > 30 else new_value
+                            current_values[col_index] = display_notes
+                            
+                        # Update the tree item
+                        self.parent_page.tree.item(item, values=current_values)
+                    except (StopIteration, IndexError):
+                        pass # Column might be missing or hidden
                     
                     # User-friendly logging
                     field_display = {"completed_date": "completion date", "notes": "notes", "time_to_beat": "time to beat"}.get(self.field_name, self.field_name)

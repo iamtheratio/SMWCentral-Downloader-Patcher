@@ -39,3 +39,27 @@ def get_dashboard_content_padding():
 def get_labelframe_padding():
     """Get the standard LabelFrame internal padding"""
     return LABELFRAME_PADDING
+
+# Status Message Colors
+# Consistent color scheme for status/notification messages across the UI
+STATUS_COLOR_INFO = "#4FC3F7"      # Light blue/cyan - for in-progress messages (⏳)
+STATUS_COLOR_SUCCESS = "#66BB6A"   # Green - for success messages (✅)
+STATUS_COLOR_WARNING = "#FFA726"   # Orange - for warnings (⚠️)
+STATUS_COLOR_ERROR = "#EF5350"     # Red - for errors (❌)
+
+def get_status_color(status_type):
+    """Get the standard status color for a given status type
+    
+    Args:
+        status_type: One of 'info', 'success', 'warning', 'error'
+    
+    Returns:
+        Hex color string
+    """
+    colors = {
+        'info': STATUS_COLOR_INFO,
+        'success': STATUS_COLOR_SUCCESS,
+        'warning': STATUS_COLOR_WARNING,
+        'error': STATUS_COLOR_ERROR
+    }
+    return colors.get(status_type, STATUS_COLOR_INFO)

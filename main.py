@@ -51,7 +51,7 @@ try:
 except ImportError:
     pywinstyles = None
 
-VERSION = "v4.8"
+VERSION = "v4.9"
 
 
 def apply_theme_to_titlebar(root):
@@ -283,6 +283,10 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
 
         # Get difficulty info
         raw_fields = hack.get("raw_fields", {})
+        
+        # Get time from hack object (should be available from API)
+        metadata_time = hack.get("time", 0)
+        
         raw_diff = raw_fields.get("difficulty", "")
         if not raw_diff or raw_diff in [None, "N/A"]:
             raw_diff = ""
@@ -621,8 +625,19 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     "demo": bool(raw_fields.get("demo", False)),
                     "authors": hack.get("authors", []),
                     "exits": raw_fields.get("length", hack.get("length", 0)) or 0,
+                    "time": metadata_time,  # Use fetched metadata time
+                    "date": "",  # Will be populated below
                     "obsolete": is_obsolete_version  # Use the duplicate detection result
                 }
+                
+                # Populate date from time if available
+                if processed[hack_id]["time"]:
+                    try:
+                        from datetime import datetime
+                        timestamp = int(processed[hack_id]["time"])
+                        processed[hack_id]["date"] = datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d')
+                    except Exception:
+                        pass
 
                 if is_obsolete_version:
                     if log:
@@ -837,6 +852,8 @@ def main():
         # Quick multi-type migration check (silent, fast)
         try:
             from api_pipeline import load_processed, save_processed
+            from download_state_manager import set_download_active
+            
             processed = load_processed()
             needs_multi_type_update = False
             needs_obsolete_update = False
@@ -856,7 +873,12 @@ def main():
                         needs_obsolete_update = True
 
             if needs_multi_type_update or needs_obsolete_update:
-                save_processed(processed)
+                # Lock collection during migration
+                set_download_active(True)
+                try:
+                    save_processed(processed)
+                finally:
+                    set_download_active(False)
         except Exception:
             pass  # Ignore migration errors
 

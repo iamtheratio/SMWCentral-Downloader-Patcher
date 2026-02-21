@@ -685,6 +685,13 @@ def migrate_to_v48():
     if not os.path.exists(PROCESSED_JSON_PATH):
         return {"success": False, "message": "processed.json not found"}
     
+    # Lock collection during migration
+    try:
+        from download_state_manager import set_download_active
+        set_download_active(True)
+    except ImportError:
+        pass  # Module may not be loaded yet during early startup
+    
     try:
         # Load data
         with open(PROCESSED_JSON_PATH, "r", encoding="utf-8") as f:
@@ -736,6 +743,13 @@ def migrate_to_v48():
         
     except Exception as e:
         return {"success": False, "message": f"Migration failed: {str(e)}"}
+    finally:
+        # Unlock collection
+        try:
+            from download_state_manager import set_download_active
+            set_download_active(False)
+        except ImportError:
+            pass
 
 
 # Global function for easy access

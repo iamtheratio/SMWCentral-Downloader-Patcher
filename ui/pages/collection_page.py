@@ -13,6 +13,9 @@ from ui.collection_components import InlineEditor, DateValidator, NotesValidator
 from ui.components.table_filters import TableFilters
 from ui_constants import get_page_padding, get_section_padding
 from file_explorer_utils import open_file_in_explorer, get_file_icon_unicode
+
+# Info icon unicode (using standard info symbol)
+INFO_ICON = "ℹ"
 from config_manager import ConfigManager
 
 # Platform-specific cursor
@@ -45,11 +48,61 @@ class CollectionPage:
         self.sort_column = "title"
         self.sort_reverse = False
         
+        # Column Configuration (ID, Header, Width, MinWidth, Anchor)
+        # DEFAULT_COLUMNS stores the original default order - never modified
+        self.DEFAULT_COLUMNS = [
+            {"id": "completed", "header": "✓", "width": 45, "min_width": 35, "anchor": "center"},
+            {"id": "play", "header": "▶", "width": 35, "min_width": 25, "anchor": "center"},
+            {"id": "folder", "header": get_file_icon_unicode(), "width": 35, "min_width": 25, "anchor": "center"},
+            {"id": "title", "header": "Title", "width": 220, "min_width": 170, "anchor": "w"},
+            {"id": "type", "header": "Type(s)", "width": 90, "min_width": 70, "anchor": "center"},
+            {"id": "difficulty", "header": "Difficulty", "width": 100, "min_width": 80, "anchor": "center"},
+            {"id": "rating", "header": "Rating", "width": 90, "min_width": 70, "anchor": "center"},
+            {"id": "completed_date", "header": "Completed Date", "width": 110, "min_width": 90, "anchor": "center"},
+            {"id": "time_to_beat", "header": "Time to Beat", "width": 120, "min_width": 100, "anchor": "center"},
+            {"id": "release_date", "header": "Released", "width": 100, "min_width": 80, "anchor": "center"}, # NEW
+            {"id": "notes", "header": "Notes", "width": 120, "min_width": 90, "anchor": "w"}
+        ]
+        
+        # COLUMNS is the working copy that can be reordered based on user config
+        self.COLUMNS = [col.copy() for col in self.DEFAULT_COLUMNS]
+        
+        # Load column visibility and order from config
+        from config_manager import ConfigManager
+        self.config_manager = ConfigManager()
+        
+        # Load visible columns and column order from config
+        self.visible_columns = self.config_manager.get("visible_columns", [c["id"] for c in self.COLUMNS])
+        column_order = self.config_manager.get("column_order", None)
+        
+        # If we have a saved column order, use it; otherwise use default order
+        if column_order:
+            ordered_columns = []
+            # Add columns in saved order
+            for col_id in column_order:
+                col_def = next((c for c in self.COLUMNS if c["id"] == col_id), None)
+                if col_def:
+                    ordered_columns.append(col_def)
+            
+            # Add any new columns that might not be in saved order (for backward compatibility)
+            existing_ids = [col["id"] for col in ordered_columns]
+            for col in self.COLUMNS:
+                if col["id"] not in existing_ids:
+                    ordered_columns.append(col)
+            
+            self.COLUMNS = ordered_columns
+        
         # Initialize components - USE HackCollectionInlineEditor instead of InlineEditor
-        self.filters = TableFilters(self._apply_filters)
+        self.filters = TableFilters(self._apply_filters, self._select_random_hack)
         self.date_editor = HackCollectionInlineEditor(None, self.data_manager, self, logger)
         self.notes_editor = HackCollectionInlineEditor(None, self.data_manager, self, logger)
         self.time_editor = HackCollectionInlineEditor(None, self.data_manager, self, logger)  # v3.1 NEW
+        
+        # Track open dialogs to prevent duplicates
+        self.column_config_dialog = None
+        
+        # Debounce timer for scrollbar toggle
+        self.scrollbar_toggle_timer = None
         
         # Table and data
         self.tree = None
@@ -131,7 +184,8 @@ class CollectionPage:
     def show(self):
         """Called when the page becomes visible"""
         if self.frame:
-            self._refresh_data_and_table()
+            # Only refresh when showing - don't duplicate if user just clicked refresh
+            # Check if we need to refresh (e.g., returning from another page)
             total_hacks = len(self.data_manager.get_all_hacks())
             completed_hacks = sum(1 for hack in self.data_manager.get_all_hacks() if hack.get("completed", False))
             self._log(f"📊 Hack Collection page loaded - {total_hacks} total hacks, {completed_hacks} completed", "Information")
@@ -170,29 +224,28 @@ class CollectionPage:
         table_frame = ttk.Frame(self.frame)
         table_frame.pack(fill="both", expand=True)
         
-        # Create treeview with custom Collection style - Added play column
-        columns = ("completed", "play", "folder", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
-        self.tree = ttk.Treeview(table_frame, columns=columns, show="headings", height=15, style="Collection.Treeview")
+        # Create treeview with custom Collection style
+        column_ids = [col["id"] for col in self.COLUMNS]
+        self.tree = ttk.Treeview(table_frame, columns=column_ids, show="headings", height=15, style="Collection.Treeview")
         
-        # Configure headers and columns - Added play icon column
-        headers = ["✓", "▶", get_file_icon_unicode(), "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
-        widths = [45, 35, 35, 220, 90, 100, 90, 110, 120, 120]
-        min_widths = [35, 25, 25, 170, 70, 80, 70, 90, 100, 90]
-        anchors = ["center", "center", "center", "w", "center", "center", "center", "center", "center", "w"]
-        
-        for i, (col, header, width, min_width, anchor) in enumerate(zip(columns, headers, widths, min_widths, anchors)):
-            self.tree.heading(col, text=header, command=lambda c=col: self._sort_by_column(c))
-            self.tree.column(col, width=width, minwidth=min_width, anchor=anchor)
+        # Configure headers and columns
+        for col_config in self.COLUMNS:
+            col_id = col_config["id"]
+            self.tree.heading(col_id, text=col_config["header"], command=lambda c=col_id: self._sort_by_column(c))
+            self.tree.column(col_id, width=col_config["width"], minwidth=col_config["min_width"], anchor=col_config["anchor"])
+            
+        # Set initial visibility
+        self.tree["displaycolumns"] = self.visible_columns
         
         # Scrollbars
         v_scrollbar = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
-        h_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal", command=self.tree.xview)
-        self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        self.h_scrollbar = ttk.Scrollbar(table_frame, orient="horizontal", command=self.tree.xview)
+        self.tree.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=self.h_scrollbar.set)
         
         # Grid layout
         self.tree.grid(row=0, column=0, sticky="nsew")
         v_scrollbar.grid(row=0, column=1, sticky="ns")
-        h_scrollbar.grid_remove()
+        self.h_scrollbar.grid_remove()
         
         table_frame.grid_rowconfigure(0, weight=1)
         table_frame.grid_columnconfigure(0, weight=1)
@@ -206,7 +259,7 @@ class CollectionPage:
         self.tree.bind("<Button-1>", self._on_item_click)
         self.tree.bind("<Double-1>", self._on_item_double_click)
         self.tree.bind("<Motion>", self._on_mouse_motion)
-        self.tree.bind("<Configure>", lambda e: self._toggle_h_scrollbar(h_scrollbar))
+        self.tree.bind("<Configure>", lambda e: self._toggle_h_scrollbar(self.h_scrollbar))
         
         # Status label - positioned in a footer frame after pagination
         footer_frame = ttk.Frame(self.frame)
@@ -216,27 +269,40 @@ class CollectionPage:
         self.status_label.pack(anchor="center")
     
     def _refresh_data_and_table(self):
-        """Refresh data from file and update table"""
-        # CRITICAL: Force save any pending changes before refreshing to prevent data loss
-        if hasattr(self.data_manager, 'unsaved_changes') and self.data_manager.unsaved_changes:
-            self._log("💾 Saving pending changes before refresh to prevent data loss...", "Information")
-            if self.data_manager.force_save():
-                # Don't show success message here as it's redundant with add/edit confirmations
-                pass
-            else:
-                self._log("❌ Failed to save pending changes - refresh cancelled", "Error")
-                return
+        """Reload all data and refresh the table"""
+        # Guard against duplicate calls
+        if hasattr(self, '_is_refreshing') and self._is_refreshing:
+            self._log("DEBUG: Skipping duplicate refresh call", "Debug")
+            return
         
-        # Don't create new data manager - just reload the existing one's data
+        self._is_refreshing = True
+        
         try:
-            old_count = len(self.data_manager.get_all_hacks())
-            self.data_manager.data = self.data_manager._load_data()  # Reload from file
-            new_count = len(self.data_manager.get_all_hacks())
+            # Debug: Add stack trace to find duplicate calls
+            import traceback
+            stack_summary = traceback.extract_stack()
+            self._log(f"DEBUG: _refresh_data_and_table called from {stack_summary[-2].filename.split('/')[-1].split(chr(92))[-1]}:{stack_summary[-2].lineno}", "Debug")
+            
+            self.config_manager.reload()  # Reload config to get latest emulator settings
+            # CRITICAL: Force save any pending changes before refreshing to prevent data loss
+            if hasattr(self.data_manager, 'unsaved_changes') and self.data_manager.unsaved_changes:
+                self._log("💾 Saving pending changes before refresh to prevent data loss...", "Information")
+                if self.data_manager.force_save():
+                    pass # Saved successfully
+                else:
+                    self._log("❌ Failed to save changes before refresh", "Error")
+            
+            # Reload data from disk to pick up external changes (e.g. metadata fetch)
+            self.data_manager.reload_data()
             self.filters.refresh_dropdown_values(self.data_manager)
+            
+            # Apply filters and sorting
+            self._apply_filters()
             self._refresh_table()
-            self._log(f"🔄 Refreshed hack data from file - reloaded {new_count} hacks (was {old_count})", "Debug")
-        except Exception as e:
-            self._log(f"❌ Failed to refresh data: {str(e)}", "Error")
+            
+            self._log(f"🔄 Refreshed hack data from file", "Debug")
+        finally:
+            self._is_refreshing = False
     
     def _refresh_table(self):
         """Refresh table data with pagination and sorting"""
@@ -309,18 +375,34 @@ class CollectionPage:
         # Check if emulator is configured for play icon display
         play_icon = self._get_play_icon(hack)
         
-        self.tree.insert("", "end", values=(
-            completed_display,
-            play_icon,  # NEW: Play icon column
-            folder_icon,  # Folder icon column
-            hack["title"],
-            type_display,  # Now shows multiple types if available
-            hack.get("difficulty", "Unknown"),
-            rating_display,
-            hack.get("completed_date", ""),
-            time_to_beat_display,  # v3.1 NEW
-            notes_display
-        ), tags=(hack_id,))
+        release_date = hack.get("date", "")
+        if not release_date and hack.get("time"):
+            try:
+                from datetime import datetime
+                ts = int(hack.get("time"))
+                release_date = datetime.fromtimestamp(ts).strftime('%Y-%m-%d')
+            except:
+                pass
+
+        # Prepare values dict for easy mapping
+        row_data = {
+            "completed": completed_display,
+            "play": play_icon,
+            "folder": folder_icon,
+            "title": hack["title"],
+            "type": type_display,
+            "difficulty": hack.get("difficulty", "Unknown"),
+            "rating": rating_display,
+            "completed_date": hack.get("completed_date", ""),
+            "time_to_beat": time_to_beat_display,
+            "release_date": release_date,  # Updated
+            "notes": notes_display
+        }
+        
+        # Build values tuple in correct order based on currently configured columns
+        values = [row_data.get(col["id"], "") for col in self.COLUMNS]
+        
+        self.tree.insert("", "end", values=values, tags=(hack_id,))
     
     def _update_status_label(self, total_count, filtered_count, custom_text=None):
         """Update the status label"""
@@ -338,6 +420,58 @@ class CollectionPage:
     def _apply_filters(self):
         """Apply filters and refresh table"""
         self._refresh_table()
+
+    def _select_random_hack(self):
+        """Select a random hack from the current filtered list and jump to it"""
+        import random
+        
+        # Check if there are any hacks to select from
+        if not self.filtered_data:
+            messagebox.showinfo("Random Hack", "No hacks available in the current list.")
+            return
+
+        # Pick a random hack
+        selected_hack = random.choice(self.filtered_data)
+        hack_id = selected_hack.get("id")
+        title = selected_hack.get("title", "Unknown")
+        
+        self._log(f"🎲 Randomly selected hack: '{title}' (ID: {hack_id})", "Information")
+        
+        # Find which page this hack is on
+        # We need to find the index of the hack in the filtered data
+        try:
+            hack_index = self.filtered_data.index(selected_hack)
+            
+            # Calculate page number (1-based)
+            target_page = (hack_index // self.page_size) + 1
+            
+            # Switch to that page if needed
+            if target_page != self.current_page:
+                self.current_page = target_page
+                self.page_var.set(str(self.current_page))
+                self._refresh_table() # This will populate the tree with the correct page data
+                
+            # Scroll to and select the item in the tree
+            self._select_hack_in_tree(hack_id)
+            
+        except ValueError:
+            self._log(f"❌ Failed to find selected hack '{title}' in filtered data", "Error")
+
+    def _select_hack_in_tree(self, hack_id):
+        """Find a hack in the current tree view, select it, and ensure it's visible"""
+        hack_id_str = str(hack_id)
+        
+        # Iterate through tree items to find the match
+        for item in self.tree.get_children():
+            tags = self.tree.item(item)["tags"]
+            if tags and str(tags[0]) == hack_id_str:
+                # Found it!
+                self.tree.selection_set(item)
+                self.tree.focus(item)
+                self.tree.see(item)
+                return
+        
+        self._log(f"⚠️ Could not find hack {hack_id} in tree view", "Warning")
     
     def _on_item_click(self, event):
         """Handle single clicks on table items"""
@@ -378,21 +512,40 @@ class CollectionPage:
             return
         hack_id = tags[0]
         
+        hack_id = tags[0]
+        
+        col_id = self._get_column_id(column)
+        if not col_id:
+            return
+
         # Handle different column clicks
-        if column == "#1":  # Completed
+        if col_id == "completed":
             self._toggle_completed(hack_id)
-        elif column == "#2":  # Play icon - NEW: Launch emulator
+        elif col_id == "play":
             self._launch_emulator(hack_id)
-        elif column == "#3":  # Folder icon - Open file in explorer
+        elif col_id == "folder":
             self._open_hack_in_explorer(hack_id)
-        elif column == "#7":  # Rating (shifted due to new play and folder columns)
-            self._edit_rating(hack_id, item, event)
-        elif column == "#8":  # Completed date (shifted due to new play and folder columns)
-            self.date_editor.start_edit(hack_id, item, event, "completed_date", "#8", DateValidator.validate)
-        elif column == "#9":  # Time to Beat (shifted due to new play and folder columns)
-            self.time_editor.start_edit(hack_id, item, event, "time_to_beat", "#9", self._validate_time_input)
-        elif column == "#10":  # Notes (shifted due to new play and folder columns)
-            self.notes_editor.start_edit(hack_id, item, event, "notes", "#10", NotesValidator.validate)
+        elif col_id == "rating":
+            self._edit_rating(hack_id, item, event, col_id)
+        elif col_id == "completed_date":
+            self.date_editor.start_edit(hack_id, item, event, "completed_date", col_id, DateValidator.validate)
+        elif col_id == "time_to_beat":
+            self.time_editor.start_edit(hack_id, item, event, "time_to_beat", col_id, self._validate_time_input)
+        elif col_id == "notes":
+            self.notes_editor.start_edit(hack_id, item, event, "notes", col_id, NotesValidator.validate)
+
+    def _get_column_id(self, col_idx_str):
+        """Convert treeview column index (e.g. '#1') to logical column ID"""
+        try:
+            # Extract index (1-based)
+            idx = int(col_idx_str.replace("#", "")) - 1
+            
+            # Check if index is valid for current columns
+            if 0 <= idx < len(self.COLUMNS):
+                return self.COLUMNS[idx]["id"]
+            return None
+        except (ValueError, IndexError):
+            return None
     
     def _on_item_double_click(self, event):
         """Handle double click - show edit hack dialog"""
@@ -429,17 +582,92 @@ class CollectionPage:
         item = self.tree.identify("item", event.x, event.y)
         column = self.tree.identify("column", event.x, event.y)
         
-        # Updated column references for new play and folder columns
-        if item and column in ["#1", "#2", "#3", "#7", "#8", "#9"]:  # Completed, Play, Folder, Rating, Date, Time
+        col_id = self._get_column_id(column)
+        clickable_cols = ["completed", "play", "folder", "info", "rating", "completed_date", "time_to_beat", "notes"]
+        
+        if item and col_id in clickable_cols:
             self.tree.config(cursor=HOVER_CURSOR)
             
             # ENHANCED: Show rating preview on hover
-            if column == "#7":  # Rating column (updated column number)
-                self._show_rating_preview(item, event)
+            if col_id == "rating":
+                self._show_rating_preview(item, event, column)
         else:
             self.tree.config(cursor="")
+
+    def _show_info_dialog(self, hack_id):
+        """Show the hack info dialog"""
+        hack_data = self._find_hack_data(str(hack_id))
+        if hack_data:
+            dialog = HackInfoDialog(self.parent, hack_data)
+            dialog.show()
             
-    def _show_rating_preview(self, item, event):
+    def _show_column_config(self):
+        """Show column configuration dialog"""
+        # Prevent multiple dialogs from opening
+        if self.column_config_dialog is not None:
+            try:
+                # If dialog still exists, focus it instead of opening a new one
+                self.column_config_dialog.dialog.lift()
+                self.column_config_dialog.dialog.focus_force()
+                return
+            except:
+                # Dialog was closed, reset the reference
+                self.column_config_dialog = None
+        
+        from ui.components.column_config_dialog import ColumnConfigDialog
+        
+        self.column_config_dialog = ColumnConfigDialog(
+            self.parent,
+            self.COLUMNS,
+            self.visible_columns,
+            self._apply_column_config,
+            self.config_manager,
+            self.DEFAULT_COLUMNS  # Pass original default order
+        )
+        
+        # Clear reference when dialog is closed
+        def on_dialog_close():
+            self.column_config_dialog = None
+        
+        self.column_config_dialog.show()
+        
+        # Bind to dialog destruction to clear reference
+        if self.column_config_dialog.dialog:
+            self.column_config_dialog.dialog.bind("<Destroy>", lambda e: on_dialog_close())
+        
+    def _apply_column_config(self, new_visible_cols):
+        """Apply new column configuration"""
+        self.visible_columns = new_visible_cols
+        
+        # Reload config to get updated column_order and visible_columns
+        self.config_manager.reload()
+        column_order = self.config_manager.get("column_order", None)
+        updated_visible = self.config_manager.get("visible_columns", new_visible_cols)
+        
+        # Reorder COLUMNS based on column_order (if available)
+        if column_order:
+            ordered_columns = []
+            for col_id in column_order:
+                col_def = next((c for c in self.COLUMNS if c["id"] == col_id), None)
+                if col_def:
+                    ordered_columns.append(col_def)
+            
+            # Add any new columns not in saved order
+            existing_ids = [col["id"] for col in ordered_columns]
+            for col in self.COLUMNS:
+                if col["id"] not in existing_ids:
+                    ordered_columns.append(col)
+            
+            self.COLUMNS = ordered_columns
+        
+        # Update table visibility
+        self.tree["displaycolumns"] = updated_visible
+        
+        # Force scrollbar update after column change
+        self.tree.update_idletasks()
+        self._toggle_h_scrollbar(self.h_scrollbar)
+            
+    def _show_rating_preview(self, item, event, col_idx_str):
         """Show preview of which star would be selected"""
         # Get hack data
         tags = self.tree.item(item)["tags"]
@@ -451,7 +679,8 @@ class CollectionPage:
             return
             
         # Calculate which star would be selected (same logic as _edit_rating)
-        bbox = self.tree.bbox(item, "#7")  # Updated column number for play+folder columns
+        # Use the column index string passed from event
+        bbox = self.tree.bbox(item, col_idx_str)
         if not bbox:
             return
             
@@ -521,11 +750,20 @@ class CollectionPage:
                     # Get current values
                     current_values = list(self.tree.item(item)["values"])
                     
-                    # Update completed checkbox
-                    current_values[0] = "✓" if new_completed else ""
+                    # Update completed checkbox (respect current column ordering)
+                    try:
+                        completed_col_idx = next(i for i, c in enumerate(self.COLUMNS) if c["id"] == "completed")
+                        current_values[completed_col_idx] = "✓" if new_completed else ""
+                    except StopIteration:
+                        # "completed" column might be hidden or missing
+                        pass
                     
-                    # Update completion date if it changed (shifted by play+folder columns)
-                    current_values[7] = hack_data.get("completed_date", "")  # Index 7 for completed_date
+                    # Update completion date if it changed dynamically
+                    try:
+                        date_col_idx = next(i for i, c in enumerate(self.COLUMNS) if c["id"] == "completed_date")
+                        current_values[date_col_idx] = hack_data.get("completed_date", "")
+                    except StopIteration:
+                        pass # Column might be hidden/missing
                     
                     # Update the tree item
                     self.tree.item(item, values=current_values)
@@ -533,15 +771,15 @@ class CollectionPage:
                     self._log(f"🔄 Updated completion status for '{hack_data.get('title', 'Unknown')}' (hack #{hack_id_str}) - now marked as {completion_status}", "Information")
                     break
     
-    def _edit_rating(self, hack_id, item, event):
+    def _edit_rating(self, hack_id, item, event, col_id="rating"):
         """Handle rating clicks - improved star detection"""
         hack_id_str = str(hack_id)
         hack_data = self._find_hack_data(hack_id_str)
         if not hack_data:
             return
         
-        # Get cell position (updated column reference for play+folder columns)
-        bbox = self.tree.bbox(item, "#7")  # Updated from "#6" due to play column
+        # Get cell position using column ID
+        bbox = self.tree.bbox(item, col_id)
         if not bbox:
             return
         
@@ -588,9 +826,12 @@ class CollectionPage:
                     # Get current values
                     current_values = list(self.tree.item(tree_item)["values"])
                     
-                    # Update rating display (shifted by folder column)
-                    # Update rating in the correct column (shifted by play column)
-                    current_values[6] = self._get_rating_display(new_rating)  # Index 6 for new layout
+                    # Update rating in the correct column dynamically
+                    try:
+                        rating_col_idx = next(i for i, c in enumerate(self.COLUMNS) if c["id"] == "rating")
+                        current_values[rating_col_idx] = self._get_rating_display(new_rating)
+                    except StopIteration:
+                        pass
                     
                     # Update the tree item
                     self.tree.item(tree_item, values=current_values)
@@ -912,12 +1153,15 @@ class CollectionPage:
             
             # Launch emulator
             # Security: Explicitly use shell=False to prevent shell injection attacks
+            # Set cwd to emulator directory so relative paths (like 'cores/snes9x.dll') work correctly
+            emulator_dir = os.path.dirname(emulator_path)
+            
             if platform.system() == "Windows":
                 # Windows: use CREATE_NO_WINDOW to hide console and shell=False for security
-                subprocess.Popen(command, shell=False, creationflags=subprocess.CREATE_NO_WINDOW)
+                subprocess.Popen(command, shell=False, cwd=emulator_dir, creationflags=subprocess.CREATE_NO_WINDOW)
             else:
                 # Unix: standard Popen with shell=False for security
-                subprocess.Popen(command, shell=False)
+                subprocess.Popen(command, shell=False, cwd=emulator_dir)
             
             self._log(f"🎮 Launched '{hack_title}' with emulator", "Information")
             
@@ -1145,9 +1389,26 @@ class CollectionPage:
             return None
     
     def _toggle_h_scrollbar(self, scrollbar):
-        """Show/hide horizontal scrollbar based on content"""
+        """Show/hide horizontal scrollbar based on content (debounced)"""
+        # Cancel pending timer if exists
+        if self.scrollbar_toggle_timer:
+            self.frame.after_cancel(self.scrollbar_toggle_timer)
+        
+        # Schedule scrollbar update with small delay
+        self.scrollbar_toggle_timer = self.frame.after(100, lambda: self._do_toggle_h_scrollbar(scrollbar))
+    
+    def _do_toggle_h_scrollbar(self, scrollbar):
+        """Actually toggle the scrollbar"""
+        self.scrollbar_toggle_timer = None
+        
         tree_width = self.tree.winfo_width()
-        content_width = sum(self.tree.column(col)["width"] for col in self.tree["columns"])
+        
+        # Only sum widths of VISIBLE columns
+        visible_cols = self.tree["displaycolumns"]
+        if visible_cols:  # displaycolumns can be empty or a list
+            content_width = sum(self.tree.column(col)["width"] for col in visible_cols)
+        else:
+            content_width = 0
         
         if content_width > tree_width:
             scrollbar.grid(row=1, column=0, sticky="ew")
@@ -1163,6 +1424,8 @@ class CollectionPage:
         left_frame = ttk.Frame(pagination_frame)
         left_frame.pack(side="left")
         
+       
+        
         ttk.Label(left_frame, text="Show:").pack(side="left", padx=(0, 5))
         
         self.page_size_var = tk.StringVar(value="50")
@@ -1172,6 +1435,9 @@ class CollectionPage:
         page_size_combo.bind("<<ComboboxSelected>>", self._on_page_size_change)
         
         ttk.Label(left_frame, text="").pack(side="left")
+
+          # Add Columns button
+        ttk.Button(left_frame, text="⚙ Columns", command=self._show_column_config).pack(side="left", padx=(0, 15))
         
         # Center - Page info
         center_frame = ttk.Frame(pagination_frame)
@@ -1286,8 +1552,8 @@ class CollectionPage:
     
     def _update_column_headers(self):
         """Update column headers to show sort indicators"""
-        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Notes"]
-        columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "notes")
+        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Released", "Notes"]
+        columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "release_date", "notes")
         
         for i, (col, base_header) in enumerate(zip(columns, headers)):
             if col == self.sort_column:
@@ -1335,11 +1601,15 @@ class CollectionPage:
                     return float(value)
                 except (ValueError, TypeError):
                     return 0
+            elif self.sort_column == "release_date":
+                # Release date sorting - use numeric timestamp for proper chronological ordering
+                timestamp = hack.get("time", 0)
+                try:
+                    return int(timestamp) if timestamp else 0
+                except (ValueError, TypeError):
+                    return 0
             else:
                 # String sorting (case-insensitive)
                 return str(value).lower()
         
         self.filtered_data.sort(key=get_sort_key, reverse=self.sort_reverse)
-
-
-

@@ -4,6 +4,64 @@ All notable changes to SMWC Downloader & Patcher will be documented in this file
 
 ## [Unreleased]
 
+## [4.9] - 2026-01-12
+
+### Added
+- **Column Configuration**: Customize which columns are visible in the Collection page
+  - Drag-and-drop reordering with visual feedback (floating label shows column being dragged)
+  - Show/hide individual columns with checkboxes
+  - "Reset to Default" button restores original column order
+  - Settings persist across app sessions in config.json
+  - Widget lifecycle protection prevents TclError crashes during drag operations
+- **Fetch Metadata Feature**: Bulk update missing release dates and other metadata from SMWC
+  - Optimized bulk API fetching (60-100x faster than individual calls)
+  - Checks both moderated AND waiting sections
+  - Fallback to individual API calls for obsolete/unlisted hacks
+  - Cancellable operation (safe to cancel during API fetch phase)
+  - Completes in under 1 minute for most collections vs 30+ minutes previously
+  - Accessible via Settings → Data Migration section
+- **UI Color Theme Constants**: Consistent status message colors across the application
+  - Info/In-Progress: `#4FC3F7` (light cyan - much more readable than previous blue)
+  - Success: `#66BB6A` (green)
+  - Warning: `#FFA726` (orange)
+  - Error: `#EF5350` (red)
+  - Centralized in `ui_constants.py` for easy theming
+- **Collection Page Locking**: Prevents data corruption during background operations
+  - Locks Collection page during: Fetch Metadata, Difficulty Migrations, Silent Migrations
+  - User sees "⏸️ Collection locked" message with reason during operations
+  - Automatic unlock when operation completes, fails, or is cancelled
+
+### Changed
+- **Simplified Log Messages**: Cleaner, more concise logging
+  - "🔄 Reloaded X hacks from disk" (removed debug caller information)
+  - Shortened migration status messages to prevent UI layout issues
+  - "✅ Everything is up to date!" instead of verbose success messages
+- **Data Migration Section Layout**: Reduced text wrap length (428→380px) to prevent cutoff
+- **Metadata Fetch Dialog**: Updated text to reflect optimization and cancellation support
+
+### Fixed
+- **Drag-and-Drop Column Configuration**: 
+  - Fixed TclError crashes when widgets were destroyed during rebuild
+  - Added `winfo_exists()` checks before configuring widgets
+  - Added try-except blocks for robust error handling
+- **Reset to Default Button**: 
+  - Fixed button doing nothing (column_order/visible_columns not in config whitelist)
+  - Now properly restores DEFAULT_COLUMNS constant
+- **Duplicate Reload Logging**: Fixed "Reloaded X hacks" appearing twice when clicking Refresh List
+  - Added `_is_refreshing` guard flag with try-finally protection
+  - Removed duplicate `show()` refresh call
+- **Obsolete Hack Metadata**: Fixed hacks with old/replaced IDs not getting metadata updates
+  - Added fallback individual API lookups for hacks not found in bulk fetch
+  - Properly detects and handles unlisted/obsolete versions
+  - Warns users about hacks that couldn't be updated
+
+### Technical
+- Added `DEFAULT_COLUMNS` constant to preserve original column order
+- Column configuration uses `default_columns` parameter for true defaults
+- Enhanced `backfill_metadata()` with `cancel_check` parameter
+- Cancellation safe during API fetch, prevents cancel during file write
+- Returns -1 when cancelled for proper UI state handling
+
 ## [4.8] - 2025-12-29
 
 ### Added
