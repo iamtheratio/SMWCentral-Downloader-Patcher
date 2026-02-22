@@ -806,19 +806,19 @@ class AddHackDialog:
     
     def _browse_file(self):
         """Open file picker to select ROM file (.smc or .sfc)"""
-        from tkinter import filedialog
+        from platform_utils import pick_file
         import os
         
         # Get initial directory from current file path if set
-        initial_dir = ""
+        initial_dir = None
         current_path = self.file_path_var.get()
         if current_path and os.path.exists(current_path):
             initial_dir = os.path.dirname(current_path)
         
         # Open file dialog
-        file_path = filedialog.askopenfilename(
+        file_path = pick_file(
             title="Select ROM File",
-            initialdir=initial_dir,
+            initial_dir=initial_dir,
             filetypes=[
                 ("SNES ROM files", "*.smc *.sfc"),
                 ("All files", "*.*")

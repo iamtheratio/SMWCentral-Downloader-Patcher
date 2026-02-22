@@ -55,10 +55,11 @@ def set_window_icon(window):
                     return
             except (ImportError, Exception) as e:
                 print(f"Linux icon loading failed: {e}")  # Debug info
-                pass
+                return  # .ico is not supported on Linux; skip rather than fall through
         
-        # Fallback to .ico for Windows/macOS or if PNG method fails
-        window.iconbitmap(resource_path("assets/icon.ico"))
+        # Fallback to .ico for Windows/macOS only
+        if platform.system() != "Linux":
+            window.iconbitmap(resource_path("assets/icon.ico"))
     except (tk.TclError, AttributeError) as e:
         print(f"Icon setting failed: {e}")  # Debug info
         pass  # Fallback silently if icon not found or not supported
