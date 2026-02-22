@@ -893,6 +893,13 @@ class SettingsPage:
                     if self.logger:
                         self.logger.log(f"AppleScript picker failed: {ex}. Using Tk fallback.", "Debug")
                     filename = _tk_file_picker()
+            elif system == "Linux":
+                from platform_utils import pick_file
+                filename = pick_file(
+                    title="Select Emulator",
+                    filetypes=filetypes,
+                    initial_dir=initialdir,
+                )
             else:
                 filename = _tk_file_picker()
 

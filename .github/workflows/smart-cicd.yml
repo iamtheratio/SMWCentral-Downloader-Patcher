@@ -118,7 +118,7 @@ jobs:
             pathex=[],
             binaries=[],
             datas=[('assets', 'assets'), ('ui', 'ui')],
-            hiddenimports=['tkinter.filedialog', 'tkinter.messagebox'],
+            hiddenimports=['tkinter.filedialog', 'tkinter.messagebox', 'platform_utils', 'difficulty_migration', 'difficulty_lookup_manager', 'PIL._tkinter_finder', 'PIL.Image', 'PIL.ImageTk'],
             hookspath=[],
             hooksconfig={},
             runtime_hooks=[],

@@ -116,6 +116,91 @@ def get_updater_command(app_directory, current_exe, update_exe):
         '--wait-seconds', '3'
     ]
 
+def pick_file(title="Select File", filetypes=None, initial_dir=None):
+    """
+    Show a native file-picker dialog, with a graceful fallback chain.
+
+    On Linux the built-in tkinter file browser is the ugly Tk widget.
+    We prefer native portals:
+
+      1. zenity  -- ships with GNOME/GTK; works on X11 and Wayland via XDG portal.
+      2. kdialog -- ships with KDE Plasma; works on X11 and Wayland via XDG portal.
+      3. tkinter -- silent fallback so any other desktop still works.
+
+    On Windows and macOS the tkinter dialog is already native-quality.
+
+    Args:
+        title (str):       Dialog window title.
+        filetypes (list):  List of (description, pattern) tuples, e.g.
+                           [("ROM files", "*.smc *.sfc"), ("All files", "*.*")]
+                           Same format as tkinter's filedialog filetypes.
+        initial_dir (str): Directory to open initially (optional).
+
+    Returns:
+        str: Absolute path chosen by the user, or "" if cancelled.
+    """
+    import subprocess
+    from tkinter import filedialog
+
+    if filetypes is None:
+        filetypes = [("All files", "*.*")]
+
+    system = platform.system()
+
+    if system == "Linux":
+        # --- Attempt 1: zenity (GNOME / GTK / XDG portal) ---
+        try:
+            cmd = ["zenity", "--file-selection", f"--title={title}"]
+            if initial_dir:
+                cmd.append(f"--filename={initial_dir}/")
+            for desc, pattern in filetypes:
+                # zenity filter format: "Description | *.ext1 *.ext2"
+                cmd.append(f"--file-filter={desc} | {pattern}")
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            if result.returncode == 0:
+                path = result.stdout.strip()
+                return path if path else ""
+            elif result.returncode == 1:
+                # User explicitly cancelled — stop here.
+                return ""
+            # Any other non-zero code: zenity had an error; fall through to kdialog.
+        except (OSError, subprocess.SubprocessError):
+            pass  # zenity not usable; try next option
+
+        # --- Attempt 2: kdialog (KDE Plasma / XDG portal) ---
+        try:
+            start = initial_dir if initial_dir else os.path.expanduser("~")
+            # kdialog filter format: "*.smc *.sfc|ROM files\n*.*|All files"
+            filter_str = "\n".join(f"{pattern}|{desc}" for desc, pattern in filetypes)
+            result = subprocess.run(
+                ["kdialog", "--getopenfilename", start, filter_str, "--title", title],
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            if result.returncode == 0:
+                path = result.stdout.strip()
+                return path if path else ""
+            elif result.returncode == 1:
+                # User explicitly cancelled — stop here.
+                return ""
+            # Any other non-zero code: kdialog had an error; fall through to tkinter.
+        except (OSError, subprocess.SubprocessError):
+            pass  # kdialog not usable; fall back to tkinter
+
+    # --- Fallback / non-Linux: tkinter built-in dialog ---
+    kwargs = {"title": title, "filetypes": filetypes}
+    if initial_dir:
+        kwargs["initialdir"] = initial_dir
+    path = filedialog.askopenfilename(**kwargs)
+    return path if path else ""
+
+
 def pick_directory(title="Select Folder", initial_dir=None):
     """
     Show a native folder-picker dialog, with a graceful fallback chain.
@@ -157,9 +242,15 @@ def pick_directory(title="Select Folder", initial_dir=None):
             if result.returncode == 0:
                 path = result.stdout.strip()
                 return path if path else ""
-            # returncode 1 means user cancelled — fall through to kdialog
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass  # zenity not installed; try next option
+            elif result.returncode == 1:
+                # returncode 1 means the user explicitly cancelled — stop here.
+                return ""
+            # Any other non-zero code means zenity encountered an error
+            # (e.g. no display available); fall through to kdialog.
+        except (OSError, subprocess.SubprocessError):
+            # OSError covers FileNotFoundError (not installed) and PermissionError.
+            # SubprocessError covers TimeoutExpired and other subprocess failures.
+            pass  # zenity not usable; try next option
 
         # --- Attempt 2: kdialog (KDE Plasma / XDG portal) ---
         try:
@@ -173,8 +264,12 @@ def pick_directory(title="Select Folder", initial_dir=None):
             if result.returncode == 0:
                 path = result.stdout.strip()
                 return path if path else ""
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            pass  # kdialog not installed; fall back to tkinter
+            elif result.returncode == 1:
+                # returncode 1 means the user explicitly cancelled — stop here.
+                return ""
+            # Any other non-zero code: kdialog had an error; fall through to tkinter.
+        except (OSError, subprocess.SubprocessError):
+            pass  # kdialog not usable; fall back to tkinter
 
     # --- Fallback / non-Linux: tkinter built-in dialog ---
     kwargs = {"title": title}

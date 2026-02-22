@@ -97,7 +97,8 @@ class SetupSection:
         return self.frame
     
     def _browse_rom(self):
-        path = filedialog.askopenfilename(
+        from platform_utils import pick_file
+        path = pick_file(
             title="Select Base ROM",
             filetypes=[("ROM files", "*.smc *.sfc"), ("All files", "*.*")]
         )
