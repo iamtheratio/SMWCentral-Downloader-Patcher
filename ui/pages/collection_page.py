@@ -767,19 +767,21 @@ class CollectionPage:
                     # Get current values
                     current_values = list(self.tree.item(item)["values"])
                     
-                    # Update completed checkbox (respect current column ordering)
+                    # Update completed checkbox (use treeview's fixed column order,
+                    # NOT self.COLUMNS which may be reordered by the user)
+                    tree_cols = list(self.tree["columns"])
                     try:
-                        completed_col_idx = next(i for i, c in enumerate(self.COLUMNS) if c["id"] == "completed")
+                        completed_col_idx = tree_cols.index("completed")
                         current_values[completed_col_idx] = "✓" if new_completed else ""
-                    except StopIteration:
+                    except ValueError:
                         # "completed" column might be hidden or missing
                         pass
                     
                     # Update completion date if it changed dynamically
                     try:
-                        date_col_idx = next(i for i, c in enumerate(self.COLUMNS) if c["id"] == "completed_date")
+                        date_col_idx = tree_cols.index("completed_date")
                         current_values[date_col_idx] = hack_data.get("completed_date", "")
-                    except StopIteration:
+                    except ValueError:
                         pass # Column might be hidden/missing
                     
                     # Update the tree item
@@ -843,11 +845,12 @@ class CollectionPage:
                     # Get current values
                     current_values = list(self.tree.item(tree_item)["values"])
                     
-                    # Update rating in the correct column dynamically
+                    # Update rating in the correct column (use treeview's fixed column
+                    # order, NOT self.COLUMNS which may be reordered by the user)
                     try:
-                        rating_col_idx = next(i for i, c in enumerate(self.COLUMNS) if c["id"] == "rating")
+                        rating_col_idx = list(self.tree["columns"]).index("rating")
                         current_values[rating_col_idx] = self._get_rating_display(new_rating)
-                    except StopIteration:
+                    except ValueError:
                         pass
                     
                     # Update the tree item
