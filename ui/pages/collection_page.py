@@ -399,8 +399,12 @@ class CollectionPage:
             "notes": notes_display
         }
         
-        # Build values tuple in correct order based on currently configured columns
-        values = [row_data.get(col["id"], "") for col in self.COLUMNS]
+        # Build values tuple using the treeview's fixed creation-time column order.
+        # IMPORTANT: self.COLUMNS may be reordered by _apply_column_config, but the
+        # treeview's internal 'columns' definition never changes after creation.
+        # Using self.COLUMNS here would cause values to land in the wrong cells
+        # on any subsequent refresh (e.g. after a sort trigger).
+        values = [row_data.get(col_id, "") for col_id in self.tree["columns"]]
         
         self.tree.insert("", "end", values=values, tags=(hack_id,))
     
@@ -535,14 +539,27 @@ class CollectionPage:
             self.notes_editor.start_edit(hack_id, item, event, "notes", col_id, NotesValidator.validate)
 
     def _get_column_id(self, col_idx_str):
-        """Convert treeview column index (e.g. '#1') to logical column ID"""
+        """Convert treeview display column index (e.g. '#1') to logical column ID.
+
+        tree.identify('column', x, y) returns '#N' where N is the 1-based position
+        within the *displayed* columns (i.e. tree['displaycolumns'] order).  Using
+        self.COLUMNS for this mapping breaks whenever the user reorders columns,
+        because self.COLUMNS is mutated by _apply_column_config while the treeview
+        tracks display order independently via displaycolumns.
+        """
         try:
-            # Extract index (1-based)
             idx = int(col_idx_str.replace("#", "")) - 1
-            
-            # Check if index is valid for current columns
-            if 0 <= idx < len(self.COLUMNS):
-                return self.COLUMNS[idx]["id"]
+
+            # Resolve against the live displaycolumns list; fall back to the full
+            # columns tuple when all columns are shown (displaycolumns == columns).
+            display_cols = self.tree["displaycolumns"]
+            # tkinter returns ('',) or an empty tuple when nothing is explicitly set;
+            # guard against that by falling back to the complete column list.
+            if not display_cols or (len(display_cols) == 1 and display_cols[0] in ("", "#all")):
+                display_cols = self.tree["columns"]
+
+            if 0 <= idx < len(display_cols):
+                return display_cols[idx]
             return None
         except (ValueError, IndexError):
             return None
@@ -1551,19 +1568,26 @@ class CollectionPage:
         self._refresh_table()
     
     def _update_column_headers(self):
-        """Update column headers to show sort indicators"""
-        headers = ["✓", "Title", "Type(s)", "Difficulty", "Rating", "Completed Date", "Time to Beat", "Released", "Notes"]
-        columns = ("completed", "title", "type", "difficulty", "rating", "completed_date", "time_to_beat", "release_date", "notes")
-        
-        for i, (col, base_header) in enumerate(zip(columns, headers)):
-            if col == self.sort_column:
-                # Add sort indicator
+        """Update column headers to show sort indicators.
+
+        Previously used hardcoded column/header tuples which only covered 9 of the
+        11 columns and did not respect user-defined column ordering.  Now we derive
+        the header text from DEFAULT_COLUMNS (the authoritative header definitions)
+        and iterate over every column in the treeview so all columns get the correct
+        sort indicator and command regardless of the current display configuration.
+        """
+        # Build a stable header-text lookup from the original column definitions.
+        header_map = {col["id"]: col["header"] for col in self.DEFAULT_COLUMNS}
+
+        for col_id in self.tree["columns"]:
+            base_header = header_map.get(col_id, col_id)
+            if col_id == self.sort_column:
                 indicator = " ▼" if self.sort_reverse else " ▲"
                 header_text = base_header + indicator
             else:
                 header_text = base_header
-            
-            self.tree.heading(col, text=header_text, command=lambda c=col: self._sort_by_column(c))
+
+            self.tree.heading(col_id, text=header_text, command=lambda c=col_id: self._sort_by_column(c))
     
     def _sort_filtered_data(self):
         """Sort the filtered data based on current sort settings"""

@@ -106,7 +106,8 @@ class SetupSection:
             self.config.set("base_rom_path", path)
     
     def _select_output_dir(self):
-        path = filedialog.askdirectory(title="Select Output Directory")
+        from platform_utils import pick_directory
+        path = pick_directory(title="Select Output Directory")
         if path:
             self.output_dir_var.set(path)
             self.config.set("output_dir", path)
