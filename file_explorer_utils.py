@@ -88,13 +88,13 @@ def open_file_in_explorer(file_path):
             # Fallback: Open the containing directory (without selecting the file)
             directory = os.path.dirname(file_path)
             fallback_managers = [
-                ['xdg-open', directory],              # Universal Linux opener
                 ['nautilus', directory],              # GNOME Files
                 ['dolphin', directory],               # KDE Dolphin
                 ['thunar', directory],                # XFCE Thunar
                 ['nemo', directory],                  # Linux Mint Nemo
                 ['pcmanfm', directory],               # LXDE PCManFM
                 ['caja', directory],                  # MATE Caja
+                ['xdg-open', directory],              # Universal fallback (delegates to system default)
             ]
 
             for fm_cmd in fallback_managers:
@@ -154,13 +154,13 @@ def open_folder_in_explorer(folder_path):
         else:  # Linux and other Unix-like systems
             # Try different file managers in order of preference
             file_managers = [
-                ['xdg-open', folder_path],            # Universal Linux opener
                 ['nautilus', folder_path],            # GNOME Files (Ubuntu default)
                 ['dolphin', folder_path],             # KDE Dolphin
                 ['thunar', folder_path],              # XFCE Thunar
                 ['nemo', folder_path],                # Linux Mint Nemo
                 ['pcmanfm', folder_path],             # LXDE PCManFM
                 ['caja', folder_path],                # MATE Caja
+                ['xdg-open', folder_path],            # Universal fallback (delegates to system default)
             ]
 
             for fm_cmd in file_managers:
