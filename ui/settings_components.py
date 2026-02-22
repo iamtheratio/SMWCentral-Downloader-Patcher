@@ -48,14 +48,16 @@ class SetupSection:
 
     def browse_src(self):
         """Browse for source code path"""
-        path = filedialog.askdirectory()
+        from platform_utils import pick_directory
+        path = pick_directory(title="Select Source Code Path")
         if path:
             self.src_entry.delete(0, tk.END)
             self.src_entry.insert(0, path)
 
     def browse_out(self):
         """Browse for output path"""
-        path = filedialog.askdirectory()
+        from platform_utils import pick_directory
+        path = pick_directory(title="Select Output Path")
         if path:
             self.out_entry.delete(0, tk.END)
             self.out_entry.insert(0, path)

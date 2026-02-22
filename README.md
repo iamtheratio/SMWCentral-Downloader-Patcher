@@ -76,9 +76,13 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 4. **Track progress**: Mark hacks as completed, rate them (1-5 stars), and add personal notes
 5. **Quick editing**: Click directly on completion dates, time to beat, or notes to edit them
 6. **Advanced editing**: Double-click any hack to open the full edit dialog
-7. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open its file location in your system's file manager
-8. **🎮 Quick launch**: Click the play icon (▶) next to any hack to launch it directly in your configured emulator
-9. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
+7. **�️ Delete a hack**: Inside the edit dialog, click **Delete** to permanently remove a hack from your collection
+   - If a ROM file is associated with the hack, it will also be deleted from your file system
+   - A clear confirmation prompt tells you exactly what will be removed before you confirm
+   - Works for both downloaded SMWC hacks and manually added hacks
+8. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open its file location in your system's file manager
+9. **🎮 Quick launch**: Click the play icon (▶) next to any hack to launch it directly in your configured emulator
+10. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
 ![Collection Page](images/application-4.8-collection.png)
 
@@ -187,6 +191,7 @@ The app supports launching ROMs directly in your favorite emulator with one clic
 **Linux:**
 - Browse for binaries in `/usr/bin/`, `/usr/games/`, or custom locations
 - Make sure the binary has execute permissions
+- Folder picker dialogs use the native system chooser (GTK/KDE portal) instead of the built-in Tk widget, giving you a proper vertical-scroll file browser on both X11 and Wayland
 
 ## 🛠️ Troubleshooting
 
@@ -249,6 +254,20 @@ If clicking the play icon doesn't work:
   - **Cancellable operation** - safe to cancel during API fetch phase
   - Access via Settings → Data Migration → "Fetch Metadata"
 
+**Delete Any Hack**
+- **Expanded deletion support**: The Delete button in the edit dialog now works for all hacks, not just manually added ones
+  - Permanently removes the entry from your collection history
+  - If a ROM file is linked to the hack, it is also deleted from your file system
+  - Confirmation prompt clearly states whether a file will be deleted
+  - Handles orphaned records (JSON entry exists but file is already gone) gracefully
+
+**Linux Native Folder Picker**
+- **Better folder selection on Linux**: Folder browse dialogs now use the native system picker instead of Tk's built-in horizontal-scroll widget
+  - Automatically uses `zenity` (GNOME/GTK) or `kdialog` (KDE) via XDG Desktop Portals
+  - Works correctly on both X11 and Wayland
+  - Falls back silently to the Tk dialog if neither tool is available
+  - No impact on Windows or macOS behaviour
+
 **UI Consistency & Polish**
 - **Themed Status Colors**: Consistent, readable colors across all status messages
   - Info/In-Progress: Light cyan (`#4FC3F7`) - much more visible than previous blue
@@ -274,6 +293,9 @@ If clicking the play icon doesn't work:
 - **Column Configuration**: Fixed TclError crashes during drag-and-drop
   - Added widget existence checks before updates
   - Robust error handling prevents UI freezes
+- **Column Sort After Reorder**: Fixed data jumbling when sorting after reordering columns
+  - Reordering columns (e.g. moving the ✓ Completed column) and then sorting by any header no longer scrambles row data
+  - Sort indicators and click commands now correctly reflect the actual displayed column order
 - **Reset to Default**: Fixed button not working (config validation issue)
 - **Duplicate Logging**: Fixed "Reloaded X hacks" appearing twice on Refresh
 - **Obsolete Hacks**: Fixed metadata fetch not updating old/replaced hack versions

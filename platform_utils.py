@@ -116,6 +116,74 @@ def get_updater_command(app_directory, current_exe, update_exe):
         '--wait-seconds', '3'
     ]
 
+def pick_directory(title="Select Folder", initial_dir=None):
+    """
+    Show a native folder-picker dialog, with a graceful fallback chain.
+
+    On Linux the built-in tkinter directory browser renders Tk's own widget
+    (horizontal-scroll only, not user friendly).  We prefer native portals:
+
+      1. zenity  -- ships with GNOME/GTK; works on X11 and Wayland via XDG portal.
+      2. kdialog -- ships with KDE Plasma; works on X11 and Wayland via XDG portal.
+      3. tkinter -- silent fallback so any other desktop still works.
+
+    On Windows and macOS the tkinter dialog is already native-quality, so we
+    call it directly without the subprocess overhead.
+
+    Args:
+        title (str):       Dialog window title.
+        initial_dir (str): Directory to open initially (optional).
+
+    Returns:
+        str: Absolute path chosen by the user, or "" if cancelled.
+    """
+    import subprocess
+    from tkinter import filedialog
+
+    system = platform.system()
+
+    if system == "Linux":
+        # --- Attempt 1: zenity (GNOME / GTK / XDG portal) ---
+        try:
+            cmd = ["zenity", "--file-selection", "--directory", f"--title={title}"]
+            if initial_dir:
+                cmd.append(f"--filename={initial_dir}/")
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5-minute safety timeout
+            )
+            if result.returncode == 0:
+                path = result.stdout.strip()
+                return path if path else ""
+            # returncode 1 means user cancelled — fall through to kdialog
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass  # zenity not installed; try next option
+
+        # --- Attempt 2: kdialog (KDE Plasma / XDG portal) ---
+        try:
+            start = initial_dir if initial_dir else os.path.expanduser("~")
+            result = subprocess.run(
+                ["kdialog", "--getexistingdirectory", start, "--title", title],
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            if result.returncode == 0:
+                path = result.stdout.strip()
+                return path if path else ""
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass  # kdialog not installed; fall back to tkinter
+
+    # --- Fallback / non-Linux: tkinter built-in dialog ---
+    kwargs = {"title": title}
+    if initial_dir:
+        kwargs["initialdir"] = initial_dir
+    path = filedialog.askdirectory(**kwargs)
+    return path if path else ""
+
+
 def make_executable(file_path):
     """
     Make a file executable (mainly for shell scripts on macOS/Linux)

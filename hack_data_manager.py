@@ -228,21 +228,44 @@ class HackDataManager:
             return False
 
     def delete_hack(self, hack_id):
-        """Delete a hack entry (typically for user-created hacks)"""
+        """Delete a hack entry and its associated ROM file from disk.
+
+        Removes the entry from the processing history (JSON) regardless of
+        whether the hack was manually added (usr_*) or downloaded from SMWC.
+        If a file_path is recorded for the hack and the file exists on disk it
+        is also deleted.
+
+        Returns:
+            bool: True on success, False on failure.
+        """
         try:
             hack_id = str(hack_id)
-            if hack_id in self.data:
-                # Remove from data
-                del self.data[hack_id]
-                self.unsaved_changes = True
-                self._schedule_delayed_save()
-
-                # For user hacks, we might want to delete associated files
-                # but for now, just remove from JSON data
-                return True
-            else:
+            if hack_id not in self.data:
                 self._log(f"❌ Hack ID {hack_id} not found for deletion", "Error")
                 return False
+
+            hack_entry = self.data[hack_id]
+
+            # Delete the ROM file from disk if one is recorded.
+            file_path = hack_entry.get("file_path", "")
+            if file_path:
+                import os
+                expanded = os.path.expanduser(file_path)
+                if os.path.isfile(expanded):
+                    try:
+                        os.remove(expanded)
+                        self._log(f"🗑️ Deleted file: {expanded}", "Information")
+                    except Exception as file_err:
+                        # Log the failure but still remove from JSON so the
+                        # user is not left with an unremovable ghost entry.
+                        self._log(f"⚠️ Could not delete file '{expanded}': {file_err}", "Warning")
+
+            # Remove from processing history.
+            del self.data[hack_id]
+            self.unsaved_changes = True
+            self._schedule_delayed_save()
+            return True
+
         except Exception as e:
             self._log(f"❌ Error deleting hack {hack_id}: {e}", "Error")
             return False

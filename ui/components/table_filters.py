@@ -692,8 +692,8 @@ class AddHackDialog:
         button_frame.pack(fill="x", pady=(20, 0))
         
         # Pack buttons from right to left (since side="right" reverses order)
-        # Delete button first (will appear rightmost)
-        if self.is_editing and self.hack_id and str(self.hack_id).startswith("usr_"):
+        # Delete button first (will appear rightmost) - available for all hacks
+        if self.is_editing and self.hack_id:
             ttk.Button(button_frame, text="Delete", command=self._delete_hack).pack(side="right")
         
         # Cancel button second (will appear in middle)
@@ -1268,39 +1268,55 @@ class AddHackDialog:
         return f"usr_{next_id}"
     
     def _delete_hack(self):
-        """Delete a user-created hack after confirmation"""
-        if not self.hack_id or not str(self.hack_id).startswith("usr_"):
-            messagebox.showerror("Error", "Only manually added hacks can be deleted")
+        """Delete any hack after confirmation.
+
+        Always removes the entry from the processing history and, if a ROM
+        file is associated with the hack, deletes that file from disk too.
+        """
+        if not self.hack_id:
             return
-        
-        # Get hack title for confirmation
+
+        # Get hack title and file path for the confirmation prompt.
         hack_title = self.title_var.get().strip() if hasattr(self, 'title_var') else str(self.hack_id)
-        
-        # Hide dialog immediately before showing confirmation to prevent flash
-        self.dialog.withdraw()
-        
-        # Show confirmation dialog with main window as parent
-        result = messagebox.askyesno(
-            "Delete Hack", 
-            f"Are you sure you want to delete '{hack_title}'?\n\nThis action cannot be undone.",
-            icon="warning",
-            parent=self.dialog.master  # Use main window as parent instead of edit dialog
-        )
-        
-        if result:
-            # Attempt to delete the hack
-            success = self.data_manager.delete_hack(self.hack_id)
-            
-            if success:
-                # Destroy dialog completely
-                self.dialog.destroy()
-                self.refresh_callback()  # Refresh the table
-                messagebox.showinfo("Success", f"Hack '{hack_title}' has been deleted.")
-            else:
-                # Show dialog again if deletion failed
-                self.dialog.deiconify()
-                messagebox.showerror("Error", f"Failed to delete hack '{hack_title}'")
+        raw_data = self.data_manager.data.get(str(self.hack_id), {})
+        file_path = raw_data.get("file_path", "")
+
+        import os
+        has_file = bool(file_path and os.path.isfile(os.path.expanduser(file_path)))
+
+        if has_file:
+            confirm_msg = (
+                f"Are you sure you want to delete '{hack_title}'?\n\n"
+                f"This will permanently remove it from your collection AND "
+                f"delete the ROM file from your file system.\n\n"
+                f"This action cannot be undone."
+            )
         else:
-            # User clicked No - show dialog again
+            confirm_msg = (
+                f"Are you sure you want to delete '{hack_title}'?\n\n"
+                f"This will permanently remove it from your collection.\n\n"
+                f"This action cannot be undone."
+            )
+
+        # Hide dialog immediately before showing confirmation to prevent flash.
+        self.dialog.withdraw()
+
+        result = messagebox.askyesno(
+            "Delete Hack",
+            confirm_msg,
+            icon="warning",
+            parent=self.dialog.master,
+        )
+
+        if result:
+            success = self.data_manager.delete_hack(self.hack_id)
+            if success:
+                self.dialog.destroy()
+                self.refresh_callback()
+                messagebox.showinfo("Deleted", f"'{hack_title}' has been removed from your collection.")
+            else:
+                self.dialog.deiconify()
+                messagebox.showerror("Error", f"Failed to delete '{hack_title}'. Please try again.")
+        else:
+            # User cancelled — restore the edit dialog.
             self.dialog.deiconify()
-        # If user clicked No, do nothing
