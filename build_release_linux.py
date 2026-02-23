@@ -370,14 +370,39 @@ exec "${HERE}/usr/bin/smwc-downloader" "$@"
     env['ARCH'] = 'x86_64'
     
     print("🔨 Building AppImage with appimagetool...")
+    
+    # Try running appimagetool directly first
     result = subprocess.run([
         f"./{appimagetool}",
         appdir,
         appimage_path
-    ], env=env)
+    ], env=env, capture_output=True, text=True)
+    
+    # If it failed due to FUSE not being available, extract and run
+    if result.returncode != 0 and ("libfuse" in result.stderr or "FUSE" in result.stderr):
+        print("⚠️  FUSE not available, extracting appimagetool...")
+        
+        # Extract appimagetool
+        extract_result = subprocess.run([
+            f"./{appimagetool}",
+            "--appimage-extract"
+        ], capture_output=True, text=True)
+        
+        if extract_result.returncode != 0:
+            print(f"[ERROR] Could not extract appimagetool: {extract_result.stderr}")
+            return None
+        
+        # Run the extracted AppRun
+        result = subprocess.run([
+            "./squashfs-root/AppRun",
+            appdir,
+            appimage_path
+        ], env=env, capture_output=True, text=True)
     
     if result.returncode != 0:
         print(f"[ERROR] AppImage creation failed (exit code {result.returncode})")
+        if result.stderr:
+            print(f"Error output: {result.stderr}")
         return None
     
     if not os.path.exists(appimage_path):

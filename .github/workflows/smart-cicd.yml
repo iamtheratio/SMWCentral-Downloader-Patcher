@@ -366,10 +366,13 @@ jobs:
         wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
         chmod +x appimagetool-x86_64.AppImage
         
-        # Create AppImage
+        # Extract appimagetool (CI environments don't have FUSE)
+        ./appimagetool-x86_64.AppImage --appimage-extract
+        
+        # Create AppImage using extracted appimagetool
         APPIMAGE_NAME="SMWC-Downloader-$VERSION-x86_64.AppImage"
         export ARCH=x86_64
-        ./appimagetool-x86_64.AppImage "$APPDIR" "$APPIMAGE_NAME"
+        ./squashfs-root/AppRun "$APPDIR" "$APPIMAGE_NAME"
         chmod +x "$APPIMAGE_NAME"
         
         echo "APPIMAGE_NAME=$APPIMAGE_NAME" >> $GITHUB_OUTPUT
