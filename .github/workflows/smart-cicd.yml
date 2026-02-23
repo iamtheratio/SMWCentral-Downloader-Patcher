@@ -313,6 +313,63 @@ jobs:
         
         # Create the archive
         tar -czf "$ARCHIVE_NAME" -C package .
+        echo "TARBALL_NAME=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
+        
+        # Build AppImage
+        echo "Building AppImage..."
+        
+        # Create AppDir structure
+        APPDIR="SMWC-Downloader.AppDir"
+        rm -rf "$APPDIR"
+        mkdir -p "$APPDIR/usr/bin/updater"
+        mkdir -p "$APPDIR/usr/share/applications"
+        mkdir -p "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+        
+        # Copy executables
+        cp dist/smwc-downloader "$APPDIR/usr/bin/"
+        cp dist/smwc-updater "$APPDIR/usr/bin/updater/"
+        chmod +x "$APPDIR/usr/bin/smwc-downloader"
+        chmod +x "$APPDIR/usr/bin/updater/smwc-updater"
+        
+        # Copy desktop file to AppDir root and usr/share/applications
+        cp assets/smwc-downloader.desktop "$APPDIR/"
+        cp assets/smwc-downloader.desktop "$APPDIR/usr/share/applications/"
+        
+        # Copy icon to AppDir root and proper location
+        cp assets/icons/smwc-downloader-256x256.png "$APPDIR/smwc-downloader.png"
+        cp assets/icons/smwc-downloader-256x256.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/smwc-downloader.png"
+        
+        # Create AppRun launcher script
+        cat > "$APPDIR/AppRun" << 'APPRUN_EOF'
+        #!/bin/bash
+        # AppRun launcher for SMWC Downloader
+        
+        HERE="$(dirname "$(readlink -f "${0}")")"
+        export PATH="${HERE}/usr/bin:${PATH}"
+        
+        # Set up data directory in user's home
+        export APPIMAGE_DATA_DIR="$HOME/.smwc-downloader"
+        mkdir -p "$APPIMAGE_DATA_DIR"
+        
+        # Launch the application
+        exec "${HERE}/usr/bin/smwc-downloader" "$@"
+        APPRUN_EOF
+        
+        chmod +x "$APPDIR/AppRun"
+        
+        # Download appimagetool
+        wget -q https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
+        chmod +x appimagetool-x86_64.AppImage
+        
+        # Create AppImage
+        APPIMAGE_NAME="SMWC-Downloader-$VERSION-x86_64.AppImage"
+        export ARCH=x86_64
+        ./appimagetool-x86_64.AppImage "$APPDIR" "$APPIMAGE_NAME"
+        chmod +x "$APPIMAGE_NAME"
+        
+        echo "APPIMAGE_NAME=$APPIMAGE_NAME" >> $GITHUB_OUTPUT
+        
+        # Set combined artifact name for upload
         echo "ARTIFACT_NAME=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
       id: linux_package
     # Upload artifacts for develop branch or main branch pushes
@@ -330,12 +387,19 @@ jobs:
         name: ${{ steps.macos_package.outputs.ARTIFACT_NAME }}
         path: ${{ steps.macos_package.outputs.ARTIFACT_NAME }}
         retention-days: 30
-    - name: Upload Linux artifact
+    - name: Upload Linux tar.gz artifact
       if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest'
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ steps.linux_package.outputs.ARTIFACT_NAME }}
-        path: ${{ steps.linux_package.outputs.ARTIFACT_NAME }}
+        name: ${{ steps.linux_package.outputs.TARBALL_NAME }}
+        path: ${{ steps.linux_package.outputs.TARBALL_NAME }}
+        retention-days: 30
+    - name: Upload Linux AppImage artifact
+      if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ steps.linux_package.outputs.APPIMAGE_NAME }}
+        path: ${{ steps.linux_package.outputs.APPIMAGE_NAME }}
         retention-days: 30
   # Create pre-release when merging to main
   create-prerelease:
@@ -396,6 +460,16 @@ jobs:
           echo "Linux tar.gz moved: $(ls -la SMWC-Downloader-$VERSION-Linux-x64.tar.gz)"
         fi
         
+        # Handle Linux AppImage file
+        if [ -d "SMWC-Downloader-$VERSION-x86_64.AppImage" ]; then
+          echo "Moving Linux AppImage file..."
+          mv "SMWC-Downloader-$VERSION-x86_64.AppImage/SMWC-Downloader-$VERSION-x86_64.AppImage" "temp-linux.AppImage"
+          rm -rf "SMWC-Downloader-$VERSION-x86_64.AppImage"
+          mv "temp-linux.AppImage" "SMWC-Downloader-$VERSION-x86_64.AppImage"
+          chmod +x "SMWC-Downloader-$VERSION-x86_64.AppImage"
+          echo "Linux AppImage moved: $(ls -la SMWC-Downloader-$VERSION-x86_64.AppImage)"
+        fi
+        
         # Final check of release files
         echo "Final release files:"
         ls -la SMWC-Downloader-$VERSION-*
@@ -416,7 +490,8 @@ jobs:
         ### 📥 Downloads Available:
         - **Windows**: \`SMWC-Downloader-${VERSION}-Windows-x64.zip\`
         - **macOS**: \`SMWC-Downloader-${VERSION}-macOS-Universal.dmg\`
-        - **Linux**: \`SMWC-Downloader-${VERSION}-Linux-x64.tar.gz\`
+        - **Linux (tar.gz)**: \`SMWC-Downloader-${VERSION}-Linux-x64.tar.gz\`
+        - **Linux (AppImage)**: \`SMWC-Downloader-${VERSION}-x86_64.AppImage\`
         
         ### ⚠️ Pre-Release Notes:
         - This version is ready for testing but not yet final
@@ -427,10 +502,12 @@ jobs:
         ### 🔧 Manual Installation:
         - **Windows**: Extract ZIP and run \`SMWC Downloader.exe\`
         - **macOS**: Mount DMG and drag to Applications
-        - **Linux**: Extract tar.gz and run executable
+        - **Linux (tar.gz)**: Extract and run \`./install.sh\` for system integration
+        - **Linux (AppImage)**: Download, make executable (\`chmod +x\`), and run directly
         
         > **Note**: You can safely test this without affecting your current installation." \
           --prerelease \
           SMWC-Downloader-${VERSION}-Windows-x64.zip \
           SMWC-Downloader-${VERSION}-macOS-Universal.dmg \
-          SMWC-Downloader-${VERSION}-Linux-x64.tar.gz
+          SMWC-Downloader-${VERSION}-Linux-x64.tar.gz \
+          SMWC-Downloader-${VERSION}-x86_64.AppImage

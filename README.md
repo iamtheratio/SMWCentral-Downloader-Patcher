@@ -37,10 +37,24 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 4. After that, you can launch it normally from Applications or Spotlight
 
 ### Linux (Ubuntu, Debian, Fedora, etc.)
+
+**Option 1: AppImage (Portable - Recommended)**
+1. Download `SMWC-Downloader-x86_64.AppImage` from the [Releases page](../../releases)
+2. Make it executable: `chmod +x SMWC-Downloader-*.AppImage`
+3. Run directly: `./SMWC-Downloader-*.AppImage`
+4. **Optional**: Move to a convenient location like `~/Applications` or `~/.local/bin`
+
+**Benefits**: No installation needed, portable, self-contained, easy to update (just replace the file)
+
+**Option 2: Traditional Installation**
 1. Download `SMWC-Downloader-Linux-x64.tar.gz` from the [Releases page](../../releases)
 2. Extract: `tar -xzf SMWC-Downloader-*.tar.gz`
 3. Run the installer: `./install.sh` (this adds the app to your Applications menu)
 4. Launch from Applications menu or run `smwc-downloader` in terminal
+
+**Benefits**: Full system integration, appears in application menus, desktop file associations
+
+> **Note**: User data (config.json, processed.json) is stored in `~/.smwc-downloader/` for both options
 
 ## 🚀 How to Use
 
