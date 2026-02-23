@@ -10,7 +10,7 @@ permissions:
   
 on:
   push:
-    branches: [ '**' ]  # Run on all branches (including feature branches)
+    # Run on all branches by omitting branches filter
     paths-ignore:
       - '*.md'
       - 'docs/**'
