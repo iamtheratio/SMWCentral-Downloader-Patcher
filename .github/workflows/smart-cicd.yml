@@ -1,12 +1,16 @@
 name: Smart CI/CD Pipeline
 
+# This workflow builds and tests on ALL branch pushes and pull requests
+# Artifacts (binaries) are uploaded for direct pushes to any branch
+# Pre-releases are only created on pushes to 'main' branch
+
 permissions:
   contents: write
   actions: read
   
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ '**' ]  # Run on all branches (including feature branches)
     paths-ignore:
       - '*.md'
       - 'docs/**'
@@ -106,7 +110,8 @@ jobs:
             print(f'X Test failed: {e}')
             sys.exit(1)
         "
-    # Only build full packages if we're on main or develop branch (not PRs)
+    # Build full packages for all branch pushes (not PRs)
+    # This allows testing builds from feature branches before merging
     - name: Build main executable (Linux)
       if: github.event_name != 'pull_request' && matrix.os == 'ubuntu-latest'
       run: |
@@ -372,7 +377,8 @@ jobs:
         # Set combined artifact name for upload
         echo "ARTIFACT_NAME=$ARCHIVE_NAME" >> $GITHUB_OUTPUT
       id: linux_package
-    # Upload artifacts for develop branch or main branch pushes
+    # Upload artifacts for all branch pushes (main, develop, feature branches, etc.)
+    # Artifacts are NOT uploaded for pull requests to save storage
     - name: Upload Windows artifact
       if: github.event_name != 'pull_request' && matrix.os == 'windows-latest'
       uses: actions/upload-artifact@v4
