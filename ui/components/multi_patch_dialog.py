@@ -165,6 +165,10 @@ class MultiPatchDialog:
 
         self.dialog.protocol("WM_DELETE_WINDOW", self._on_cancel)
 
+    # Characters that are illegal in filenames on Windows/macOS/Linux.
+    # Kept as a frozenset for O(1) lookup on every keystroke.
+    _INVALID_CHARS = frozenset('<>:"/\\|?*')
+
     def _build_row(self, i, patch_path):
         grid = self._grid_frame
         r = i + 1  # header is row 0
@@ -192,9 +196,13 @@ class MultiPatchDialog:
 
         ttk.Label(grid, text="→").grid(row=r, column=3, padx=(0, 8), pady=8)
 
-        # Output name entry
+        # Output name entry — block invalid filename characters on every keystroke
+        vcmd = (self.dialog.register(
+                    lambda text: not any(c in MultiPatchDialog._INVALID_CHARS for c in text)
+                ), "%P")  # %P = value of the field *if* the edit is allowed
         entry = ttk.Entry(grid, textvariable=self._name_vars[i],
-                          font=("Segoe UI", 9), width=30)
+                          font=("Segoe UI", 9), width=30,
+                          validate="key", validatecommand=vcmd)
         entry.grid(row=r, column=4, pady=8, sticky="ew")
         self._entries.append(entry)
 
