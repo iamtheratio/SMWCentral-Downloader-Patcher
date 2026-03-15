@@ -100,7 +100,7 @@ class ConfigManager:
         allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path",
                         "multi_type_enabled", "multi_type_download_mode", "difficulty_lookup",
                         "emulator_path", "emulator_args", "emulator_args_enabled", "auto_check_updates",
-                        "column_order", "visible_columns"}
+                        "column_order", "visible_columns", "show_rom_picker"}
         cleaned = {}
 
         for key, value in config.items():

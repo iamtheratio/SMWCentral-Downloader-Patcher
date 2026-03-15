@@ -121,7 +121,8 @@ class HackDataManager:
                     "time_to_beat": hack_data.get("time_to_beat", 0),  # v3.1 NEW: Add time_to_beat field
                     "exits": hack_data.get("exits", 0),  # v3.1 NEW: Add exits field for analytics
                     "time": hack_data.get("time", 0),  # v4.8 NEW: Raw timestamp for release date
-                    "date": hack_data.get("date", "")  # v4.8 NEW: Formatted release date
+                    "date": hack_data.get("date", ""),  # v4.8 NEW: Formatted release date
+                    "files": hack_data.get("files", [])  # v5.0 NEW: Multi-file support
                 }
                 hacks.append(hack_info)
         return hacks

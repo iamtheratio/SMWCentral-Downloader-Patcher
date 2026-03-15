@@ -112,6 +112,7 @@ class CollectionPage:
         # Cache ConfigManager instance and emulator path for performance
         self.config_manager = ConfigManager()
         self._emulator_path = self.config_manager.get("emulator_path", "")
+        self._show_rom_picker = self.config_manager.get("show_rom_picker", False)
     
     def refresh_emulator_cache(self):
         """Refresh cached emulator settings - called when settings change"""
@@ -119,6 +120,7 @@ class CollectionPage:
         # Create NEW ConfigManager instance to reload config from disk
         self.config_manager = ConfigManager()
         self._emulator_path = self.config_manager.get("emulator_path", "")
+        self._show_rom_picker = self.config_manager.get("show_rom_picker", False)
         self._log(f"🔄 Emulator cache refreshed: '{old_path}' -> '{self._emulator_path}'", "Debug")
         # Refresh table to update play icons
         if self.tree:
@@ -1041,68 +1043,78 @@ class CollectionPage:
         Returns the selected file path, or None if the user cancelled."""
         import tkinter as tk
         from tkinter import ttk
-        from colors import get_colors
+        from utils import set_window_icon
 
         result = {"path": None}
-        colors = get_colors()
 
         dialog = tk.Toplevel(self.frame)
-        dialog.title(f"Choose ROM – {hack_title}")
+        dialog.title("Choose Version")
         dialog.resizable(False, False)
+        dialog.transient(self.frame.winfo_toplevel())
         dialog.grab_set()
+        set_window_icon(dialog)
 
-        ttk.Label(dialog, text=f"Multiple ROM files found for '{hack_title}'.\nSelect which one to launch:",
-                  padding=(12, 10, 12, 4)).pack()
+        outer = ttk.Frame(dialog, padding=(24, 20, 24, 20))
+        outer.pack(fill="both", expand=True)
 
-        listbox_frame = ttk.Frame(dialog, padding=(12, 0, 12, 0))
-        listbox_frame.pack(fill="both", expand=True)
+        # Header
+        ttk.Label(
+            outer,
+            text=f"Multiple versions found for \"{hack_title}\"",
+            font=("Segoe UI", 11, "bold"),
+        ).pack(anchor="w")
 
-        listbox = tk.Listbox(listbox_frame, selectmode="single",
-                             font=("Segoe UI", 10), activestyle="none",
-                             height=min(len(files), 8),
-                             bg=colors.get("bg", "#2b2b2b"),
-                             fg=colors.get("fg", "#ffffff"),
-                             selectbackground=colors.get("accent", "#0078d4"),
-                             highlightthickness=0, bd=0)
-        listbox.pack(fill="both", expand=True)
+        ttk.Label(
+            outer,
+            text="Select which version to launch:",
+            justify="left",
+        ).pack(anchor="w", pady=(6, 14))
 
-        for f in files:
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=(0, 10))
+
+        # Radio button for each file
+        primary_idx = next((i for i, f in enumerate(files) if f.get("primary")), 0)
+        selected_var = tk.StringVar(value=str(primary_idx))
+
+        for i, f in enumerate(files):
             display = f.get("name") or os.path.basename(f.get("path", ""))
             if f.get("primary"):
                 display += "  ★"
-            listbox.insert("end", display)
+            row = ttk.Frame(outer)
+            row.pack(fill="x", pady=3)
+            ttk.Radiobutton(
+                row,
+                text=display,
+                variable=selected_var,
+                value=str(i),
+            ).pack(side="left", padx=(4, 0))
 
-        # Pre-select the primary ROM (or first)
-        primary_idx = next((i for i, f in enumerate(files) if f.get("primary")), 0)
-        listbox.selection_set(primary_idx)
-        listbox.activate(primary_idx)
-        listbox.see(primary_idx)
+        ttk.Separator(outer, orient="horizontal").pack(fill="x", pady=(12, 0))
 
-        btn_frame = ttk.Frame(dialog, padding=(12, 8, 12, 12))
-        btn_frame.pack(fill="x")
+        btn_frame = ttk.Frame(outer)
+        btn_frame.pack(fill="x", pady=(12, 0))
 
         def on_launch():
-            sel = listbox.curselection()
-            if sel:
-                result["path"] = files[sel[0]].get("path", "")
+            result["path"] = files[int(selected_var.get())].get("path", "")
             dialog.destroy()
 
         def on_cancel():
             dialog.destroy()
 
-        ttk.Button(btn_frame, text="Launch", style="Accent.TButton", command=on_launch).pack(side="right", padx=(6, 0))
-        ttk.Button(btn_frame, text="Cancel", command=on_cancel).pack(side="right")
+        ttk.Button(btn_frame, text="Cancel", command=on_cancel, width=12).pack(side="right", padx=(8, 0))
+        ttk.Button(btn_frame, text="Launch", style="Accent.TButton", command=on_launch, width=14).pack(side="right")
 
         dialog.bind("<Return>", lambda _: on_launch())
         dialog.bind("<Escape>", lambda _: on_cancel())
-        listbox.bind("<Double-Button-1>", lambda _: on_launch())
 
-        # Center dialog over parent window
+        # Centre on parent, enforce minimum width
         dialog.update_idletasks()
         pw = self.frame.winfo_toplevel()
-        x = pw.winfo_x() + (pw.winfo_width() - dialog.winfo_width()) // 2
-        y = pw.winfo_y() + (pw.winfo_height() - dialog.winfo_height()) // 2
-        dialog.geometry(f"+{x}+{y}")
+        dw = max(dialog.winfo_reqwidth(), 460)
+        dh = dialog.winfo_reqheight()
+        x = pw.winfo_x() + (pw.winfo_width() - dw) // 2
+        y = pw.winfo_y() + (pw.winfo_height() - dh) // 2
+        dialog.geometry(f"{dw}x{dh}+{x}+{y}")
 
         dialog.wait_window()
         return result["path"]
@@ -1115,9 +1127,9 @@ class CollectionPage:
 
         hack_title = hack_data.get("title", "Unknown")
 
-        # Determine which file to launch: multi-file picker if multiple ROMs exist
+        # Determine which file to launch
         files = hack_data.get("files", [])
-        if len(files) > 1:
+        if len(files) > 1 and self._show_rom_picker:
             file_path = self._pick_rom_file(hack_title, files)
             if not file_path:
                 return  # User cancelled
