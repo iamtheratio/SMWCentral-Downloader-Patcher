@@ -139,57 +139,13 @@ def fetch_file_metadata(file_id, log=None):
             return None
     return None
 
-def extract_patches_from_zip(zip_path, extract_to, hack_name="", return_all=False):
-    """Extract zip and find patch files (IPS or BPS).
+def _select_best_patch(patch_files, hack_name=""):
+    """Pick the best single patch from an already-collected sorted list.
 
-    Args:
-        zip_path:    Path to the downloaded ZIP archive.
-        extract_to:  Directory to extract contents into.
-        hack_name:   Name hint used to pick the best single patch (ignored when return_all=True).
-        return_all:  When True, return a sorted list of ALL patch file paths found.
-                     When False (default), return a single best-match path string (or None).
+    Uses the same priority heuristics as the old single-patch path so callers
+    avoid re-opening or re-extracting the zip just to get a selection.
     """
-    import zipfile
     import re
-
-    # Extract zip contents with zip-slip protection
-    try:
-        with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            bad_file = zip_ref.testzip()
-            if bad_file:
-                raise zipfile.BadZipFile(f"Bad zip file, first bad file: {bad_file}")
-            # Validate every entry resolves inside extract_to before extracting
-            extract_to_real = os.path.realpath(extract_to)
-            for member in zip_ref.namelist():
-                member_path = os.path.realpath(os.path.join(extract_to, member))
-                if not member_path.startswith(extract_to_real + os.sep) and member_path != extract_to_real:
-                    raise ValueError(f"Zip entry outside target directory (zip slip): {member}")
-            zip_ref.extractall(extract_to)
-    except Exception as e:
-        raise e
-
-    # Skip the zip file itself when walking
-    zip_basename = os.path.basename(zip_path)
-
-    # Collect all patch files (IPS and BPS), excluding the source zip
-    patch_files = []
-    for root, _, files in os.walk(extract_to):
-        for fname in files:
-            if fname == zip_basename:
-                continue
-            if fname.lower().endswith((".ips", ".bps")):
-                patch_files.append(os.path.join(root, fname))
-
-    if not patch_files:
-        return [] if return_all else None
-
-    # Sort alphabetically by filename so higher versions come last
-    patch_files = sorted(patch_files, key=lambda p: os.path.basename(p).lower())
-
-    if return_all:
-        return patch_files
-
-    # ── Single-patch selection strategy (unchanged behaviour) ──────────
     if len(patch_files) == 1:
         return patch_files[0]
 
@@ -219,6 +175,59 @@ def extract_patches_from_zip(zip_path, extract_to, hack_name="", return_all=Fals
         return max(filtered_files, key=os.path.getsize)
 
     return max(patch_files, key=os.path.getsize)
+
+
+def extract_patches_from_zip(zip_path, extract_to, hack_name="", return_all=False):
+    """Extract zip and find patch files (IPS or BPS).
+
+    Args:
+        zip_path:    Path to the downloaded ZIP archive.
+        extract_to:  Directory to extract contents into.
+        hack_name:   Name hint used to pick the best single patch (ignored when return_all=True).
+        return_all:  When True, return a sorted list of ALL patch file paths found.
+                     When False (default), return a single best-match path string (or None).
+    """
+    import zipfile
+
+    # Extract zip contents with zip-slip protection
+    try:
+        with zipfile.ZipFile(zip_path, "r") as zip_ref:
+            bad_file = zip_ref.testzip()
+            if bad_file:
+                raise zipfile.BadZipFile(f"Bad zip file, first bad file: {bad_file}")
+            # Validate every entry stays inside extract_to using pure string
+            # normalisation (abspath) — no filesystem I/O needed for this check.
+            extract_to_abs = os.path.abspath(extract_to)
+            for member in zip_ref.namelist():
+                member_path = os.path.abspath(os.path.join(extract_to_abs, member))
+                if not member_path.startswith(extract_to_abs + os.sep) and member_path != extract_to_abs:
+                    raise ValueError(f"Zip entry outside target directory (zip slip): {member}")
+            zip_ref.extractall(extract_to)
+    except Exception as e:
+        raise e
+
+    # Skip the zip file itself when walking
+    zip_basename = os.path.basename(zip_path)
+
+    # Collect all patch files (IPS and BPS), excluding the source zip
+    patch_files = []
+    for root, _, files in os.walk(extract_to):
+        for fname in files:
+            if fname == zip_basename:
+                continue
+            if fname.lower().endswith((".ips", ".bps")):
+                patch_files.append(os.path.join(root, fname))
+
+    if not patch_files:
+        return [] if return_all else None
+
+    # Sort alphabetically by filename so higher versions come last
+    patch_files = sorted(patch_files, key=lambda p: os.path.basename(p).lower())
+
+    if return_all:
+        return patch_files
+
+    return _select_best_patch(patch_files, hack_name)
 
 def run_pipeline(filter_payload, base_rom_path, output_dir, log=None, multi_patch_callback=None):
     """
@@ -397,10 +406,23 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None, multi_patc
                 f"{title_clean}{base_rom_ext}"
             )
 
+            # Determine whether the file actually exists using the stored path.
+            # Multi-patch hacks store a custom primary name in file_path / files[],
+            # so using title_clean to construct expected_path would be wrong for them.
+            _stored_path = processed[hack_id].get("file_path", "")
+            _stored_files = processed[hack_id].get("files", [])
+            if _stored_files:
+                _primary = next((f for f in _stored_files if f.get("primary")), _stored_files[0])
+                _file_on_disk = os.path.exists(_primary.get("path", ""))
+            elif _stored_path:
+                _file_on_disk = os.path.exists(_stored_path)
+            else:
+                _file_on_disk = False
+
             if actual_diff != display_diff and log:
                 log(f"✅ Moved: {title_clean} from {actual_diff} to {display_diff} difficulty!")
 
-            if actual_diff != display_diff or not os.path.exists(expected_path):
+            if actual_diff != display_diff or not _file_on_disk:
                 if os.path.exists(actual_path):
                     try:
                         os.makedirs(os.path.dirname(expected_path), exist_ok=True)
@@ -513,10 +535,7 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None, multi_patc
 
             else:
                 # ── Single-patch path (original behaviour) ──────────────
-                patch_path = (
-                    patch_files[0] if len(patch_files) == 1
-                    else extract_patches_from_zip(zip_path, temp_dir, title_clean)
-                )
+                patch_path = _select_best_patch(patch_files, title_clean)
                 output_filename = f"{title_clean}{base_rom_ext}"
                 output_path = os.path.join(make_output_path(output_dir, normalized_type, folder_name), output_filename)
                 success = PatchHandler.apply_patch(patch_path, base_rom_path, output_path, log)

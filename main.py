@@ -229,7 +229,7 @@ def run_pipeline_wrapper(*args, **kwargs):
 
 def run_single_download_pipeline(selected_hacks, log=None, progress_callback=None, multi_patch_callback=None):
     """Custom pipeline for single download page that works like bulk download"""
-    from api_pipeline import fetch_file_metadata, load_processed, save_processed, reset_cancel_flag, is_cancelled, extract_patches_from_zip, make_output_path, clean_hack_title, DIFFICULTY_LOOKUP, get_sorted_folder_name, title_case, safe_filename
+    from api_pipeline import fetch_file_metadata, load_processed, save_processed, reset_cancel_flag, is_cancelled, extract_patches_from_zip, _select_best_patch, make_output_path, clean_hack_title, DIFFICULTY_LOOKUP, get_sorted_folder_name, title_case, safe_filename
     from patch_handler import PatchHandler
     from config_manager import ConfigManager
 
@@ -297,6 +297,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
 
         # Check if already processed
         if hack_id in processed:
+            _redownload = False  # set True if primary file is missing from disk
             # Check if this hack needs multi-type copies that are missing
             existing_hack = processed[hack_id]
 
@@ -485,20 +486,37 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                         log(f"✅ Skipped: {hack_name} (all multi-type copies exist)", "Information")
                     skipped_hacks += 1
             else:
-                # Update hack_types even for single-type hacks
-                if existing_hack.get("hack_types") != current_hack_types:
-                    existing_hack["hack_types"] = current_hack_types
-                    metadata_updated = True
+                # Before skipping, verify the file actually exists on disk.
+                # If the user deleted it manually the entry stays in processed.json,
+                # so we must fall through to redownload rather than silently skip.
+                _stored_file = existing_hack.get("file_path", "")
+                _stored_files = existing_hack.get("files", [])
+                if _stored_files:
+                    _primary = next((f for f in _stored_files if f.get("primary")), _stored_files[0])
+                    _file_on_disk = os.path.exists(_primary.get("path", ""))
+                else:
+                    _file_on_disk = bool(_stored_file) and os.path.exists(_stored_file)
 
-                if log:
-                    log(f"✅ Skipped: {hack_name}", "Information")
-                skipped_hacks += 1
+                if not _file_on_disk:
+                    if log:
+                        log(f"⚠️ File missing on disk: Redownloading {hack_name}", "Warning")
+                    _redownload = True
+                else:
+                    # Update hack_types even for single-type hacks
+                    if existing_hack.get("hack_types") != current_hack_types:
+                        existing_hack["hack_types"] = current_hack_types
+                        metadata_updated = True
+
+                    if log:
+                        log(f"✅ Skipped: {hack_name}", "Information")
+                    skipped_hacks += 1
 
             # Save if any metadata was updated
             if metadata_updated:
                 save_processed(processed)
 
-            continue
+            if not _redownload:
+                continue
 
         try:
             # Get download URL - search results don't include download_url, so fetch it
@@ -601,10 +619,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
 
                 else:
                     # ── Single-patch path (original behaviour) ──────────────
-                    patch_path = (
-                        patch_files[0] if len(patch_files) == 1
-                        else extract_patches_from_zip(zip_path, temp_dir, title_clean)
-                    )
+                    patch_path = _select_best_patch(patch_files, title_clean)
 
                     # Check for cancellation before patching
                     if is_cancelled():
