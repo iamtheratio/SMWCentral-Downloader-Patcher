@@ -113,6 +113,10 @@ class MainLayout:
         # Register reload callback for metadata migration
         self.settings_page.reload_collection_callback = self.collection_page._refresh_data_and_table
 
+        # Wire up emulator settings callback so setting/changing the emulator path
+        # immediately refreshes the play icon column in the collection table.
+        self.settings_page.emulator_settings_callback = self.collection_page.refresh_emulator_cache
+
     
     def get_download_button(self):
         """Return the download button reference - deprecated for Settings page"""

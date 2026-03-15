@@ -74,8 +74,9 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
    - **Tip**: Click the column header to select ALL hacks at once
    - **Already downloaded hacks** are shown in italic with muted colors to help you identify what you already own
 6. **Start downloading**: Click "Download & Patch" to begin downloading and patching your selected hacks
-7. **Wait for completion**: The app will automatically download each hack and apply it to your base ROM
-8. **Play**: Your patched ROMs will be saved to your chosen folder, ready to play in any emulator
+7. **Multi-BPS dialog**: If a hack contains multiple patch files (e.g. different versions), a dialog will appear letting you choose which files to download and which is the default
+8. **Wait for completion**: The app will automatically download each hack and apply it to your base ROM
+9. **Play**: Your patched ROMs will be saved to your chosen folder, ready to play in any emulator
 
 ![Download Page](images/application-4.8-download.png)
 
@@ -95,8 +96,8 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
    - A clear confirmation prompt tells you exactly what will be removed before you confirm
    - Works for both downloaded SMWC hacks and manually added hacks
 8. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open its file location in your system's file manager
-9. **🎮 Quick launch**: Click the play icon (▶) next to any hack to launch it directly in your configured emulator
-10. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
+9. **🎮 Quick launch**: Click the play icon (▶) next to any hack to launch it directly in your configured emulator   - For hacks with multiple versions, a picker lets you choose which ROM to open
+   - Change the default version any time via the Edit Hack dialog → ROM Files section10. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
 ![Collection Page](images/application-4.8-collection.png)
 
@@ -247,7 +248,38 @@ If clicking the play icon doesn't work:
 </details>
 
 <details open>
-<summary><strong>Version 4.9 - Latest Release (January 2026)</strong></summary>
+<summary><strong>Version 5.0 - Latest Release (March 2026)</strong></summary>
+
+### 🆕 New Features
+
+**Multi-BPS File Support**
+- **Download multiple patch versions at once**: When a hack ZIP contains more than one BPS file, you're now shown a selection dialog before patching begins
+  - Check/uncheck each file to include or exclude it
+  - Pick which version is the "Default" — it opens automatically when you click play from your Collection
+  - Output filenames are auto-suggested from the BPS filename with proper title-casing (e.g. `Hack Name v1.10`)
+  - All selected files are patched and saved; your Collection tracks all of them
+
+**ROM Files in Edit Hack Dialog**
+- **See and change the default ROM**: For hacks with multiple patch files, the Edit Hack dialog now shows a "ROM Files" section
+  - Lists every patched ROM for that hack
+  - Select a new default via radio button and click Update to save
+
+**Multi-ROM Picker**
+- **Choose on launch**: Clicking the play icon (▶) on a multi-file hack opens a picker so you can choose exactly which version to launch in your emulator
+
+### 🐛 Bug Fixes
+- **Emulator play icon not appearing after setup**: Configuring an emulator path in Settings now immediately refreshes the play icon column in the Collection — no restart needed
+
+### 🔧 Improvements
+- **Smarter title-casing**: ROM filenames are cleaned up more accurately
+  - Version tokens like `v1.10` and `v2.0` always stay lowercase
+  - Parenthetical words like `(Not`, `(Super)` are capitalised correctly
+  - `not` is now treated as a lowercase article; `so` capitalises normally
+
+</details>
+
+<details>
+<summary><strong>Version 4.9 - Previous Release (January 2026)</strong></summary>
 
 ### 🆕 New Features
 
@@ -319,7 +351,7 @@ If clicking the play icon doesn't work:
 </details>
 
 <details>
-<summary><strong>Version 4.8 - Previous Release</strong></summary>
+<summary><strong>Version 4.8</strong></summary>
 
 ### 🆕 New Features
 - **Emulator Integration**: Launch ROMs directly from the Collection page with one click

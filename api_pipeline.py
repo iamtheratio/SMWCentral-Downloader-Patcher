@@ -139,38 +139,54 @@ def fetch_file_metadata(file_id, log=None):
             return None
     return None
 
-def extract_patches_from_zip(zip_path, extract_to, hack_name=""):
-    """Extract zip and find patch files (IPS or BPS)"""
+def extract_patches_from_zip(zip_path, extract_to, hack_name="", return_all=False):
+    """Extract zip and find patch files (IPS or BPS).
+
+    Args:
+        zip_path:    Path to the downloaded ZIP archive.
+        extract_to:  Directory to extract contents into.
+        hack_name:   Name hint used to pick the best single patch (ignored when return_all=True).
+        return_all:  When True, return a sorted list of ALL patch file paths found.
+                     When False (default), return a single best-match path string (or None).
+    """
     import zipfile
     import re
-    
+
     # Extract zip contents
     try:
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
-            # Test integrity first
             bad_file = zip_ref.testzip()
             if bad_file:
                 raise zipfile.BadZipFile(f"Bad zip file, first bad file: {bad_file}")
             zip_ref.extractall(extract_to)
     except Exception as e:
         raise e
-    
-    # Find all patch files (IPS and BPS)
+
+    # Skip the zip file itself when walking
+    zip_basename = os.path.basename(zip_path)
+
+    # Collect all patch files (IPS and BPS), excluding the source zip
     patch_files = []
     for root, _, files in os.walk(extract_to):
         for fname in files:
+            if fname == zip_basename:
+                continue
             if fname.lower().endswith((".ips", ".bps")):
                 patch_files.append(os.path.join(root, fname))
-    
+
     if not patch_files:
-        return None
-    
-    # If only one patch file exists, use it
+        return [] if return_all else None
+
+    # Sort alphabetically by filename so higher versions come last
+    patch_files = sorted(patch_files, key=lambda p: os.path.basename(p).lower())
+
+    if return_all:
+        return patch_files
+
+    # ── Single-patch selection strategy (unchanged behaviour) ──────────
     if len(patch_files) == 1:
         return patch_files[0]
-    
-    # Multiple patch files found, use selection strategy
-    
+
     # Try to match with hack name if provided
     if hack_name:
         hack_name_simple = re.sub(r'[^a-zA-Z0-9]', '', hack_name.lower())
@@ -179,28 +195,26 @@ def extract_patches_from_zip(zip_path, extract_to, hack_name=""):
             file_name_simple = re.sub(r'[^a-zA-Z0-9]', '', file_name)
             if hack_name_simple in file_name_simple:
                 return patch_file
-    
+
     # Look for common main patch indicators
     main_indicators = ["main", "patch", "rom", "smc", "sfc"]
     for indicator in main_indicators:
         for patch_file in patch_files:
             if indicator in os.path.basename(patch_file).lower():
                 return patch_file
-    
+
     # Exclude common auxiliary patches
     exclude_indicators = ["music", "graphics", "optional", "extra", "addon"]
     filtered_files = [f for f in patch_files if not any(
         indicator in os.path.basename(f).lower() for indicator in exclude_indicators
     )]
-    
+
     if filtered_files:
-        # Use the largest remaining file (often the main patch)
         return max(filtered_files, key=os.path.getsize)
-    
-    # If all else fails, use the largest patch file
+
     return max(patch_files, key=os.path.getsize)
 
-def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
+def run_pipeline(filter_payload, base_rom_path, output_dir, log=None, multi_patch_callback=None):
     """
     Main pipeline function using unified patch handler
     """
@@ -443,20 +457,67 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
             with open(zip_path, "wb") as f:
                 f.write(r.content)
 
-            patch_path = extract_patches_from_zip(zip_path, temp_dir, title_clean)
-            if not patch_path:
+            patch_files = extract_patches_from_zip(zip_path, temp_dir, title_clean, return_all=True)
+            if not patch_files:
                 raise Exception("Patch file (.ips or .bps) not found in archive")
 
-            output_filename = f"{title_clean}{base_rom_ext}"
-            output_path = os.path.join(make_output_path(output_dir, normalized_type, folder_name), output_filename)
+            # ── Multi-patch path ────────────────────────────────────────
+            if len(patch_files) > 1 and multi_patch_callback:
+                if log:
+                    log(f"🗂️ {len(patch_files)} patch files found in {title_clean} – asking user to choose...", "Information")
+                selections = multi_patch_callback(patch_files, title_clean, temp_dir)
 
-            # Pass log function to patch handler
-            success = PatchHandler.apply_patch(patch_path, base_rom_path, output_path, log)
-            if not success:
-                raise Exception("Patch application failed")
+                if selections is None:
+                    if log:
+                        log(f"⏭️ Skipped: {title_clean} (cancelled by user)", "Warning")
+                    continue
 
-            if log:
-                log(f"✅ Patched: {title_clean}")
+                primary_output_path = None
+                patched_files = []
+
+                for sel in selections:
+                    out_filename = f"{sel['output_name']}{base_rom_ext}"
+                    out_path = os.path.join(
+                        make_output_path(output_dir, normalized_type, folder_name),
+                        out_filename
+                    )
+                    if log:
+                        log(f"🔧 Patching {sel['output_name']}...", "Information")
+                    success = PatchHandler.apply_patch(sel["patch_path"], base_rom_path, out_path, log)
+                    if not success:
+                        if log:
+                            log(f"⚠️ Patch failed for {sel['output_name']}, skipping.", "Warning")
+                        continue
+                    patched_files.append({"path": out_path, "name": sel["output_name"], "primary": sel["primary"]})
+                    if sel["primary"]:
+                        primary_output_path = out_path
+
+                if not patched_files:
+                    raise Exception("All selected patches failed")
+
+                if primary_output_path is None:
+                    primary_output_path = patched_files[0]["path"]
+                    patched_files[0]["primary"] = True
+
+                output_path = primary_output_path
+                patched_files_data = patched_files
+                if log:
+                    log(f"✅ Patched: {title_clean} ({len(patched_files)} file(s))")
+
+            else:
+                # ── Single-patch path (original behaviour) ──────────────
+                patch_path = (
+                    patch_files[0] if len(patch_files) == 1
+                    else extract_patches_from_zip(zip_path, temp_dir, title_clean)
+                )
+                output_filename = f"{title_clean}{base_rom_ext}"
+                output_path = os.path.join(make_output_path(output_dir, normalized_type, folder_name), output_filename)
+                success = PatchHandler.apply_patch(patch_path, base_rom_path, output_path, log)
+                if not success:
+                    raise Exception("Patch application failed")
+                patched_files_data = []
+                if log:
+                    log(f"✅ Patched: {title_clean}")
 
             # Check if hack exists and compare metadata for sync (v3.1 feature)
             existing_hack = processed.get(hack_id, {})
@@ -507,6 +568,9 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None):
                 "notes": existing_hack.get("notes", ""),
                 "time_to_beat": existing_hack.get("time_to_beat", 0)  # v3.1 NEW: preserve existing time
             }
+            # Store multi-patch files if present
+            if patched_files_data:
+                processed[hack_id]["files"] = patched_files_data
             
             # Populate date from time if available
             if processed[hack_id]["time"]:

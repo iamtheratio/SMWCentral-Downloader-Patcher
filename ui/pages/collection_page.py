@@ -1036,14 +1036,93 @@ class CollectionPage:
             return bundle_path
         return None
     
+    def _pick_rom_file(self, hack_title, files):
+        """Show a dialog to pick which ROM to launch when multiple files exist.
+        Returns the selected file path, or None if the user cancelled."""
+        import tkinter as tk
+        from tkinter import ttk
+        from colors import get_colors
+
+        result = {"path": None}
+        colors = get_colors()
+
+        dialog = tk.Toplevel(self.frame)
+        dialog.title(f"Choose ROM – {hack_title}")
+        dialog.resizable(False, False)
+        dialog.grab_set()
+
+        ttk.Label(dialog, text=f"Multiple ROM files found for '{hack_title}'.\nSelect which one to launch:",
+                  padding=(12, 10, 12, 4)).pack()
+
+        listbox_frame = ttk.Frame(dialog, padding=(12, 0, 12, 0))
+        listbox_frame.pack(fill="both", expand=True)
+
+        listbox = tk.Listbox(listbox_frame, selectmode="single",
+                             font=("Segoe UI", 10), activestyle="none",
+                             height=min(len(files), 8),
+                             bg=colors.get("bg", "#2b2b2b"),
+                             fg=colors.get("fg", "#ffffff"),
+                             selectbackground=colors.get("accent", "#0078d4"),
+                             highlightthickness=0, bd=0)
+        listbox.pack(fill="both", expand=True)
+
+        for f in files:
+            display = f.get("name") or os.path.basename(f.get("path", ""))
+            if f.get("primary"):
+                display += "  ★"
+            listbox.insert("end", display)
+
+        # Pre-select the primary ROM (or first)
+        primary_idx = next((i for i, f in enumerate(files) if f.get("primary")), 0)
+        listbox.selection_set(primary_idx)
+        listbox.activate(primary_idx)
+        listbox.see(primary_idx)
+
+        btn_frame = ttk.Frame(dialog, padding=(12, 8, 12, 12))
+        btn_frame.pack(fill="x")
+
+        def on_launch():
+            sel = listbox.curselection()
+            if sel:
+                result["path"] = files[sel[0]].get("path", "")
+            dialog.destroy()
+
+        def on_cancel():
+            dialog.destroy()
+
+        ttk.Button(btn_frame, text="Launch", style="Accent.TButton", command=on_launch).pack(side="right", padx=(6, 0))
+        ttk.Button(btn_frame, text="Cancel", command=on_cancel).pack(side="right")
+
+        dialog.bind("<Return>", lambda _: on_launch())
+        dialog.bind("<Escape>", lambda _: on_cancel())
+        listbox.bind("<Double-Button-1>", lambda _: on_launch())
+
+        # Center dialog over parent window
+        dialog.update_idletasks()
+        pw = self.frame.winfo_toplevel()
+        x = pw.winfo_x() + (pw.winfo_width() - dialog.winfo_width()) // 2
+        y = pw.winfo_y() + (pw.winfo_height() - dialog.winfo_height()) // 2
+        dialog.geometry(f"+{x}+{y}")
+
+        dialog.wait_window()
+        return result["path"]
+
     def _launch_emulator(self, hack_id):
         """Launch the emulator with the ROM file"""
         hack_data = self._find_hack_data(hack_id)
         if not hack_data:
             return
-        
-        file_path = hack_data.get("file_path", "")
+
         hack_title = hack_data.get("title", "Unknown")
+
+        # Determine which file to launch: multi-file picker if multiple ROMs exist
+        files = hack_data.get("files", [])
+        if len(files) > 1:
+            file_path = self._pick_rom_file(hack_title, files)
+            if not file_path:
+                return  # User cancelled
+        else:
+            file_path = hack_data.get("file_path", "")
         
         # Check if file exists
         if not file_path or not os.path.exists(file_path):
