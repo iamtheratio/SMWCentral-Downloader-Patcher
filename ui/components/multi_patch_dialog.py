@@ -26,6 +26,8 @@ def _suggest_name(patch_path, temp_dir):
     name, _ = os.path.splitext(rel)
     parts = name.replace("\\", "/").split("/")
     raw = parts[-1].strip()
+    # Replace underscores with spaces before any other processing
+    raw = raw.replace("_", " ")
     # Insert a space between letters and digits so "Akogare2" → "Akogare 2",
     # but protect version tokens like "v1.10" from being split first.
     raw = re.sub(r'(?<![Vv])([A-Za-z])(\d)', r'\1 \2', raw)

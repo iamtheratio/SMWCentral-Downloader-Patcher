@@ -247,11 +247,18 @@ class HackDataManager:
 
             hack_entry = self.data[hack_id]
 
-            # Delete the ROM file from disk if one is recorded.
+            # Delete all ROM files from disk (multi-file hacks store every
+            # patched file in files[]; single-file hacks only have file_path).
+            import os
+            paths_to_delete = set()
             file_path = hack_entry.get("file_path", "")
             if file_path:
-                import os
-                expanded = os.path.expanduser(file_path)
+                paths_to_delete.add(os.path.expanduser(file_path))
+            for f in hack_entry.get("files", []):
+                p = f.get("path", "")
+                if p:
+                    paths_to_delete.add(os.path.expanduser(p))
+            for expanded in paths_to_delete:
                 if os.path.isfile(expanded):
                     try:
                         os.remove(expanded)

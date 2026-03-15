@@ -4,7 +4,7 @@
 
 A simple desktop app that automatically downloads, patches, and organizes ROM hacks from SMWCentral. Works on Windows, Mac, and Linux.
 
-![Dashboard](images/application-4.8-dashboard.png)
+![Dashboard](images/application-5.0-dashboard.png)
 
 ## 📋 Table of Contents
 
@@ -78,7 +78,9 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
 8. **Wait for completion**: The app will automatically download each hack and apply it to your base ROM
 9. **Play**: Your patched ROMs will be saved to your chosen folder, ready to play in any emulator
 
-![Download Page](images/application-4.8-download.png)
+![Download Page](images/application-5.0-download.png)
+
+![Multi-BPS Dialog](images/application-5.0-download-multiple-bps.png)
 
 ### Managing Your Collection
 1. **View your collection**: Click the "Collection" tab to see all your downloaded ROMs
@@ -96,10 +98,13 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
    - A clear confirmation prompt tells you exactly what will be removed before you confirm
    - Works for both downloaded SMWC hacks and manually added hacks
 8. **📁 Quick file access**: Click the folder icon next to any hack name to instantly open its file location in your system's file manager
-9. **🎮 Quick launch**: Click the play icon (▶) next to any hack to launch it directly in your configured emulator   - For hacks with multiple versions, a picker lets you choose which ROM to open
-   - Change the default version any time via the Edit Hack dialog → ROM Files section10. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
+9. **🎮 Quick launch**: Click the play icon (▶) next to any hack to launch it directly in your configured emulator
+   - For hacks with multiple versions, clicking ▶ opens the default version immediately
+   - Enable "Show version picker" in Settings to get a picker dialog instead, letting you choose which ROM to launch
+   - Change the default version any time via the Edit Hack dialog → ROM Files section
+10. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
-![Collection Page](images/application-4.8-collection.png)
+![Collection Page](images/application-5.0-collection.png)
 
 #### Input Format Guide
 
@@ -134,6 +139,7 @@ When editing **Completed Date** and **Time to Beat** fields, the app supports fl
   - Supports RetroArch, Snes9x, and any other emulator
   - Custom command-line arguments with `%1` placeholder support
   - Cross-platform: Windows, macOS (.app bundles), and Linux
+  - **Version picker**: For hacks with multiple versions, ▶ launches the default by default. Enable "When launching a hack with multiple versions, show a version picker" to always be prompted
 - **Data Migration**: Keep your collection metadata up-to-date
   - **Check Difficulties**: Detect outdated difficulty categories from SMWC renames
   - **Apply Fixes**: Automatically migrate folders and update metadata
@@ -145,7 +151,7 @@ When editing **Completed Date** and **Time to Beat** fields, the app supports fl
 - **Theme**: Switch between light and dark modes with instant, smooth transitions and optimized performance
 - **API Delay Slider**: Set delay from 0.0 to 3.0 seconds between API requests to avoid rate limiting issues
 
-![Settings Page](images/application-4.8-settings.png)
+![Settings Page](images/application-5.0-settings.png)
 
 ### Emulator Configuration
 
@@ -265,7 +271,11 @@ If clicking the play icon doesn't work:
   - Select a new default via radio button and click Update to save
 
 **Multi-ROM Picker**
-- **Choose on launch**: Clicking the play icon (▶) on a multi-file hack opens a picker so you can choose exactly which version to launch in your emulator
+- **Smart launch behavior**: Clicking the play icon (▶) on a hack with multiple versions immediately opens the default version — no extra clicks needed
+- **Optional picker dialog**: Enable "Show version picker" in Settings → Emulator Configuration to get a selection dialog instead
+  - Redesigned to match the multi-BPS download dialog: radio buttons, separators, and a clean spacious layout
+  - Pre-selects the current default (★) so you can just hit Enter to launch it
+- **Change the default any time**: Open the Edit Hack dialog → ROM Files section, select a different radio, and save
 
 ### 🐛 Bug Fixes
 - **Emulator play icon not appearing after setup**: Configuring an emulator path in Settings now immediately refreshes the play icon column in the Collection — no restart needed
