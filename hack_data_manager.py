@@ -271,7 +271,9 @@ class HackDataManager:
             # Remove from processing history.
             del self.data[hack_id]
             self.unsaved_changes = True
-            self._schedule_delayed_save()
+            # Force immediate save — deletion must persist before any subsequent
+            # download attempt reads processed.json from disk.
+            self.force_save()
             return True
 
         except Exception as e:

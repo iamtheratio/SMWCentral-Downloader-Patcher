@@ -38,14 +38,40 @@ class PatchHandler:
         
         return patches
     
+    # Magic bytes for supported patch formats
+    _MAGIC = {
+        '.bps': b'BPS1',
+        '.ips': b'PATCH',
+    }
+
+    @staticmethod
+    def _validate_magic(patch_path, patch_ext):
+        """Return True if the file starts with the expected magic bytes."""
+        expected = PatchHandler._MAGIC.get(patch_ext)
+        if expected is None:
+            return False
+        try:
+            with open(patch_path, 'rb') as f:
+                header = f.read(len(expected))
+            return header == expected
+        except OSError:
+            return False
+
     @staticmethod
     def apply_patch(patch_path, source_rom_path, output_path, log=None):
         """Apply a patch (IPS or BPS) to a ROM"""
         patch_ext = Path(patch_path).suffix.lower()
-        
+
+        # Reject files that don't carry the correct magic bytes — this blocks
+        # executables or other non-patch files masquerading as .bps/.ips.
+        if not PatchHandler._validate_magic(patch_path, patch_ext):
+            if log:
+                log(f"❌ Rejected '{os.path.basename(patch_path)}': invalid {patch_ext.upper()} header (not a real patch file)", "Error")
+            return False
+
         if log:
             log(f"🔧 Applying {patch_ext.upper()} patch: {os.path.basename(patch_path)}", "applying")
-        
+
         try:
             # Ensure output directory exists
             os.makedirs(os.path.dirname(output_path), exist_ok=True)

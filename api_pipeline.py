@@ -152,12 +152,18 @@ def extract_patches_from_zip(zip_path, extract_to, hack_name="", return_all=Fals
     import zipfile
     import re
 
-    # Extract zip contents
+    # Extract zip contents with zip-slip protection
     try:
         with zipfile.ZipFile(zip_path, "r") as zip_ref:
             bad_file = zip_ref.testzip()
             if bad_file:
                 raise zipfile.BadZipFile(f"Bad zip file, first bad file: {bad_file}")
+            # Validate every entry resolves inside extract_to before extracting
+            extract_to_real = os.path.realpath(extract_to)
+            for member in zip_ref.namelist():
+                member_path = os.path.realpath(os.path.join(extract_to, member))
+                if not member_path.startswith(extract_to_real + os.sep) and member_path != extract_to_real:
+                    raise ValueError(f"Zip entry outside target directory (zip slip): {member}")
             zip_ref.extractall(extract_to)
     except Exception as e:
         raise e
@@ -476,19 +482,20 @@ def run_pipeline(filter_payload, base_rom_path, output_dir, log=None, multi_patc
                 patched_files = []
 
                 for sel in selections:
-                    out_filename = f"{sel['output_name']}{base_rom_ext}"
+                    clean_name = safe_filename(sel['output_name'])
+                    out_filename = f"{clean_name}{base_rom_ext}"
                     out_path = os.path.join(
                         make_output_path(output_dir, normalized_type, folder_name),
                         out_filename
                     )
                     if log:
-                        log(f"🔧 Patching {sel['output_name']}...", "Information")
+                        log(f"🔧 Patching {clean_name}...", "Information")
                     success = PatchHandler.apply_patch(sel["patch_path"], base_rom_path, out_path, log)
                     if not success:
                         if log:
-                            log(f"⚠️ Patch failed for {sel['output_name']}, skipping.", "Warning")
+                            log(f"⚠️ Patch failed for {clean_name}, skipping.", "Warning")
                         continue
-                    patched_files.append({"path": out_path, "name": sel["output_name"], "primary": sel["primary"]})
+                    patched_files.append({"path": out_path, "name": clean_name, "primary": sel["primary"]})
                     if sel["primary"]:
                         primary_output_path = out_path
 
