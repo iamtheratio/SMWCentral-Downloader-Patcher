@@ -126,14 +126,22 @@ class Updater:
             'linux': ['linux']                     # Linux
         }
         
+        # Check if running from AppImage
+        is_appimage = os.environ.get('APPIMAGE') is not None
+        
         # Look for platform-specific assets first
         if current_platform in platform_patterns:
             patterns = platform_patterns[current_platform]
             for asset in assets:
                 asset_name_lower = asset['name'].lower()
                 if any(pattern in asset_name_lower for pattern in patterns):
-                    if asset_name_lower.endswith(('.zip', '.dmg', '.exe', '.tar.gz')):
-                        return asset['browser_download_url']
+                    if asset_name_lower.endswith(('.zip', '.dmg', '.exe', '.tar.gz', '.appimage')):
+                        # On Linux, prefer AppImage if running from AppImage
+                        if current_platform == 'linux' and is_appimage:
+                            if asset_name_lower.endswith('.appimage'):
+                                return asset['browser_download_url']
+                        else:
+                            return asset['browser_download_url']
         
         # Fallback: Look for .zip files first (cross-platform)
         for asset in assets:
@@ -150,6 +158,12 @@ class Updater:
                 if asset['name'].endswith('.exe'):
                     return asset['browser_download_url']
         elif current_platform == 'linux':
+            # Prefer AppImage if running from AppImage
+            if is_appimage:
+                for asset in assets:
+                    if asset['name'].endswith('.AppImage'):
+                        return asset['browser_download_url']
+            # Otherwise use tar.gz
             for asset in assets:
                 if asset['name'].endswith('.tar.gz'):
                     return asset['browser_download_url']
@@ -188,6 +202,8 @@ class Updater:
                 file_ext = '.dmg'
             elif download_url.endswith('.tar.gz'):
                 file_ext = '.tar.gz'
+            elif download_url.endswith('.AppImage'):
+                file_ext = '.AppImage'
             else:
                 file_ext = '.zip'  # Default assumption
             
@@ -296,6 +312,12 @@ class Updater:
                     raise UpdaterError("Could not find executable in update package")
                 
                 update_exe = new_exe
+                
+            elif downloaded_file_path.endswith('.AppImage'):
+                # AppImage is a single-file executable, just use it directly
+                # Make it executable
+                os.chmod(downloaded_file_path, 0o755)
+                update_exe = downloaded_file_path
                 
             elif downloaded_file_path.endswith('.dmg'):
                 # For macOS DMG files, we need to mount and copy the app
@@ -457,6 +479,12 @@ class Updater:
                     raise UpdaterError("Could not find executable in update package")
                 
                 update_exe = new_exe
+                
+            elif downloaded_file_path.endswith('.AppImage'):
+                # AppImage is a single-file executable, just use it directly
+                # Make it executable
+                os.chmod(downloaded_file_path, 0o755)
+                update_exe = downloaded_file_path
                 
             elif downloaded_file_path.endswith('.dmg'):
                 # For macOS DMG files, we need to mount and copy the app

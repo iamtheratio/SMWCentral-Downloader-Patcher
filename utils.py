@@ -272,7 +272,9 @@ def title_case(text):
         # Articles
         'a', 'an', 'the',
         # Coordinating conjunctions
-        'and', 'but', 'or', 'nor', 'for', 'so', 'yet',
+        'and', 'but', 'or', 'nor', 'for', 'yet',
+        # Negation
+        'not',
         # Short prepositions (typically under 4 letters)
         'at', 'by', 'in', 'of', 'off', 'on', 'out', 'to',
         # Other common words
@@ -325,6 +327,9 @@ def title_case(text):
     
     for i, word in enumerate(words):
         word_lower = word.lower()
+        # Strip surrounding punctuation (e.g. "(not" → "not") for rule matching,
+        # while keeping the original word for output.
+        word_core = word_lower.strip('()[]{}.,!?;:\'"')
         is_first_word = (i == 0)
         is_last_word = (i == len(words) - 1)
         
@@ -334,19 +339,30 @@ def title_case(text):
             prev_word = words[i-1]
             follows_subtitle_marker = prev_word.endswith((':', '-'))
         
+        # Words with a leading opening bracket start a new phrase → always capitalise
+        starts_new_phrase = word.startswith(('(', '[', '{'))
+        # Words closing a parenthetical are like the "last word" → always capitalise
+        ends_phrase = word_lower.endswith((')', ']', '}'))
+        
         # Special cases always take precedence
         if word_lower in special_cases:
             result.append(special_cases[word_lower])
-        # First word, last word, or word after subtitle marker should always be capitalized
-        elif is_first_word or is_last_word or follows_subtitle_marker:
+        # Version tokens like v1.10, v2.0, v1 → always lowercase-v
+        elif re.match(r'^v\d[\d.]*$', word_lower):
+            result.append(word_lower)
+        # First word, last word, word after subtitle marker, or word opening/closing a parenthetical
+        elif is_first_word or is_last_word or follows_subtitle_marker or starts_new_phrase or ends_phrase:
             # Handle apostrophes and special name patterns properly
             if "'" in word:
                 result.append(capitalize_with_apostrophes(word))
             else:
                 result.append(capitalize_proper_name(word))
         # Short words should be lowercase (unless they're special cases)
-        elif word_lower in lowercase_words:
-            result.append(word_lower)
+        elif word_core in lowercase_words:
+            # Re-attach any surrounding punctuation with the lowercased core
+            leading  = word[: len(word) - len(word.lstrip('()[]{}.,!?;:\'"'))]
+            trailing = word[len(word.rstrip('()[]{}.,!?;:\'"')):]
+            result.append(leading + word_core + trailing)
         # All other words should be capitalized
         else:
             # Handle apostrophes and special name patterns properly for all words
@@ -395,7 +411,11 @@ def capitalize_proper_name(word):
             return word.capitalize()
     
     # Default capitalization for other words
-    return word.capitalize()
+    # Use a letter-aware approach so leading punctuation like "(not" → "(Not"
+    for idx, ch in enumerate(word):
+        if ch.isalpha():
+            return word[:idx] + word[idx].upper() + word[idx+1:].lower()
+    return word
 
 def capitalize_with_apostrophes(word):
     """

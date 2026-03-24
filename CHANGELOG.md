@@ -4,6 +4,33 @@ All notable changes to SMWC Downloader & Patcher will be documented in this file
 
 ## [Unreleased]
 
+## [5.0] - 2026-03-15
+
+### Added
+- **Multi-BPS File Support**: When a hack ZIP contains multiple BPS patch files, a dialog lets you choose which versions to download and which to set as the default
+  - Checkbox per file to include/exclude
+  - Radio button to select the default file (opens automatically when launching from Collection)
+  - Output filenames are auto-suggested from the BPS filename with proper title-casing
+  - All selected files are patched and saved; `processed.json` records the full `files` array with `primary` flags
+- **ROM Files Section in Edit Hack Dialog**: For downloaded hacks with multiple patch files, the Edit Hack dialog now shows a ROM Files section
+  - Lists all patched ROMs for that hack
+  - Radio button to change which file is the default
+  - Saving updates both the `files` array and `file_path` in `processed.json`
+- **Multi-ROM Picker in Collection**: Clicking play (▶) on a multi-file hack shows a picker dialog to choose which ROM version to launch
+
+### Fixed
+- **Emulator Play Icon Not Appearing After Setup**: Configuring an emulator in Settings now immediately refreshes play icons in the Collection table without requiring an app restart
+  - `emulator_settings_callback` is now wired to `refresh_emulator_cache()` in layout initialization
+
+### Changed
+- **`title_case` Improvements**:
+  - Version tokens (`v1.10`, `v2.0`, etc.) always stay lowercase-v regardless of position
+  - Words starting with `(`, `[`, `{` are always capitalised (e.g. `(Not` not `(not`)
+  - Words ending with `)`, `]`, `}` are always capitalised
+  - `not` added to lowercase words list
+  - `so` removed from lowercase words list (now capitalises normally)
+- **Dialog Height**: Edit Hack dialog auto-sizes to fit the ROM Files section when present
+
 ## [4.9] - 2026-01-12
 
 ### Added

@@ -51,7 +51,7 @@ try:
 except ImportError:
     pywinstyles = None
 
-VERSION = "v4.9"
+VERSION = "v5.0"
 
 
 def apply_theme_to_titlebar(root):
@@ -213,21 +213,23 @@ def run_pipeline_wrapper(*args, **kwargs):
         # Check if this is a single download call with selected_hacks
         if 'selected_hacks' in kwargs:
             selected_hacks = kwargs.pop('selected_hacks')
+            multi_patch_callback = kwargs.pop('multi_patch_callback', None)
 
             # For single downloads, we'll use the regular pipeline but with a custom hack list
             # Instead of fetching from API, we'll inject the selected hacks
-            return run_single_download_pipeline(selected_hacks, **kwargs)
+            return run_single_download_pipeline(selected_hacks, multi_patch_callback=multi_patch_callback, **kwargs)
         else:
             # This is a regular bulk download call
-            run_pipeline(*args, **kwargs)
+            multi_patch_callback = kwargs.pop('multi_patch_callback', None)
+            run_pipeline(*args, multi_patch_callback=multi_patch_callback, **kwargs)
     finally:
         # Always unlock collection editing when download finishes
         set_download_active(False)
 
 
-def run_single_download_pipeline(selected_hacks, log=None, progress_callback=None):
+def run_single_download_pipeline(selected_hacks, log=None, progress_callback=None, multi_patch_callback=None):
     """Custom pipeline for single download page that works like bulk download"""
-    from api_pipeline import fetch_file_metadata, load_processed, save_processed, reset_cancel_flag, is_cancelled, extract_patches_from_zip, make_output_path, clean_hack_title, DIFFICULTY_LOOKUP, get_sorted_folder_name, title_case, safe_filename
+    from api_pipeline import fetch_file_metadata, load_processed, save_processed, reset_cancel_flag, is_cancelled, extract_patches_from_zip, _select_best_patch, make_output_path, clean_hack_title, DIFFICULTY_LOOKUP, get_sorted_folder_name, title_case, safe_filename
     from patch_handler import PatchHandler
     from config_manager import ConfigManager
 
@@ -295,6 +297,7 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
 
         # Check if already processed
         if hack_id in processed:
+            _redownload = False  # set True if primary file is missing from disk
             # Check if this hack needs multi-type copies that are missing
             existing_hack = processed[hack_id]
 
@@ -483,20 +486,37 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                         log(f"✅ Skipped: {hack_name} (all multi-type copies exist)", "Information")
                     skipped_hacks += 1
             else:
-                # Update hack_types even for single-type hacks
-                if existing_hack.get("hack_types") != current_hack_types:
-                    existing_hack["hack_types"] = current_hack_types
-                    metadata_updated = True
+                # Before skipping, verify the file actually exists on disk.
+                # If the user deleted it manually the entry stays in processed.json,
+                # so we must fall through to redownload rather than silently skip.
+                _stored_file = existing_hack.get("file_path", "")
+                _stored_files = existing_hack.get("files", [])
+                if _stored_files:
+                    _primary = next((f for f in _stored_files if f.get("primary")), _stored_files[0])
+                    _file_on_disk = os.path.exists(_primary.get("path", ""))
+                else:
+                    _file_on_disk = bool(_stored_file) and os.path.exists(_stored_file)
 
-                if log:
-                    log(f"✅ Skipped: {hack_name}", "Information")
-                skipped_hacks += 1
+                if not _file_on_disk:
+                    if log:
+                        log(f"⚠️ File missing on disk: Redownloading {hack_name}", "Warning")
+                    _redownload = True
+                else:
+                    # Update hack_types even for single-type hacks
+                    if existing_hack.get("hack_types") != current_hack_types:
+                        existing_hack["hack_types"] = current_hack_types
+                        metadata_updated = True
+
+                    if log:
+                        log(f"✅ Skipped: {hack_name}", "Information")
+                    skipped_hacks += 1
 
             # Save if any metadata was updated
             if metadata_updated:
                 save_processed(processed)
 
-            continue
+            if not _redownload:
+                continue
 
         try:
             # Get download URL - search results don't include download_url, so fetch it
@@ -542,39 +562,90 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                         log("❌ Download cancelled by user", "Warning")
                     break
 
-                # Extract patch file
-                patch_path = extract_patches_from_zip(zip_path, temp_dir, title_clean)
-                if not patch_path:
-                    raise Exception("Patch file (.ips or .bps) not found in archive")
-
-                # Check for cancellation before patching
-                if is_cancelled():
-                    if log:
-                        log("❌ Download cancelled by user", "Warning")
-                    break
-
                 # Determine hack types for output path - support multiple types
                 from multi_type_utils import get_hack_types_from_raw_data, handle_multi_type_download
 
                 hack_types = get_hack_types_from_raw_data(raw_fields, hack)
                 primary_type = hack_types[0] if hack_types else "standard"
 
-                # Create primary output path
-                output_filename = f"{title_clean}{base_rom_ext}"
-                primary_output_path = os.path.join(make_output_path(output_dir, primary_type, folder_name), output_filename)
+                # Extract patch file(s)
+                patch_files = extract_patches_from_zip(zip_path, temp_dir, title_clean, return_all=True)
+                if not patch_files:
+                    raise Exception("Patch file (.ips or .bps) not found in archive")
 
-                # Apply the patch to primary location
-                if log:
-                    log(f"🔧 Patching {hack_name}...", "Information")
-                success = PatchHandler.apply_patch(patch_path, base_rom_path, primary_output_path, log)
-                if not success:
-                    raise Exception("Patch application failed")
-
-                # Check for cancellation after patching
-                if is_cancelled():
+                # ── Multi-patch path ────────────────────────────────────────
+                patched_files_data = []
+                if len(patch_files) > 1 and multi_patch_callback:
                     if log:
-                        log("❌ Download cancelled by user", "Warning")
-                    break
+                        log(f"🗂️ {len(patch_files)} patch files found in {hack_name} – asking user to choose...", "Information")
+                    selections = multi_patch_callback(patch_files, title_clean, temp_dir)
+
+                    if selections is None:
+                        if log:
+                            log(f"⏭️ Skipped: {hack_name} (cancelled by user)", "Warning")
+                        skipped_hacks += 1
+                        continue
+
+                    primary_output_path = None
+                    patched_list = []
+
+                    for sel in selections:
+                        out_filename = f"{sel['output_name']}{base_rom_ext}"
+                        out_path = os.path.join(
+                            make_output_path(output_dir, primary_type, folder_name),
+                            out_filename
+                        )
+                        if log:
+                            log(f"🔧 Patching {sel['output_name']}...", "Information")
+                        success = PatchHandler.apply_patch(sel["patch_path"], base_rom_path, out_path, log)
+                        if not success:
+                            if log:
+                                log(f"⚠️ Patch failed for {sel['output_name']}, skipping.", "Warning")
+                            continue
+                        patched_list.append({"path": out_path, "name": sel["output_name"], "primary": sel["primary"]})
+                        if sel["primary"]:
+                            primary_output_path = out_path
+
+                    if not patched_list:
+                        raise Exception("All selected patches failed")
+
+                    if primary_output_path is None:
+                        primary_output_path = patched_list[0]["path"]
+                        patched_list[0]["primary"] = True
+
+                    patched_files_data = patched_list
+                    if log:
+                        log(f"✅ Patched: {title_clean} ({len(patched_list)} file(s))", "Information")
+
+                else:
+                    # ── Single-patch path (original behaviour) ──────────────
+                    patch_path = _select_best_patch(patch_files, title_clean)
+
+                    # Check for cancellation before patching
+                    if is_cancelled():
+                        if log:
+                            log("❌ Download cancelled by user", "Warning")
+                        break
+
+                    # Create primary output path
+                    output_filename = f"{title_clean}{base_rom_ext}"
+                    primary_output_path = os.path.join(make_output_path(output_dir, primary_type, folder_name), output_filename)
+
+                    # Apply the patch to primary location
+                    if log:
+                        log(f"🔧 Patching {hack_name}...", "Information")
+                    success = PatchHandler.apply_patch(patch_path, base_rom_path, primary_output_path, log)
+                    if not success:
+                        raise Exception("Patch application failed")
+
+                    # Check for cancellation after patching
+                    if is_cancelled():
+                        if log:
+                            log("❌ Download cancelled by user", "Warning")
+                        break
+
+                    if log:
+                        log(f"✅ Patched: {title_clean}", "Information")
 
                 # Handle multi-type downloads
                 additional_paths = handle_multi_type_download(
@@ -629,6 +700,9 @@ def run_single_download_pipeline(selected_hacks, log=None, progress_callback=Non
                     "date": "",  # Will be populated below
                     "obsolete": is_obsolete_version  # Use the duplicate detection result
                 }
+
+                if patched_files_data:
+                    processed[hack_id]["files"] = patched_files_data
                 
                 # Populate date from time if available
                 if processed[hack_id]["time"]:

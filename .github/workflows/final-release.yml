@@ -104,9 +104,10 @@ jobs:
         3. Right-click → Open (first time only to bypass Gatekeeper)
 
         **Linux:**
-        1. Download \`SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz\`
-        2. Extract and run the installer or binary
-
+        1. Download \`SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-Linux-x64.tar.gz\` (traditional) or \`SMWC-Downloader-${{ steps.get_version.outputs.VERSION }}-x86_64.AppImage\` (portable)
+        2. **tar.gz**: Extract and run \`./install.sh\` for system integration
+        3. **AppImage**: Make executable (\`chmod +x\`) and run directly
+        
         > **Security Note**: These executables may trigger antivirus warnings due to PyInstaller packaging. This is a common false positive." \
           --draft=false \
           --prerelease=false

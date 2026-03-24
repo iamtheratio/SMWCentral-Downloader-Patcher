@@ -121,7 +121,8 @@ class HackDataManager:
                     "time_to_beat": hack_data.get("time_to_beat", 0),  # v3.1 NEW: Add time_to_beat field
                     "exits": hack_data.get("exits", 0),  # v3.1 NEW: Add exits field for analytics
                     "time": hack_data.get("time", 0),  # v4.8 NEW: Raw timestamp for release date
-                    "date": hack_data.get("date", "")  # v4.8 NEW: Formatted release date
+                    "date": hack_data.get("date", ""),  # v4.8 NEW: Formatted release date
+                    "files": hack_data.get("files", [])  # v5.0 NEW: Multi-file support
                 }
                 hacks.append(hack_info)
         return hacks
@@ -246,11 +247,18 @@ class HackDataManager:
 
             hack_entry = self.data[hack_id]
 
-            # Delete the ROM file from disk if one is recorded.
+            # Delete all ROM files from disk (multi-file hacks store every
+            # patched file in files[]; single-file hacks only have file_path).
+            import os
+            paths_to_delete = set()
             file_path = hack_entry.get("file_path", "")
             if file_path:
-                import os
-                expanded = os.path.expanduser(file_path)
+                paths_to_delete.add(os.path.expanduser(file_path))
+            for f in hack_entry.get("files", []):
+                p = f.get("path", "")
+                if p:
+                    paths_to_delete.add(os.path.expanduser(p))
+            for expanded in paths_to_delete:
                 if os.path.isfile(expanded):
                     try:
                         os.remove(expanded)
@@ -263,7 +271,9 @@ class HackDataManager:
             # Remove from processing history.
             del self.data[hack_id]
             self.unsaved_changes = True
-            self._schedule_delayed_save()
+            # Force immediate save — deletion must persist before any subsequent
+            # download attempt reads processed.json from disk.
+            self.force_save()
             return True
 
         except Exception as e:

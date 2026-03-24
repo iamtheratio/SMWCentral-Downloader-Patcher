@@ -415,6 +415,10 @@ class AddHackDialog:
         self.hack_id = hack_id      # For editing mode
         self.is_editing = hack_data is not None
         self.is_user_hack = hack_id is not None and str(hack_id).startswith("usr_")
+        self.files_section = None
+        self.primary_path_var = None
+        self._stats_frame = None
+        self._has_multi_files = False
         
     def show(self):
         """Show the add/edit hack dialog"""
@@ -439,9 +443,10 @@ class AddHackDialog:
         
         # Calculate center position and set geometry
         self.dialog.update_idletasks()  # Ensure proper size calculation
+        h = max(650, min(self.dialog.winfo_reqheight() + 20, 900))
         x = (self.dialog.winfo_screenwidth() // 2) - (750 // 2)  # Updated for new width
-        y = (self.dialog.winfo_screenheight() // 2) - (650 // 2)
-        self.dialog.geometry(f"750x650+{x}+{y}")  # Set size and position together
+        y = (self.dialog.winfo_screenheight() // 2) - (h // 2)
+        self.dialog.geometry(f"750x{h}+{x}+{y}")  # Set size and position together
         
         # Now show the dialog in the correct position
         self.dialog.deiconify()
@@ -568,8 +573,14 @@ class AddHackDialog:
         ttk.Radiobutton(demo_radio_frame, text="Yes", variable=self.demo_var, value="Yes").pack(side="left", padx=(0, 10))
         ttk.Radiobutton(demo_radio_frame, text="No", variable=self.demo_var, value="No").pack(side="left")
         
+        # ROM Files Section (shown only for downloaded hacks with multiple patch files)
+        self.files_section = ttk.LabelFrame(main_frame, text="ROM Files", padding=15)
+        self.primary_path_var = tk.StringVar()
+        # Packed conditionally in _build_files_section
+
         # Personal Stats Section
         stats_frame = ttk.LabelFrame(main_frame, text="Personal Stats", padding=15)
+        self._stats_frame = stats_frame
         stats_frame.pack(fill="x", pady=(0, 15))
         
         # First stats row: Completed, Completed Date, Rating, Time to Beat
@@ -772,6 +783,11 @@ class AddHackDialog:
         
         # File path - show file path if available
         self.file_path_var.set(self.hack_data.get("file_path", ""))
+
+        # Show ROM files section for multi-file downloaded hacks
+        files = self.hack_data.get("files", [])
+        if len(files) >= 2 and not self.is_user_hack:
+            self._build_files_section(files)
     
     def _apply_field_restrictions(self):
         """Apply field restrictions based on hack type (user vs downloaded)"""
@@ -804,6 +820,39 @@ class AddHackDialog:
         for widget in self.hack_info_radio_widgets:
             widget.configure(state="disabled")
     
+    def _build_files_section(self, files):
+        """Build and display the ROM files section for multi-file hacks."""
+        # Clear any leftover widgets (defensive)
+        for widget in self.files_section.winfo_children():
+            widget.destroy()
+
+        self._has_multi_files = True
+
+        # Set the current default
+        primary_path = next((f["path"] for f in files if f.get("primary")), files[0]["path"])
+        self.primary_path_var.set(primary_path)
+
+        # Description
+        ttk.Label(
+            self.files_section,
+            text="Select which file opens by default when launching from your collection.",
+            font=("Segoe UI", 9),
+        ).pack(anchor="w", pady=(0, 10))
+
+        # One row per file
+        for f in files:
+            row = ttk.Frame(self.files_section)
+            row.pack(fill="x", pady=2)
+            ttk.Radiobutton(
+                row,
+                text=f.get("name", f["path"]),
+                variable=self.primary_path_var,
+                value=f["path"],
+            ).pack(side="left")
+
+        # Insert before Personal Stats so order is: Hack Info → ROM Files → Personal Stats
+        self.files_section.pack(fill="x", pady=(0, 15), before=self._stats_frame)
+
     def _browse_file(self):
         """Open file picker to select ROM file (.smc or .sfc)"""
         from platform_utils import pick_file
@@ -1154,7 +1203,21 @@ class AddHackDialog:
                     if not self.data_manager.update_hack(str(self.hack_id), field, value):
                         success = False
                         break
-            
+
+                # Update default file if multi-file section is visible
+                if success and self._has_multi_files and self.primary_path_var:
+                    new_primary_path = self.primary_path_var.get()
+                    raw_files = self.data_manager.data.get(str(self.hack_id), {}).get("files", [])
+                    if raw_files and new_primary_path:
+                        updated_files = [
+                            dict(f, primary=(f["path"] == new_primary_path))
+                            for f in raw_files
+                        ]
+                        if not self.data_manager.update_hack(str(self.hack_id), "files", updated_files):
+                            success = False
+                        if success and not self.data_manager.update_hack(str(self.hack_id), "file_path", new_primary_path):
+                            success = False
+
             if success:
                 # Success - just close dialog and refresh, no popup needed
                 self.refresh_callback()  # Refresh the table

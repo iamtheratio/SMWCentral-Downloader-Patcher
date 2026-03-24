@@ -674,6 +674,11 @@ class DownloadPage:
         # Set downloading state
         self.download_button_component.set_downloading(True)
         
+        # Create multi-patch callback on the main thread (dialog must run on UI thread)
+        from ui.components.multi_patch_dialog import make_multi_patch_callback
+        root = self.parent.winfo_toplevel()
+        multi_patch_cb = make_multi_patch_callback(root)
+        
         # Run download in background thread
         def download_worker():
             try:
@@ -681,7 +686,7 @@ class DownloadPage:
                 def progress_callback(current, total, hack_name):
                     self.frame.after(0, lambda: self.download_button_component.update_progress(current, total, hack_name))
                 
-                self.run_pipeline_func(selected_hacks=hack_list, log=self._log, progress_callback=progress_callback)
+                self.run_pipeline_func(selected_hacks=hack_list, log=self._log, progress_callback=progress_callback, multi_patch_callback=multi_patch_cb)
             except Exception as e:
                 self._log(f"❌ Failed to download: {str(e)}", "Error")
             finally:

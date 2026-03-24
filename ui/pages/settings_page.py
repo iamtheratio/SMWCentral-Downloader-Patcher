@@ -257,6 +257,16 @@ class SettingsPage:
         self.emulator_args_entry = ttk.Entry(emulator_args_frame, width=50)
         self.emulator_args_entry.pack(side="left", fill="x", expand=True)
         
+        # Multi-file picker checkbox
+        self.show_rom_picker_var = tk.BooleanVar()
+        ttk.Checkbutton(
+            emulator_frame,
+            text="When launching a hack with multiple versions, show a version picker instead of opening the default",
+            variable=self.show_rom_picker_var,
+            style="Custom.TCheckbutton",
+            command=self._save_emulator_settings
+        ).pack(anchor="w", pady=(0, 8))
+
         # Help text
         help_text = ttk.Label(
             emulator_frame,
@@ -1007,7 +1017,10 @@ class SettingsPage:
             self.emulator_args_entry.insert(0, emulator_args)
             
             self.emulator_args_enabled_var.set(emulator_args_enabled)
-            
+
+            show_rom_picker = config.get("show_rom_picker", False)
+            self.show_rom_picker_var.set(show_rom_picker)
+
             # Update entry state based on checkbox
             self._on_emulator_args_toggle()
             
@@ -1026,6 +1039,7 @@ class SettingsPage:
             config.set("emulator_path", emulator_path)
             config.set("emulator_args", emulator_args)
             config.set("emulator_args_enabled", emulator_args_enabled)
+            config.set("show_rom_picker", self.show_rom_picker_var.get())
             
             # Save the config
             config.save()
