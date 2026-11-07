@@ -102,7 +102,12 @@ A simple desktop app that automatically downloads, patches, and organizes ROM ha
    - For hacks with multiple versions, clicking ▶ opens the default version immediately
    - Enable "Show version picker" in Settings to get a picker dialog instead, letting you choose which ROM to launch
    - Change the default version any time via the Edit Hack dialog → ROM Files section
-10. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
+10. **🕹️ FXPAK Pro (SD2SNES) Send & Play**: Right-click one or more hacks → *Send to FXPAK*, *Play on FXPAK* or *Send and play on FXPAK*
+    - Needs [QUsb2Snes](https://github.com/Skarsnik/QUsb2snes) running; enable it and pick the SD card folder (Browse… lets you navigate and create folders) in Settings → *FXPAK Pro (QUSB2SNES)*
+    - Files are sent straight away with a progress bar; files already on the card are never overwritten (they are listed as skipped)
+    - *Play* (and the ▶ button, if you set its target to FXPAK Pro in Settings) starts the game right away and sends it first if it is not on the card yet. Starting interrupts the running game
+    - The console's USB port can only be used by one program at a time, so close other programs that use it while QUsb2Snes is running
+11. **Filter and sort**: Use filters to find specific hacks, or click column headers to sort
 
 ![Collection Page](images/application-5.0-collection.png)
 

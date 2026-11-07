@@ -44,6 +44,12 @@ class QUSB2SNESSync:
         
         # Cancellation support
         self.cancelled = False
+        # Timing knobs: defaults are the conservative values used by the folder sync;
+        # the FXPAK send/play flow lowers them (see fxpak_service.open_client).
+        self.fast = False
+        self.list_delay = 1.0
+        self.attach_wait = 5.0
+        self.mkdir_delay = 1.0
     
     def log_progress(self, message: str):
         """Simple progress logging"""
@@ -353,7 +359,7 @@ class QUSB2SNESSync:
             
             # SD2SNES needs time to be ready after attach
             self.log_progress("⏳ Waiting for device to be ready...")
-            await asyncio.sleep(5.0)
+            await asyncio.sleep(self.attach_wait)
             
             # Try Info command to test device responsiveness
             try:
@@ -413,7 +419,7 @@ class QUSB2SNESSync:
         try:
             # Add delay before directory listing (SD2SNES requirement)
             # Increased delay to prevent firmware overload after large uploads
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(self.list_delay)
             
             response = await self._send_command_with_retry("List", operands=[path], max_retries=2)
             if not response or "Results" not in response:
@@ -435,7 +441,7 @@ class QUSB2SNESSync:
             
             # Add delay after directory listing (SD2SNES requirement)
             # Increased delay to prevent firmware overload after large uploads
-            await asyncio.sleep(1.0)
+            await asyncio.sleep(self.list_delay)
             return items
             
         except Exception as e:
@@ -481,13 +487,135 @@ class QUSB2SNESSync:
         """Create remote directory using proven working approach with retry logic"""
         try:
             await self._send_command_with_retry("MakeDir", operands=[path], max_retries=2)
-            await asyncio.sleep(1.0)  # Wait for directory creation
+            await asyncio.sleep(self.mkdir_delay)  # Wait for directory creation
             return True
         except Exception as e:
             self.log_error(f"❌ Failed to create directory {path}: {str(e)}")
             return False
     
-    async def upload_file(self, local_path: str, remote_path: str) -> bool:
+    # ------------------------------------------------------------------
+    # FXPAK helpers: browse / send selected ROMs / boot
+    # ------------------------------------------------------------------
+
+    _INVALID_REMOTE_CHARS = '<>:"/\\|?*'
+
+    @classmethod
+    def safe_remote_name(cls, name: str) -> str:
+        """Make a file/folder name safe for the FAT filesystem on the SD card."""
+        cleaned = "".join("_" if (c in cls._INVALID_REMOTE_CHARS or ord(c) < 32) else c for c in name)
+        return cleaned.strip().rstrip(".")
+
+    async def boot_rom(self, remote_path: str) -> bool:
+        """Start (or restart into) a ROM on the console via the usb2snes Boot opcode.
+
+        This interrupts whatever is currently running. Boot has no reply.
+        """
+        remote_path = self.normalize_remote_path(remote_path)
+        try:
+            if not await self._ensure_connection():
+                return False
+            self.log_progress(f"▶️ Booting {remote_path}")
+            response = await self._send_command("Boot", operands=[remote_path])
+            if response is None:
+                return False
+            # Boot has no reply and the server drops queued requests when the client
+            # disconnects, so stay connected until the console reports the new ROM
+            # (Info is queued behind Boot, so its reply means Boot has been executed).
+            wanted = remote_path.rsplit("/", 1)[-1].lower()
+            for _ in range(3):
+                info = await self._send_command("Info", timeout=20.0)
+                results = (info or {}).get("Results") or []
+                running = " ".join(str(r) for r in results).replace("\x00", "").lower()
+                if wanted in running:
+                    return True
+                await asyncio.sleep(1.0)
+            self.log_error(f"⚠️ Boot sent, but the console does not report {wanted} as running")
+            return False
+        except Exception as e:
+            self.log_error(f"❌ Boot failed for {remote_path}: {str(e)}")
+            return False
+
+    async def directory_exists(self, remote_dir: str) -> bool:
+        """Check a directory exists by listing its parent.
+
+        The SD2SNES drops the connection when listing a missing directory, so the
+        parent is always listed instead.
+        """
+        remote_dir = self.normalize_remote_path(remote_dir).rstrip("/")
+        if not remote_dir:
+            return True
+        parent, _, name = remote_dir.rpartition("/")
+        items = await self.list_directory(parent or "/")
+        return self.find_directory_case_insensitive(
+            name, [i["name"] for i in items if i.get("is_dir")]) is not None
+
+    async def ensure_directory(self, remote_dir: str) -> bool:
+        """Create remote_dir (and any missing parents). True if it exists afterwards."""
+        remote_dir = self.normalize_remote_path(remote_dir).rstrip("/")
+        if not remote_dir:
+            return True
+        current = ""
+        for part in remote_dir.strip("/").split("/"):
+            parent = current or "/"
+            items = await self.list_directory(parent)
+            existing = self.find_directory_case_insensitive(
+                part, [i["name"] for i in items if i.get("is_dir")])
+            current = f"{current}/{existing or part}"
+            if not existing:
+                if not await self.create_directory(current):
+                    return False
+        return True
+
+    async def remote_file_exists(self, remote_dir: str, filename: str) -> bool:
+        """True if a file named filename (case-insensitive) is in remote_dir."""
+        if not await self.directory_exists(remote_dir):
+            return False
+        items = await self.list_directory(self.normalize_remote_path(remote_dir) or "/")
+        wanted = filename.lower()
+        return any(i["name"].lower() == wanted and not i.get("is_dir") for i in items)
+
+    async def send_files(self, files: List[tuple], remote_dir: str,
+                         on_file: Optional[Callable[[int, int, str], None]] = None,
+                         on_bytes: Optional[Callable[[int, int, str], None]] = None) -> Dict:
+        """Upload (local_path, remote_name) pairs into remote_dir without overwriting.
+
+        Files already on the card are skipped and reported. Honours self.cancelled
+        between files. Returns lists of remote names: uploaded / skipped / failed,
+        plus 'remote_paths' (name -> path) and 'cancelled'.
+        """
+        result = {"uploaded": [], "skipped": [], "failed": [], "cancelled": False, "remote_paths": {}}
+        remote_dir = self.normalize_remote_path(remote_dir).rstrip("/")
+        if not await self.ensure_directory(remote_dir):
+            result["failed"] = [name for _, name in files]
+            return result
+
+        existing = {i["name"].lower() for i in await self.list_directory(remote_dir or "/")
+                    if not i.get("is_dir")}
+        total = len(files)
+        for index, (local_path, name) in enumerate(files, start=1):
+            if self.cancelled:
+                result["cancelled"] = True
+                break
+            remote_path = f"{remote_dir}/{name}"
+            result["remote_paths"][name] = remote_path
+            if name.lower() in existing:
+                result["skipped"].append(name)
+                self.log_progress(f"⏭️ Skipped (already on the card, not overwritten): {name}")
+                if on_file:
+                    on_file(index, total, name)
+                continue
+            if on_file:
+                on_file(index, total, name)
+            progress = (lambda sent, size, _n=name: on_bytes(sent, size, _n)) if on_bytes else None
+            if await self.upload_file(local_path, remote_path, on_bytes=progress):
+                result["uploaded"].append(name)
+                existing.add(name.lower())
+            else:
+                result["failed"].append(name)
+        return result
+
+    async def upload_file(self, local_path: str, remote_path: str,
+                          on_bytes: Optional[Callable[[int, int], None]] = None) -> bool:
         """Upload file to remote location with connection recovery"""
         max_retries = 2  # Files uploads are more expensive, fewer retries
         
@@ -516,7 +644,7 @@ class QUSB2SNESSync:
                 await asyncio.sleep(0.1)
                 
                 # Send file data in chunks with proper progress reporting like the working version
-                chunk_size = 1024  # Standard QUSB2SNES chunk size
+                chunk_size = 32 * 1024 if self.fast else 1024
                 bytes_sent = 0
                 total_chunks = 0
                 
@@ -531,6 +659,8 @@ class QUSB2SNESSync:
                             await self.websocket.send(chunk)
                             bytes_sent += len(chunk)
                             total_chunks += 1
+                            if on_bytes and not self.fast and (total_chunks % 32 == 0 or bytes_sent == file_size):
+                                on_bytes(bytes_sent, file_size)
                             
                             # Progress feedback every 500KB like the working version
                             if bytes_sent % (500*1024) == 0 or bytes_sent == file_size:
@@ -541,7 +671,7 @@ class QUSB2SNESSync:
                             
                             # Minimal delay to prevent overwhelming
                             if bytes_sent < file_size:
-                                await asyncio.sleep(0.001)  # Very small delay
+                                await asyncio.sleep(0 if self.fast else 0.001)
                                 
                         except Exception as e:
                             raise Exception(f"Failed to send chunk at byte {bytes_sent}: {str(e)}")
@@ -560,8 +690,24 @@ class QUSB2SNESSync:
                 else:  # Files > 8MB (very rare for SNES)
                     wait_time = 4.0  # Increased from 1.5s for huge files
                 
-                self.log_progress(f"QUSB2SNES: ⏳ Waiting {wait_time}s for file processing...")
-                await asyncio.sleep(wait_time)
+                if self.fast:
+                    # Info is queued behind PutFile, so its reply means the file is written.
+                    # Sending is buffered and finishes almost at once; the console then
+                    # writes to the SD card (~400 KB/s) without reporting, so progress
+                    # is estimated from that speed while waiting.
+                    info = asyncio.ensure_future(self._send_command("Info", timeout=120.0))
+                    started = asyncio.get_event_loop().time()
+                    while not info.done():
+                        await asyncio.wait({info}, timeout=0.25)
+                        if on_bytes and not info.done():
+                            est = (asyncio.get_event_loop().time() - started) * 400 * 1024
+                            on_bytes(int(min(est, file_size * 0.99)), file_size)
+                    await info
+                    if on_bytes:
+                        on_bytes(file_size, file_size)
+                else:
+                    self.log_progress(f"QUSB2SNES: ⏳ Waiting {wait_time}s for file processing...")
+                    await asyncio.sleep(wait_time)
                 
                 # Note: Individual file verification removed for performance
                 # Folder-level verification happens after all files in a folder are uploaded
@@ -1047,7 +1193,7 @@ class QUSB2SNESSync:
                 command["Operands"] = operands
             
             # Commands that don't send replies
-            no_reply_commands = ["Attach", "Name", "MakeDir", "PutFile", "Remove"]
+            no_reply_commands = ["Attach", "Name", "MakeDir", "PutFile", "Remove", "Boot"]
             
             if opcode in no_reply_commands:
                 self.log_progress(f"QUSB2SNES: Sending command (no response expected): {opcode} with operands: {operands}")

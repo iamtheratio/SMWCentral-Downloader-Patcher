@@ -339,6 +339,14 @@ class SettingsPage:
         )
         self.fetch_metadata_button.pack(side="left")
 
+        # FXPAK Pro (QUSB2SNES) section
+        try:
+            from fxpak_ui import FxpakSettingsSection
+            fxpak_section = FxpakSettingsSection(self.frame, self.setup_section.config, self.logger)
+            fxpak_section.create().pack(fill="x", pady=(0, 20))
+        except Exception as e:  # keep Settings usable if websockets etc. are unavailable
+            print(f"FXPAK settings unavailable: {e}")
+
         # Log section with level dropdown and clear button
         log_header_frame = ttk.Frame(self.frame)
         log_header_frame.pack(fill="x", pady=(0, 5))
