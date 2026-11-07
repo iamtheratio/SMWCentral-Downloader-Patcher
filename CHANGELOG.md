@@ -4,6 +4,22 @@ All notable changes to SMWC Downloader & Patcher will be documented in this file
 
 ## [Unreleased]
 
+### Added
+- **FXPAK Pro: Send & Play** (via QUsb2Snes): right-click a hack in the Collection for *Send to FXPAK*, *Play on FXPAK* and *Send and play on FXPAK*
+  - Send uploads the patched ROM(s) of one or several selected hacks with progress and cancel; files that already exist on the card are never overwritten and are listed as skipped
+  - Play uses the usb2snes `Boot` command and sends the ROM first if it is not on the card yet; no confirmation prompts
+- **Play button target**: a Settings option lets the ▶ button start the game on the FXPAK instead of the emulator (starts the copy on the card if present, otherwise sends it first, then plays)
+- **SD card folder browser** in Settings (new *FXPAK Pro (QUSB2SNES)* block): navigate, create folders and pick the target folder instead of typing it
+- Faster FXPAK send/play: shorter device delays (check + connect ~1 s instead of ~10 s, boot ~1.5 s) and no fixed wait after uploads
+- Upload progress in percent while sending a ROM to the FXPAK
+- Unit tests for the FXPAK helpers (fake websocket, no hardware) in `tests/fxpak_test.py`
+
+### Fixed
+- `qusb2snes_*` settings were stripped from `config.json` on save; they are now preserved
+
+### Notes
+- While QUsb2Snes is running it holds the console's USB port, so other programs using the same port cannot connect until it is closed
+
 ## [5.0] - 2026-03-15
 
 ### Added

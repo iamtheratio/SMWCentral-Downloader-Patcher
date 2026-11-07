@@ -261,6 +261,8 @@ class CollectionPage:
         self.tree.bind("<Button-1>", self._on_item_click)
         self.tree.bind("<Double-1>", self._on_item_double_click)
         self.tree.bind("<Motion>", self._on_mouse_motion)
+        for seq in (("<Button-2>", "<Control-Button-1>") if platform.system() == "Darwin" else ("<Button-3>",)):
+            self.tree.bind(seq, self._on_right_click)
         self.tree.bind("<Configure>", lambda e: self._toggle_h_scrollbar(self.h_scrollbar))
         
         # Status label - positioned in a footer frame after pagination
@@ -528,7 +530,12 @@ class CollectionPage:
         if col_id == "completed":
             self._toggle_completed(hack_id)
         elif col_id == "play":
-            self._launch_emulator(hack_id)
+            if self._play_target_is_fxpak():
+                hack = self._find_hack_data(hack_id)
+                if hack:
+                    self._fxpak_play(hack)
+            else:
+                self._launch_emulator(hack_id)
         elif col_id == "folder":
             self._open_hack_in_explorer(hack_id)
         elif col_id == "rating":
@@ -539,6 +546,83 @@ class CollectionPage:
             self.time_editor.start_edit(hack_id, item, event, "time_to_beat", col_id, self._validate_time_input)
         elif col_id == "notes":
             self.notes_editor.start_edit(hack_id, item, event, "notes", col_id, NotesValidator.validate)
+
+    # ------------------------------------------------------------------
+    # FXPAK Pro: right-click menu (Send / Play / Send and play)
+    # ------------------------------------------------------------------
+    def _on_right_click(self, event):
+        item = self.tree.identify_row(event.y)
+        if not item:
+            return
+        if item not in self.tree.selection():
+            self.tree.selection_set(item)
+        hacks = []
+        for sel in self.tree.selection():
+            tags = self.tree.item(sel)["tags"]
+            hack = self._find_hack_data(tags[0]) if tags else None
+            if hack:
+                hacks.append(hack)
+        if not hacks:
+            return
+        single = len(hacks) == 1
+        menu = tk.Menu(self.tree, tearoff=0)
+        n = len(hacks)
+        menu.add_command(label="Send to FXPAK" if single else f"Send {n} hacks to FXPAK",
+                         command=lambda: self._fxpak_send(hacks))
+        menu.add_command(label="Play on FXPAK", state="normal" if single else "disabled",
+                         command=lambda: self._fxpak_play(hacks[0]))
+        menu.add_command(label="Send and play on FXPAK", state="normal" if single else "disabled",
+                         command=lambda: self._fxpak_send(hacks, play=True))
+        try:
+            menu.tk_popup(event.x_root, event.y_root)
+        finally:
+            menu.grab_release()
+
+    def _play_target_is_fxpak(self):
+        cfg = self.config_manager
+        return bool(cfg.get("qusb2snes_enabled", False)) and cfg.get("qusb2snes_play_target", "emulator") == "fxpak"
+
+    def _hack_rom_paths(self, hack):
+        """All local patched ROM paths of a hack (multi-file aware)."""
+        paths = [f.get("path", "") for f in hack.get("files", []) or [] if f.get("path")]
+        if not paths and hack.get("file_path"):
+            paths = [hack["file_path"]]
+        return paths
+
+    def _fxpak_actions(self):
+        if not getattr(self, "_fxpak", None):
+            from fxpak_ui import FxpakActions
+            self._fxpak = FxpakActions(self.frame, self.logger)
+        return self._fxpak
+
+    def _fxpak_pick_single(self, hack):
+        """The one ROM to play: picker for multi-file hacks (if enabled), else the default."""
+        files = hack.get("files", []) or []
+        if len(files) > 1 and self._show_rom_picker:
+            return self._pick_rom_file(hack.get("title", "Unknown"), files)
+        return hack.get("file_path", "") or next(iter(self._hack_rom_paths(hack)), "")
+
+    def _fxpak_send(self, hacks, play=False):
+        try:
+            if play:
+                path = self._fxpak_pick_single(hacks[0])
+                if path:
+                    self._fxpak_actions().send([path], play_path=path)
+                return
+            paths = [p for h in hacks for p in self._hack_rom_paths(h)]
+            self._fxpak_actions().send(paths)
+        except Exception as e:
+            self._log(f"❌ FXPAK action failed: {e}", "Error")
+            messagebox.showerror("FXPAK", str(e))
+
+    def _fxpak_play(self, hack):
+        try:
+            path = self._fxpak_pick_single(hack)
+            if path:
+                self._fxpak_actions().play(path)
+        except Exception as e:
+            self._log(f"❌ FXPAK action failed: {e}", "Error")
+            messagebox.showerror("FXPAK", str(e))
 
     def _get_column_id(self, col_idx_str):
         """Convert treeview display column index (e.g. '#1') to logical column ID.
@@ -912,7 +996,7 @@ class CollectionPage:
         # Only show play icon if emulator is configured and file exists
         # Use cached emulator path for performance
         file_path = hack.get("file_path", "")
-        if self._emulator_path and file_path and os.path.exists(file_path):
+        if (self._emulator_path or self._play_target_is_fxpak()) and file_path and os.path.exists(file_path):
             return "▶"
         return ""
     

@@ -79,6 +79,13 @@ class ConfigManager:
             "emulator_path": "",
             "emulator_args": "",
             "emulator_args_enabled": False,
+            # FXPAK Pro / QUSB2SNES (Send & Play)
+            "qusb2snes_enabled": False,
+            "qusb2snes_host": "localhost",
+            "qusb2snes_port": 23074,
+            "qusb2snes_device": "",
+            "qusb2snes_remote_folder": "/ROMS",
+            "qusb2snes_play_target": "emulator",  # "emulator" or "fxpak"
             # Difficulty lookup cache (automatically populated from SMWC API)
             "difficulty_lookup": {
                 "diff_1": "Newcomer",
@@ -100,7 +107,9 @@ class ConfigManager:
         allowed_keys = {"base_rom_path", "output_dir", "api_delay", "flips_path",
                         "multi_type_enabled", "multi_type_download_mode", "difficulty_lookup",
                         "emulator_path", "emulator_args", "emulator_args_enabled", "auto_check_updates",
-                        "column_order", "visible_columns", "show_rom_picker"}
+                        "column_order", "visible_columns", "show_rom_picker",
+                        "qusb2snes_enabled", "qusb2snes_host", "qusb2snes_port",
+                        "qusb2snes_device", "qusb2snes_remote_folder", "qusb2snes_play_target"}
         cleaned = {}
 
         for key, value in config.items():
